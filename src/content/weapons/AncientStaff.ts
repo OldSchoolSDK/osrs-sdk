@@ -1,9 +1,9 @@
 "use strict";
 
 import InventoryImage from "../../assets/images/equipment/Ancient_staff.png";
-import { MeleeWeapon } from "../../sdk/weapons/MeleeWeapon";
-import { ItemName } from "../../sdk/ItemName";
 import { AttackStyle, AttackStyleTypes } from "../../sdk/AttackStylesController";
+import { ItemName } from "../../sdk/ItemName";
+import { MeleeWeapon } from "../../sdk/weapons/MeleeWeapon";
 
 export class AncientStaff extends MeleeWeapon {
   constructor() {
@@ -35,6 +35,10 @@ export class AncientStaff extends MeleeWeapon {
         slayer: 0,
       },
     };
+  }
+
+  get weight(): number {
+    return 2.267;
   }
 
   attackStyles() {
