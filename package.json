@@ -1,5 +1,5 @@
 {
-  "name": "@supalosa/oldschool-trainer-sdk",
+  "name": "osrs-sdk",
   "version": "0.1.1",
   "description": "",
   "main": "_bundles/main.js",
@@ -15,19 +15,19 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OldSchoolSDK/Engine.git"
+    "url": "git+https://github.com/OldSchoolSDK/osrs-sdk.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/OldSchoolSDK/Engine/issues"
+    "url": "https://github.com/OldSchoolSDK/osrs-sdk/issues"
   },
   "files": [
     "lib",
     "_bundles"
   ],
-  "homepage": "https://github.com/OldSchoolSDK/Engine#readme",
+  "homepage": "https://github.com/OldSchoolSDK/osrs-sdk#readme",
   "devDependencies": {
     "@types/jest": "^27.5.2",
     "@types/lodash": "^4.14.171",
