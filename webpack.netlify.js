@@ -5,7 +5,7 @@ const CopyPlugin = require("copy-webpack-plugin");
 
 const common = require('./webpack.common.js');
 
-// used for production builds
+// used for netlify previews
 module.exports = merge(common, {
   mode: "production",
   entry: "./sample/sample.ts",
