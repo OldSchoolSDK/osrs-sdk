@@ -10,8 +10,8 @@ export class Assets {
    */
   static getAssetUrl(asset: string) {
     // TODO switch CDN based on build variable 
-    const url = `https://assets-soltrainer.netlify.app/${asset}`;
-    //const url = `https://oldschool-cdn.com/${asset}`;
+    //const url = `https://assets-soltrainer.netlify.app/${asset}`;
+    const url = `https://oldschool-cdn.com/${asset}`;
     if (Assets.loadedAssets[url]) {
       return url;
     }
