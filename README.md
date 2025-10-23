@@ -11,7 +11,7 @@ This project stemmed from my interest in Old School Runescape's Inferno, and my 
 
 ## How do I use it?
 
-This is published at `@supalosa/oldschool-trainer-sdk`. Please see [here](https://github.com/Supalosa/InfernoTrainer) for example implementations. Better instructions will come soon.
+This is published at `osrs-sdk`. Please see [here](https://github.com/Supalosa/InfernoTrainer) for example implementations. Better instructions will come soon.
 
 ## I found a bug!
 
