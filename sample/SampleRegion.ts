@@ -25,6 +25,7 @@ import {
   UltorRing,
 } from "../src";
 import { SampleNpc } from "./SampleNpc";
+import { SampleScene } from "./SampleScene";
 
 export class SampleRegion extends Region {
   get initialFacing() {
@@ -97,6 +98,9 @@ export class SampleRegion extends Region {
     player.setUnitOptions(loadout);
 
     this.addMob(new SampleNpc(this, { x: 25, y: 20 }, {}));
+
+    this.addEntity(new SampleScene(this, { x: 0, y: 48 }));
+
     return { player };
   }
 }
