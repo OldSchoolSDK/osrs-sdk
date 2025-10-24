@@ -92,7 +92,6 @@ export interface UnitTargetBonuses {
 
 export abstract class Unit extends Renderable {
   prayerController: PrayerController;
-  lastOverhead?: BasePrayer = null;
   aggro?: Unit;
   perceivedLocation: Location;
   attackDelay = 0;

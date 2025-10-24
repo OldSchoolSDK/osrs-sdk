@@ -1,7 +1,6 @@
 "use strict";
 
 import { Player } from "./Player";
-import { Settings } from "./Settings";
 import { ImageLoader } from "./utils/ImageLoader";
 
 export enum PrayerGroups {
@@ -16,12 +15,11 @@ export enum PrayerGroups {
 }
 
 export class BasePrayer {
-  lastActivated = 0;
-  private lastDeactivated = 0;
-  // server-side
-  isActive = false;
-  // client-side
-  isLit = false;
+  isActive = false; // server-side
+  isLit = false; // client-side
+  nextActiveState: boolean | null = null; // enqueued server-side
+  willPlayOnSound = false;
+  willPlayOffSound = false;
   cachedImage: HTMLImageElement;
 
   constructor() {
@@ -33,18 +31,10 @@ export class BasePrayer {
   }
 
   tick() {
-    const ping = Settings.inputDelay || 0;
-    const now = Date.now();
-    if (this.isLit && !this.isActive) {
-      if (now >= this.lastActivated + ping) {
-        this.isActive = true;
-      }
-      this.isLit = true;
-    } else if (!this.isLit && this.isActive) {
-      if (now >= this.lastDeactivated + ping) {
-        this.isActive = false;
-      }
-      this.isLit = false;
+    if (this.nextActiveState !== null) {
+      this.isActive = this.nextActiveState;
+      this.isLit = this.isActive;
+      this.nextActiveState = null;
     }
   }
 
@@ -65,35 +55,45 @@ export class BasePrayer {
     return [];
   }
 
+  /**
+   * Currently only used by Quick-Prayers. UI clicks always go through `toggle`.
+   */
   activate(player: Player) {
     if (player.stats.prayer < this.levelRequirement()) {
       return;
     }
-    this.lastActivated = Date.now();
-    this.isLit = true;
+    if (!this.isActive || this.nextActiveState === false) this.willPlayOnSound = true;
+    this.nextActiveState = true;
+    this.handleConflicts(player);
   }
 
   toggle(player: Player) {
     if (player.stats.prayer < this.levelRequirement()) {
       return;
     }
-    const conflictingPrayers = player.prayerController.prayers
-      .filter(it => this.groups.some(group => it.groups.includes(group)))
-      .sort((p1: BasePrayer, p2: BasePrayer) => p2.lastActivated - p1.lastActivated);
-    if (this.isLit && conflictingPrayers[0] === this) {
+    if (this.isLit) {
       this.isLit = false;
+      this.willPlayOffSound = true;
     } else {
       this.isLit = true;
+      this.willPlayOnSound = true;
     }
-    if (this.isLit) {
-      this.lastActivated = Date.now();
-    } else {
-      this.lastDeactivated = Date.now();
-    }
+    // If clicked multiple times in a tick, invert the nextActiveState. Otherwise, use the inverse of isLit
+    this.nextActiveState = this.nextActiveState == null ? this.isLit : !this.nextActiveState;
+    this.handleConflicts(player);
+  }
+  
+  private handleConflicts(player: Player) {
+    const conflictingPrayers = player.prayerController.prayers
+      .filter(it => it !== this && this.groups.some(group => it?.groups.includes(group)));
+    conflictingPrayers.forEach(prayer => {
+      prayer.nextActiveState = false;
+    });
   }
 
   deactivate() {
-    this.isLit = false;
+    if (this.isActive || this.nextActiveState) this.willPlayOffSound = true;
+    this.nextActiveState = false;
   }
 
   isOverhead() {
@@ -116,6 +116,7 @@ export class BasePrayer {
   playOffSound() {
     // Override me
   }
+
   playOnSound() {
     // Override me
   }
