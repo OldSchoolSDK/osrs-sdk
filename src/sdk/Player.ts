@@ -402,13 +402,13 @@ export class Player extends Unit {
   }
 
   activatePrayers() {
-    this.lastOverhead = this.overhead;
     this.overhead = this.prayerController.overhead();
-    if (this.lastOverhead && !this.overhead) {
-      this.lastOverhead.playOffSound();
-    } else if (this.lastOverhead !== this.overhead) {
-      this.overhead.playOnSound();
-    }
+    this.prayerController.prayers.forEach(prayer => {
+      if (prayer.willPlayOffSound) prayer.playOffSound();
+      if (prayer.willPlayOnSound) prayer.playOnSound();
+      prayer.willPlayOffSound = false;
+      prayer.willPlayOnSound = false;
+    });
   }
 
   setAggro(mob: Unit) {
