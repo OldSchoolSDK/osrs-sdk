@@ -15,7 +15,6 @@ import { Viewport3d } from "./Viewport3d";
 import { Location } from "./Location";
 import { Mob } from "./Mob";
 import { Item } from "./Item";
-import { Viewport2d } from "./Viewport2d";
 import { Trainer } from "./Trainer";
 import { Component } from "./ui/Component";
 import { ToggleButton } from "./ui/ToggleButton";
@@ -38,7 +37,7 @@ type ViewportClickResult = ViewportEntitiesClick | ViewportCoordinateClick | nul
 type ViewportDrawResult = {
   // game canvas
   canvas: OffscreenCanvas;
-  // drawn on top of the game canvas. optional, not used for 2d view
+  // drawn on top of the game canvas for UI elements
   uiCanvas: OffscreenCanvas | null;
   flip: boolean;
   offsetX: number;
@@ -61,12 +60,10 @@ export interface ViewportDelegate {
 
 export class Viewport {
   static viewport: Viewport;
-  static setupViewport(region: Region, force2d = false) {
+  static setupViewport(region: Region) {
     const faceInitialSouth = region.initialFacing === CardinalDirection.SOUTH;
     // called after Settings have been initialized
-    Viewport.viewport = new Viewport(
-      Settings.use3dView && !force2d ? new Viewport3d(faceInitialSouth) : new Viewport2d(),
-    );
+    Viewport.viewport = new Viewport(new Viewport3d(faceInitialSouth));
   }
 
   activeButtonImage: HTMLImageElement = ImageLoader.createImage(ButtonActiveIcon);
