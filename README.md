@@ -1,17 +1,22 @@
 # OldSchoolSDK
 
-- [Click here to try the original Inferno Trainer (which this SDK was based on)](https://www.infernotrainer.com/)
-- [Click here to try the 3D Inferno Trainer](https://inferno.colosim.com/)
-- [Click here to try the 3D Sol Heredit Trainer](https://colosim.com/)
+- [Click here to try the Inferno Trainer](https://www.infernotrainer.com/)
+- [Click here to try the Sol Heredit Trainer](https://colosim.com/)
 - [Join our Discord](https://discord.gg/Z3ZyY7Yzt5)
 
 ## What is this project?
 
 This project stemmed from my interest in Old School Runescape's Inferno, and my desire for an open source, relatively clean re-implementation of the Old School Runescape engine. The underlying code is designed closer to a true game engine compared to any other trainer or simulator. The goal is for there to be a clean, well-defined API between all "Game Content" code and any underlying "Engine" code
 
+## What is the lineage of this project?
+
+The [BISTools Line of Sight tool](https://bistools.github.io/inferno.html) inspired [artsicle's inferno tool](https://artsicleofficial.github.io/infernointeractive/inferno.html) which inspired the original 2D Inferno Trainer by [@Tesla Owner](https://github.com/TeslaOwner/), which inspired [@Supalosa](https://github.com/Supalosa/) to both bring an accurate 3D mode as well as the Colosim. 
+
+Without all of these contributors that built upon each other, the polished version we have today would not exist.
+
 ## How do I use it?
 
-This is published at `@supalosa/oldschool-trainer-sdk`. Please see [here](https://github.com/Supalosa/InfernoTrainer) for example implementations. Better instructions will come soon.
+This is published at `osrs-sdk`. Please see [here](https://github.com/OldSchoolSDK/InfernoTrainer) for example implementations. Better instructions will come soon.
 
 ## I found a bug!
 
@@ -19,7 +24,7 @@ Likely. Please open a issue above. Videos, screenshots, proof of OSRS science, e
 
 ## Can I contribute?
 
-Sure. Right now the code is undergoing rapid development and the API is not stable. I am open to pull requests but I suggest you start small and let me talk to you first to make sure we're aligned.
+Sure. Right now the code is undergoing rapid development and the API is not stable. I am open to pull requests but I suggest you start small and [join our Discord](https://discord.gg/Z3ZyY7Yzt5), specifically the #development room.
 
 ## Development notes
 
@@ -43,9 +48,9 @@ From this project:
 
 From client project
 
-    npm link @supalosa/oldschool-trainer-sdk
+    npm link osrs-sdk
 
-When done, revert the changes to `package.json` and `npm unlink @supalosa/oldschool-trainer-sdk`, and re-install `@supalosa/oldschool-trainer-sdk` at the desired SDK version.
+When done, revert the changes to `package.json` and `npm unlink osrs-sdk`, and re-install `osrs-sdk` at the desired SDK version.
 
 ### Running tests
 
