@@ -171,6 +171,9 @@ export class SettingsControls extends BaseControls {
           Settings.is_keybinding = false;
         }, 20);
         Settings.persistToStorage();
+      } else if (key.match(/F\d+/)) {
+        // prevent browser actions from all F-keys
+        event.preventDefault();
       }
     });
   }
