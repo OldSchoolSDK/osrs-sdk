@@ -23,6 +23,8 @@ export class ContextMenu {
   menuOptions: MenuOption[] = [];
   linesOfText: MenuOption[] = [];
   destinationLocation: Location;
+  tooltip?: { text: { text: string, fillStyle: string }[], x: number, y: number };
+  holdingShift = false;
 
   setPosition(position: Location) {
     this.location = position;
@@ -103,6 +105,18 @@ export class ContextMenu {
       for (let i = 0; i < this.linesOfText.length; i++) {
         this.drawLineOfText(context, this.linesOfText[i].text, this.width, i * 20);
       }
+    } else if (this.tooltip && !this.holdingShift) {
+      context.save();
+      context.font = "17px OSRS";
+      context.textAlign = "left";
+      const { text, x, y } = this.tooltip;
+      const width = this.fillMixedTextWidth(context, text) + 20;
+      context.fillStyle = "#372f27";
+      context.fillRect(x, y + 50, width, 40);
+      context.fillStyle = "#4f4438";
+      context.fillRect(x + 2, y + 52, width - 4, 36);
+      this.fillMixedText(context, text, x + 10, y + 77, "white");
+      context.restore();
     }
     context.restore();
   }
