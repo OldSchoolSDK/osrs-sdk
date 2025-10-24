@@ -37,8 +37,10 @@ export class PlayerRegenTimer {
     this.hitpoint--;
     if (this.hitpoint === 0) {
       this.hitpoint = 100;
-      this.player.currentStats.hitpoint++;
-      this.player.currentStats.hitpoint = Math.min(this.player.stats.hitpoint, this.player.currentStats.hitpoint);
+      const currentHp = this.player.currentStats.hitpoint;
+      const lvlHp = this.player.stats.hitpoint;
+      const diff = currentHp === lvlHp ? 0 : currentHp > lvlHp ? -1 : 1;
+      this.player.currentStats.hitpoint += diff;
     }
   }
 }
