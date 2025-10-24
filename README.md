@@ -10,7 +10,9 @@ This project stemmed from my interest in Old School Runescape's Inferno, and my 
 
 ## What is the lineage of this project?
 
-The [BISTools Line of Sight tool](https://bistools.github.io/inferno.html) inspired [artsicle's inferno tool](https://artsicleofficial.github.io/infernointeractive/inferno.html) which inspired the original 2D version of this project by [@Tesla Owner](https://github.com/TeslaOwner/), which inspired the improved 3D version by [@Supalosa](https://github.com/Supalosa/). Without all of these contributors that built upon each other, the polished version we have today would not exist.
+The [BISTools Line of Sight tool](https://bistools.github.io/inferno.html) inspired [artsicle's inferno tool](https://artsicleofficial.github.io/infernointeractive/inferno.html) which inspired the original 2D Inferno Trainer by [@Tesla Owner](https://github.com/TeslaOwner/), which inspired [@Supalosa](https://github.com/Supalosa/) to both bring an accurate 3D mode as well as the Colosim. 
+
+Without all of these contributors that built upon each other, the polished version we have today would not exist.
 
 ## How do I use it?
 
