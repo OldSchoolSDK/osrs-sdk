@@ -8,6 +8,10 @@
 
 This project stemmed from my interest in Old School Runescape's Inferno, and my desire for an open source, relatively clean re-implementation of the Old School Runescape engine. The underlying code is designed closer to a true game engine compared to any other trainer or simulator. The goal is for there to be a clean, well-defined API between all "Game Content" code and any underlying "Engine" code
 
+## What is the lineage of this project?
+
+The [BISTools Line of Sight tool](https://bistools.github.io/inferno.html) inspired [artsicle's inferno tool](https://artsicleofficial.github.io/infernointeractive/inferno.html) which inspired the original 2D version of this project by [@Tesla Owner](https://github.com/TeslaOwner/), which inspired the improved 3D version by [@Supalosa](https://github.com/Supalosa/). Without all of these contributors that built upon each other, the polished version we have today would not exist.
+
 ## How do I use it?
 
 This is published at `osrs-sdk`. Please see [here](https://github.com/OldSchoolSDK/InfernoTrainer) for example implementations. Better instructions will come soon.
