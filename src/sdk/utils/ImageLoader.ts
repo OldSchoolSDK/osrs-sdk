@@ -22,8 +22,6 @@ export class ImageLoader {
       ImageLoader.completedImages++;
     });
     img.addEventListener("error", () => {
-      img.src = "";
-      img.src = src + "?retry=" + String(Math.random());
       ImageLoader.completedImages++;
     });
     this.imageCache[src] = img;
