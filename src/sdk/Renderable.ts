@@ -114,7 +114,7 @@ export abstract class Renderable {
     // Override me
   }
 
-  // draw in 2d mode
+  // draw using canvas (used as texture for sprites in 3D mode)
   draw(
     tickPercent: number,
     context: OffscreenCanvasRenderingContext2D,
