@@ -111,32 +111,42 @@ export class XpDropController {
       this.ctx.fillText("200,000,000", 105 * scale, 20 * scale);
     }
 
-    const xpDropYOffset = 85;
-    const dropFontSize = Math.floor(16 * (Settings.maxUiScale * 2));
-    this.ctx.fillStyle = "#FFFFFF";
-    this.ctx.font = `${dropFontSize}px Stats_11`;
+    const offsetX = 120;
+    const fontSize = Math.max(16 * scale, 24);
+    const imageSize = fontSize + 1;
+    this.ctx.font = `${fontSize}px Stats_11`;
     this.ctx.textAlign = "right";
+    this.ctx.textBaseline = "top";
     this.drops.forEach((drop, index) => {
-      const textSize = dropFontSize + 4;
       if (!drop.skill) {
         return;
       }
-      const skill = drop.skill;
-
-      const skillInfo = find(XpDropController.skills, { type: skill });
+      const offsetY = (index - tickPercent) * imageSize + 85;
+      const xpString = String(Math.floor(drop.xp));
+      const damageString = Settings.showPredictedHit && drop.damage && drop.skill !== 'hitpoint'
+        ? ` (${drop.damage})`
+        : '';
+      const xpWidth = this.ctx.measureText(xpString).width;
+      const damageWidth = this.ctx.measureText(damageString).width;
+      // left-most: predicted damage string
+      if (damageString) {
+        this.ctx.fillStyle = "#FF0000";
+        this.ctx.fillText(damageString, offsetX, offsetY);
+      }
+      // next: xp drop
+      this.ctx.fillStyle = "#FFFFFF";
+      this.ctx.fillText(xpString, offsetX - damageWidth, offsetY);
+      // last: skill icon
+      const skillInfo = find(XpDropController.skills, { type: drop.skill });
       if (skillInfo.image) {
         this.ctx.drawImage(
           skillInfo.image,
-          110 - this.ctx.measureText(String(drop.xp)).width - 20,
-          (index - tickPercent) * textSize - 13 + xpDropYOffset,
-          16,
-          16,
-        ),
-          skillInfo.image.width * Settings.maxUiScale * 2,
-          skillInfo.image.height * Settings.maxUiScale * 2;
+          offsetX - xpWidth - damageWidth - imageSize - (2 * scale),
+          offsetY,
+          imageSize,
+          imageSize,
+        );
       }
-
-      this.ctx.fillText(String(drop.xp), 110, (index - tickPercent) * textSize + xpDropYOffset);
     });
     destinationCanvas.drawImage(this.canvas, x, y);
   }
