@@ -1,3 +1,4 @@
+import { ControlPanelController } from "./ControlPanelController";
 import { Location } from "./Location";
 import { Settings } from "./Settings";
 import { Trainer } from "./Trainer";
@@ -105,7 +106,7 @@ export class ContextMenu {
       for (let i = 0; i < this.linesOfText.length; i++) {
         this.drawLineOfText(context, this.linesOfText[i].text, this.width, i * 20);
       }
-    } else if (this.tooltip && !Viewport.viewport.holdingShift) {
+    } else if (this.tooltip && !Viewport.viewport.holdingShift && !ControlPanelController.controller.isCursorInside) {
       context.save();
       const scale = Settings.maxUiScale;
       context.font = `${Math.round(16 * scale)}px Stats_11`;

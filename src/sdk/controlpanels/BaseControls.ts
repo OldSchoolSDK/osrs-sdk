@@ -6,6 +6,7 @@ export class BaseControls {
   panelImage: HTMLImageElement = ImageLoader.createImage(this.panelImageReference);
   tabImage: HTMLImageElement = ImageLoader.createImage(this.tabImageReference);
   selected = false;
+  isCursorInside = false;
 
   get keyBinding(): string {
     return "";
