@@ -275,6 +275,10 @@ export class Viewport3d implements ViewportDelegate {
         break;
     }
   }
+  
+  onBlur(e: FocusEvent) {
+    Viewport.viewport.holdingShift = false;
+  }
 
   initCameraEvents(canvas) {
     canvas.addEventListener("mousemove", this.onDocumentMouseMove.bind(this), false);
@@ -284,6 +288,7 @@ export class Viewport3d implements ViewportDelegate {
     canvas.addEventListener("touchend", this.onDocumentTouchEnd.bind(this), false);
     window.addEventListener("keydown", this.onKeyDown.bind(this), false);
     window.addEventListener("keyup", this.onKeyUp.bind(this), false);
+    window.addEventListener("blur", this.onBlur.bind(this), false);
   }
 
   calculateCanvasDimensions() {
