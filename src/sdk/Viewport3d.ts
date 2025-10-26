@@ -217,7 +217,7 @@ export class Viewport3d implements ViewportDelegate {
 
   onKeyDown(e: KeyboardEvent) {
     if (e.key === 'Shift') {
-      Viewport.viewport.contextMenu.holdingShift = true;
+      Viewport.viewport.holdingShift = true;
     }
     const allowWasd = !Settings.isUsingWasdKeybind;
     if (!allowWasd && ["w", "a", "s", "d"].includes(e.key.toLowerCase())) {
@@ -250,7 +250,7 @@ export class Viewport3d implements ViewportDelegate {
 
   onKeyUp(e: KeyboardEvent) {
     if (e.key === 'Shift') {
-      Viewport.viewport.contextMenu.holdingShift = false;
+      Viewport.viewport.holdingShift = false;
     }
     const allowWasd = !Settings.isUsingWasdKeybind;
     if (!allowWasd && ["w", "a", "s", "d"].includes(e.key.toLowerCase())) {

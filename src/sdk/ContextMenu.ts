@@ -24,7 +24,6 @@ export class ContextMenu {
   linesOfText: MenuOption[] = [];
   destinationLocation: Location;
   tooltip?: { text: { text: string, fillStyle: string }[], x: number, y: number };
-  holdingShift = false;
 
   setPosition(position: Location) {
     this.location = position;
@@ -105,7 +104,7 @@ export class ContextMenu {
       for (let i = 0; i < this.linesOfText.length; i++) {
         this.drawLineOfText(context, this.linesOfText[i].text, this.width, i * 20);
       }
-    } else if (this.tooltip && !this.holdingShift) {
+    } else if (this.tooltip && !Viewport.viewport.holdingShift) {
       context.save();
       context.font = "17px OSRS";
       context.textAlign = "left";
