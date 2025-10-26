@@ -1,4 +1,5 @@
 import { Location } from "./Location";
+import { Settings } from "./Settings";
 import { Trainer } from "./Trainer";
 import { Viewport } from "./Viewport";
 
@@ -106,15 +107,17 @@ export class ContextMenu {
       }
     } else if (this.tooltip && !Viewport.viewport.holdingShift) {
       context.save();
-      context.font = "17px OSRS";
+      const scale = Settings.maxUiScale;
+      context.font = `${Math.round(16 * scale)}px Stats_11`;
       context.textAlign = "left";
+      context.textBaseline = "middle";
       const { text, x, y } = this.tooltip;
-      const width = this.fillMixedTextWidth(context, text) + 20;
+      const width = this.fillMixedTextWidth(context, text) + 10 * scale;
       context.fillStyle = "#372f27";
-      context.fillRect(x, y + 50, width, 40);
+      context.fillRect(x, y + 25 * scale, width, 20 * scale);
       context.fillStyle = "#4f4438";
-      context.fillRect(x + 2, y + 52, width - 4, 36);
-      this.fillMixedText(context, text, x + 10, y + 77, "white");
+      context.fillRect(x + scale, y + 26 * scale, width - 2 * scale, 18 * scale);
+      this.fillMixedText(context, text, x + 5 * scale, y + 35 * scale, "white");
       context.restore();
     }
     context.restore();
