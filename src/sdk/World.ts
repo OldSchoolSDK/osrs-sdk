@@ -24,12 +24,13 @@ export class World {
   deltaTimeSincePause = -1;
   deltaTimeSinceLastTick = -1;
   lastMenuVisible: boolean;
-  fpsInterval = 1000 / Settings.fps;
   then: number;
   startTime: number;
   frameCount = 0;
   tickTimer = 0;
+  nextTickTimer = 0;
   clientTickTimer = 0;
+  fps = 50; // updates to track realtime framerate
 
   clientTickHandle: ReturnType<typeof setTimeout> | null = null;
 
@@ -39,16 +40,16 @@ export class World {
 
   startTicking() {
     this.isPaused = false;
+    const now = window.performance.now();
     if (this.deltaTimeSincePause === -1) {
-      this.tickTimer = window.performance.now();
-      this.then = window.performance.now();
+      this.tickTimer = now;
+      this.then = now;
     } else {
-      this.then = window.performance.now() - this.deltaTimeSincePause;
-
-      this.tickTimer = window.performance.now() - this.deltaTimeSinceLastTick;
-
+      this.then = now - this.deltaTimeSincePause;
+      this.tickTimer = now - this.deltaTimeSinceLastTick;
       this.deltaTimeSincePause = -1;
     }
+    this.nextTickTimer = this.tickTimer + Settings.tickMs;
     ControlPanelController.controller.onWorldTick();
     this.browserLoop(window.performance.now());
     this.clientTickHandle = setInterval(() => this.doClientTick(), CLIENT_TICK_MS);
@@ -80,21 +81,20 @@ export class World {
       return;
     }
     const elapsed = now - this.then;
-    const tickElapsed = now - this.tickTimer;
-    if (tickElapsed >= 600) {
+    this.fps = Math.floor(1000 / elapsed);
+    
+    if (now > this.nextTickTimer) {
+      this.nextTickTimer += Settings.tickMs;
       this.tickTimer = now;
       if (this.getReadyTimer > 0) {
         this.getReadyTimer--;
       }
       this.tickWorld();
     }
-    this.tickPercent = (window.performance.now() - this.tickTimer) / Settings.tickMs;
-
-    if (elapsed > this.fpsInterval) {
-      this.then = now - (elapsed % this.fpsInterval);
-      Viewport.viewport.draw(this);
-      this.frameCount++;
-    }
+    this.tickPercent = (now - this.tickTimer) / Settings.tickMs;
+    Viewport.viewport.draw(this);
+    this.then = now;
+    this.frameCount++;
   }
 
   tickWorld(n = 1) {

@@ -210,7 +210,7 @@ export class Viewport {
     this.components.forEach((component) => component.draw(this.context, Settings.maxUiScale, 0, 0));
 
     if (this.clickController.clickAnimation) {
-      this.clickController.clickAnimation.draw(this.context);
+      this.clickController.clickAnimation.draw(this.context, world.fps);
     }
 
     this.context.restore();

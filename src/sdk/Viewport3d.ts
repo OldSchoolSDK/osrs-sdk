@@ -403,7 +403,7 @@ export class Viewport3d implements ViewportDelegate {
       // Update the camera position relative to the player's mesh
       const v = new THREE.Vector3(0.5, 0, -0.5);
       v.add(actor.getModel().getWorldPosition());
-      this.pivot.position.lerp(v, 0.1);
+      this.pivot.position.lerp(v, 5 / world.fps);
       // Add all projectiles to scene
       projectiles.push(...player.incomingProjectiles);
     });
