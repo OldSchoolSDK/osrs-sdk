@@ -13,7 +13,6 @@ export class Settings {
     return Settings._tileSize * Settings.zoomScale;
   }
 
-  static fps = 50;
   static tickMs = 600;
   static playsAudio: boolean;
   static playsAreaAudio: boolean;

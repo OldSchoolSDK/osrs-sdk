@@ -43,7 +43,7 @@ export class ClickAnimation {
     ],
   };
 
-  draw(context: CanvasRenderingContext2D) {
+  draw(context: CanvasRenderingContext2D, fps: number) {
     if (this.ttl <= 0) {
       return;
     }
@@ -51,6 +51,6 @@ export class ClickAnimation {
     const frames = this.color === "red" ? ClickAnimation.frames.red : ClickAnimation.frames.yellow;
     context.drawImage(frames[frameNumber], this.x - 9, this.y - 9);
 
-    this.ttl -= 1.65 / Settings.fps;
+    this.ttl -= 1.65 / fps;
   }
 }

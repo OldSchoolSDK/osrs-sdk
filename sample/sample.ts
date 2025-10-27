@@ -6,7 +6,7 @@ import { Assets, Settings, Region, World, Viewport, MapController, ImageLoader, 
 
 import { SampleRegion } from "./SampleRegion";
 
-const SpecialAttackBarBackground = Assets.getAssetUrl("/assets/images/attackstyles/interface/special_attack_background.png");
+const SpecialAttackBarBackground = Assets.getAssetUrl("assets/images/attackstyles/interface/special_attack_background.png");
 
 
 Settings.readFromStorage();
