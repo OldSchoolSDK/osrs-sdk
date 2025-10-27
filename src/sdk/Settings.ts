@@ -50,6 +50,7 @@ export class Settings {
   static controlPanelScale: number;
 
   static maxUiScale: number;
+  static showPredictedHit = true;
 
   static _isMobileResult = null;
 
