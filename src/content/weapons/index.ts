@@ -6,5 +6,6 @@ export { BladeOfSaeldor } from './BladeOfSaeldor';
 export { Blowpipe } from './Blowpipe';
 export { BowOfFaerdhinen } from './BowOfFaerdhinen';
 export { KodaiWand } from './KodaiWand';
+export { NoxiousHalberd } from "./NoxiousHalberd"
 export { ScytheOfVitur } from './ScytheOfVitur';
 export { TwistedBow } from './TwistedBow';

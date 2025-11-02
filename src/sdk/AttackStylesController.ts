@@ -24,6 +24,10 @@ import ScytheAggressiveSlashImage from "../assets/images/attackstyles/scythe/agg
 import ScytheAggressiveCrushImage from "../assets/images/attackstyles/scythe/aggressivecrush.png";
 import ScytheDefensiveImage from "../assets/images/attackstyles/scythe/defensive.png";
 
+import HalberdControlledImage from "../assets/images/attackstyles/halberd/controlled.png";
+import HalberdAggressiveSlashImage from "../assets/images/attackstyles/halberd/aggressiveslash.png";
+import HalberdDefensiveImage from "../assets/images/attackstyles/halberd/defensive.png";
+
 import ChinchompaShortFuseImage from "../assets/images/attackstyles/chinchompas/short.png";
 import ChinchompaMediumFuseImage from "../assets/images/attackstyles/chinchompas/medium.png";
 import ChinchompaLongFuseImage from "../assets/images/attackstyles/chinchompas/long.png";
@@ -150,6 +154,11 @@ export class AttackStylesController {
       [AttackStyle.SHORT_FUSE]: ImageLoader.createImage(ChinchompaShortFuseImage),
       [AttackStyle.MEDIUM_FUSE]: ImageLoader.createImage(ChinchompaMediumFuseImage),
       [AttackStyle.LONG_FUSE]: ImageLoader.createImage(ChinchompaLongFuseImage),
+    },
+    [AttackStyleTypes.POLEARM]: {
+      [AttackStyle.CONTROLLED]: ImageLoader.createImage(HalberdControlledImage),
+      [AttackStyle.AGGRESSIVESLASH]: ImageLoader.createImage(HalberdAggressiveSlashImage),
+      [AttackStyle.DEFENSIVE]: ImageLoader.createImage(HalberdDefensiveImage),
     },
   };
 
