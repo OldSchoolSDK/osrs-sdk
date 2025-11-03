@@ -226,9 +226,7 @@ export class Weapon extends Equipment {
     if (from.type === UnitTypes.PLAYER && this.damage > 0) {
       AttackStylesController.controller
         .getWeaponXpDrops(this.attackStyle(), this.damage, to.xpBonusMultiplier)
-        .forEach(({ skill, xp }) => {
-          from.grantXp(new XpDrop(skill, xp, this.damage));
-        });
+        .forEach(xpDrop => from.grantXp(xpDrop));
     }
   }
 

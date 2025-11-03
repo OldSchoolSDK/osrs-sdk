@@ -310,7 +310,7 @@ export class Player extends Unit {
     this.xpDrops.forEach(({ skill, xp, damage }) => {
       if (!aggregated[skill]) aggregated[skill] = { skill, xp: 0, damage: 0 };
       aggregated[skill].xp += xp;
-      aggregated[skill].damage += damage;
+      aggregated[skill].damage += damage || 0;
     });
 
     Object.values(aggregated).forEach(drop => {

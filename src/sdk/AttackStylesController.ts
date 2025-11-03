@@ -32,6 +32,7 @@ import SwordChopImage from "../assets/images/attackstyles/swords/chop.png";
 import SwordSlashImage from "../assets/images/attackstyles/swords/slash.png";
 import SwordLungeImage from "../assets/images/attackstyles/swords/lunge.png";
 import SwordBlockImage from "../assets/images/attackstyles/swords/block.png";
+import { XpDrop } from "./XpDrop";
 
 //https://oldschool.runescape.wiki/w/Weapons/Types
 export enum AttackStyleTypes {
@@ -197,11 +198,10 @@ export class AttackStylesController {
     return this.stylesMap[weapon.attackStyleCategory()];
   }
 
-  getWeaponXpDrops(style: AttackStyle, damage: number, npcMultiplier: number): { xp: number; skill: string }[] {
-    return AttackStylesController.attackStyleXpType[style].map(({ skill, multiplier: skillMultiplier }) => ({
-      xp: damage * skillMultiplier * npcMultiplier,
-      skill,
-    }));
+  getWeaponXpDrops(style: AttackStyle, damage: number, npcMultiplier: number): XpDrop[] {
+    return AttackStylesController.attackStyleXpType[style].map(({ skill, multiplier: skillMultiplier }) => {
+      return new XpDrop(skill, damage * skillMultiplier * npcMultiplier, damage);
+    });
   }
 
   getWeaponStrengthBonus(style: AttackStyle): number {
