@@ -72,4 +72,5 @@ export enum ItemName {
   BLADE_OF_SAELDOR = "Blade of saeldor",
   AVERNIC_DEFENDER = "Avernic defender",
   ULTOR_RING = "Ultor ring",
+  SOULREAPER_AXE = "Soulreaper axe",
 }

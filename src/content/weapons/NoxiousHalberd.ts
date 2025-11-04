@@ -1,12 +1,11 @@
 import NoxiousHalberdImage from "../../assets/images/weapons/Noxious_halberd.png";
-import { MeleeWeapon } from "../../sdk/weapons/MeleeWeapon";
-import { ItemName } from "../../sdk/ItemName";
-import { AttackStyle, AttackStyleTypes } from "../../sdk/AttackStylesController";
-import { Assets } from "../../sdk/utils/Assets";
-import { PlayerAnimationIndices } from "../../sdk/rendering/GLTFAnimationConstants";
-import { Sound } from "../../sdk/utils/SoundCache";
-
 import ScytheAttackSound from "../../assets/sounds/scythe_swing_2524.ogg";
+import { AttackStyle, AttackStyleTypes } from "../../sdk/AttackStylesController";
+import { ItemName } from "../../sdk/ItemName";
+import { PlayerAnimationIndices } from "../../sdk/rendering/GLTFAnimationConstants";
+import { Assets } from "../../sdk/utils/Assets";
+import { Sound } from "../../sdk/utils/SoundCache";
+import { MeleeWeapon } from "../../sdk/weapons/MeleeWeapon";
 
 export class NoxiousHalberd extends MeleeWeapon {
   constructor() {
@@ -77,17 +76,17 @@ export class NoxiousHalberd extends MeleeWeapon {
     return NoxiousHalberdImage;
   }
 
-  private Model = Assets.getAssetUrl("models/player_blade_of_saeldor.glb");
+  private Model = Assets.getAssetUrl("models/player_noxious_halberd.glb");
   override get model() {
     return this.Model;
   }
 
   override get attackAnimationId() {
-    return PlayerAnimationIndices.ScytheSwing;
+    return PlayerAnimationIndices.HalberdSlash;
   }
 
   override get idleAnimationId() {
-    return PlayerAnimationIndices.Idle;
+    return PlayerAnimationIndices.HalberdIdle;
   }
 
   get attackSound() {

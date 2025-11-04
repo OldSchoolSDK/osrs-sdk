@@ -28,6 +28,11 @@ import HalberdControlledImage from "../assets/images/attackstyles/halberd/contro
 import HalberdAggressiveSlashImage from "../assets/images/attackstyles/halberd/aggressiveslash.png";
 import HalberdDefensiveImage from "../assets/images/attackstyles/halberd/defensive.png";
 
+import AxeAccurateImage from "../assets/images/attackstyles/battleaxe/accurate.png"
+import AxeAggressiveSlashImage from "../assets/images/attackstyles/battleaxe/aggressiveslash.png"
+import AxeAggressiveCrushImage from "../assets/images/attackstyles/battleaxe/aggressivecrush.png"
+import AxeDefensiveImage from "../assets/images/attackstyles/battleaxe/defensive.png"
+
 import ChinchompaShortFuseImage from "../assets/images/attackstyles/chinchompas/short.png";
 import ChinchompaMediumFuseImage from "../assets/images/attackstyles/chinchompas/medium.png";
 import ChinchompaLongFuseImage from "../assets/images/attackstyles/chinchompas/long.png";
@@ -160,6 +165,12 @@ export class AttackStylesController {
       [AttackStyle.AGGRESSIVESLASH]: ImageLoader.createImage(HalberdAggressiveSlashImage),
       [AttackStyle.DEFENSIVE]: ImageLoader.createImage(HalberdDefensiveImage),
     },
+    [AttackStyleTypes.AXE]: {
+      [AttackStyle.ACCURATE]: ImageLoader.createImage(AxeAccurateImage),
+      [AttackStyle.AGGRESSIVESLASH]: ImageLoader.createImage(AxeAggressiveSlashImage),
+      [AttackStyle.AGGRESSIVECRUSH]: ImageLoader.createImage(AxeAggressiveCrushImage),
+      [AttackStyle.DEFENSIVE]: ImageLoader.createImage(AxeDefensiveImage),
+    }
   };
 
   static attackStyleXpType: Record<AttackStyle, { skill: string; multiplier: number }[]> = {

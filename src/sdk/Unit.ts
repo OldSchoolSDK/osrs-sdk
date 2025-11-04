@@ -120,6 +120,11 @@ export abstract class Unit extends Renderable {
   lastInteraction: Unit | null = null;
   lastInteractionAge = 0;
 
+  // these are player-specific but weapon function type definitions would make
+  // them difficult to access if they were defined on Player
+  soulreaperAxeStacks = 0;
+  soulreaperAxeTicksSinceAttack = 0;
+
   get deathAnimationLength(): number {
     return 3;
   }

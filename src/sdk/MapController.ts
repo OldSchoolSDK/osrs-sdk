@@ -21,6 +21,7 @@ import MapWalkIcon from "../assets/images/interface/map_walk_icon.png";
 import MapRunIcon from "../assets/images/interface/map_run_icon.png";
 import MapStamIcon from "../assets/images/interface/map_stam_icon.png";
 import MapSpecIcon from "../assets/images/interface/map_spec_icon.png";
+import MapSpecAxeIcon from "../assets/images/interface/map_spec_axe_icon.png";
 
 import ColorScale from "color-scales";
 import { PlayerStats } from "./PlayerStats";
@@ -31,6 +32,7 @@ import { MenuOption } from "./ContextMenu";
 import { Chrome } from "./Chrome";
 import { Viewport } from "./Viewport";
 import { Trainer } from "./Trainer";
+import { ItemName } from "./ItemName";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -68,6 +70,7 @@ export class MapController {
   mapRunIcon = ImageLoader.createImage(MapRunIcon);
   mapStamIcon = ImageLoader.createImage(MapStamIcon);
   mapSpecIcon = ImageLoader.createImage(MapSpecIcon);
+  mapSpecAxeIcon = ImageLoader.createImage(MapSpecAxeIcon)
   mapXpButton = ImageLoader.createImage(MapXpButton);
   mapXpHoverButton = ImageLoader.createImage(MapXpHoverButton);
 
@@ -153,12 +156,13 @@ export class MapController {
     );
     ctx.globalCompositeOperation = "source-over";
 
-    const specPercentage = this.currentStats.specialAttack / 100;
+    const soulreaperAxeEquipped = Trainer.player.equipment.weapon?.itemName === ItemName.SOULREAPER_AXE;
+    const specPercentage = soulreaperAxeEquipped ? Trainer.player.soulreaperAxeStacks / 5 : this.currentStats.specialAttack / 100;
     this.mapSpecOrbMasked = new OffscreenCanvas(this.mapSpecOrb.width, this.mapSpecOrb.height);
     ctx = this.mapSpecOrbMasked.getContext("2d") as OffscreenCanvasRenderingContext2D;
     ctx.fillStyle = "white";
     let specOrb = this.mapNoSpecOrb;
-    if (Trainer.player.equipment.weapon && Trainer.player.equipment.weapon.hasSpecialAttack()) {
+    if (Trainer.player.equipment.weapon && Trainer.player.equipment.weapon.hasSpecialAttack() || soulreaperAxeEquipped) {
       if (Trainer.player.useSpecialAttack) {
         specOrb = this.mapSpecOnOrb;
       } else {
@@ -492,7 +496,12 @@ export class MapController {
     }
     ctx.drawImage(mapRunIcon, offset + 37 * scale, 118 * scale, 26 * scale, 26 * scale);
     ctx.drawImage(this.mapSpecOrbMasked, offset + 59 * scale, 144 * scale, 26 * scale, 26 * scale);
+    const soulreaperAxeEquipped = Trainer.player.equipment.weapon?.itemName === ItemName.SOULREAPER_AXE;
+    if (soulreaperAxeEquipped) {
+    ctx.drawImage(this.mapSpecAxeIcon, offset + 62 * scale, 148 * scale, 22 * scale, 18 * scale);
+    } else {
     ctx.drawImage(this.mapSpecIcon, offset + 57 * scale, 142 * scale, 30 * scale, 30 * scale);
+    }
 
     // // hitpoints
     ctx.fillStyle = "black";
@@ -511,10 +520,12 @@ export class MapController {
     ctx.fillStyle = this.colorScale.getColor(this.currentStats.run / 10000).toHexString();
     ctx.fillText(String(Math.floor(this.currentStats.run / 100)), offset + 24 * scale, 139 * scale);
 
-    // spec
+    // spec or soulreaper stacks
     ctx.fillStyle = "black";
-    ctx.fillText(String(this.currentStats.specialAttack), offset + 47 * scale, 166 * scale);
-    ctx.fillStyle = this.colorScale.getColor(this.currentStats.specialAttack / 100).toHexString();
-    ctx.fillText(String(this.currentStats.specialAttack), offset + 46 * scale, 165 * scale);
+    const specPercentage = soulreaperAxeEquipped ? Trainer.player.soulreaperAxeStacks / 5 : this.currentStats.specialAttack / 100;
+    const specText = soulreaperAxeEquipped ? Trainer.player.soulreaperAxeStacks : this.currentStats.specialAttack
+    ctx.fillText(String(specText), offset + 47 * scale, 166 * scale);
+    ctx.fillStyle = this.colorScale.getColor(specPercentage).toHexString();
+    ctx.fillText(String(specText), offset + 46 * scale, 165 * scale);
   }
 }
