@@ -8,4 +8,5 @@ export { BowOfFaerdhinen } from './BowOfFaerdhinen';
 export { KodaiWand } from './KodaiWand';
 export { NoxiousHalberd } from "./NoxiousHalberd"
 export { ScytheOfVitur } from './ScytheOfVitur';
+export { SoulreaperAxe } from "./SoulreaperAxe"
 export { TwistedBow } from './TwistedBow';
