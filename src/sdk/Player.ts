@@ -22,7 +22,7 @@ import { SetEffect } from "./SetEffect";
 import { Settings } from "./Settings";
 import { Unit, UnitBonuses, UnitOptions, UnitTypes } from "./Unit";
 import { Sound } from "./utils/SoundCache";
-import { XpDrop, XpDropAggregator } from "./XpDrop";
+import { XpDrop } from "./XpDrop";
 import { XpDropController } from "./XpDropController";
 
 import LeatherHit from "../assets/sounds/hit.ogg";
@@ -63,7 +63,7 @@ export class Player extends Unit {
 
   stats: PlayerStats;
   currentStats: PlayerStats;
-  xpDrops: XpDropAggregator;
+  xpDrops: XpDrop[] = [];
   overhead: BasePrayer;
   running = true;
   cachedBonuses: UnitBonuses = null;
@@ -291,14 +291,11 @@ export class Player extends Unit {
   }
 
   clearXpDrops() {
-    this.xpDrops = {};
+    this.xpDrops.length = 0;
   }
 
   grantXp(xpDrop: XpDrop) {
-    if (!this.xpDrops[xpDrop.skill]) {
-      this.xpDrops[xpDrop.skill] = 0;
-    }
-    this.xpDrops[xpDrop.skill] += xpDrop.xp;
+    this.xpDrops.push(xpDrop);
   }
 
   sendXpToController() {
@@ -309,11 +306,15 @@ export class Player extends Unit {
       return;
     }
 
-    Object.keys(this.xpDrops).forEach((skill) => {
-      XpDropController.controller.registerXpDrop({
-        skill,
-        xp: Math.ceil(this.xpDrops[skill]),
-      });
+    const aggregated: { [skill: string]: XpDrop } = {};
+    this.xpDrops.forEach(({ skill, xp, damage }) => {
+      if (!aggregated[skill]) aggregated[skill] = { skill, xp: 0, damage: 0 };
+      aggregated[skill].xp += xp;
+      aggregated[skill].damage += damage || 0;
+    });
+
+    Object.values(aggregated).forEach(drop => {
+      XpDropController.controller.registerXpDrop(drop);
     });
 
     this.clearXpDrops();
