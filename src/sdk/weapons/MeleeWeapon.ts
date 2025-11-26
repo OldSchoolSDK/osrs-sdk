@@ -2,6 +2,7 @@ import { AttackStylesController } from "../AttackStylesController";
 import { PrayerGroups } from "../BasePrayer";
 import { EquipmentTypes } from "../Equipment";
 import { Weapon, AttackBonuses } from "../gear/Weapon";
+import { ItemName } from "../ItemName";
 import { Unit, UnitTypes } from "../Unit";
 import { ProjectileOptions } from "./Projectile";
 
@@ -18,7 +19,16 @@ export class MeleeWeapon extends Weapon {
 
   attack(from: Unit, to: Unit, bonuses: AttackBonuses = {}): boolean {
     bonuses.attackStyle = bonuses.attackStyle || "slash";
-    return super.attack(from, to, bonuses);
+    const result = super.attack(from, to, bonuses);
+
+    // SRA needs to increase stacks on attack but after max hit is calculated
+    const isWearingSoulreaperAxe = from.equipment.weapon?.itemName === ItemName.SOULREAPER_AXE;
+    if (isWearingSoulreaperAxe && from.soulreaperAxeStacks < 5) {
+      from.soulreaperAxeStacks++;
+      from.soulreaperAxeTicksSinceAttack = 0;
+      from.currentStats.hitpoint = Math.max(1, from.currentStats.hitpoint - 8);
+    }
+    return result;
   }
 
   _calculatePrayerEffects(from: Unit, to: Unit, bonuses: AttackBonuses) {
@@ -84,8 +94,11 @@ export class MeleeWeapon extends Weapon {
     } else {
       bonuses.styleStrengthBonus = 0;
     }
+    // "Each Soul stack provides a 6% boost to a player's Strength Level, up to a maximum of +30% at five stacks. This boost is additive with, and works similarly to the Strength multipliers from prayers like Piety or Ultimate Strength."
+    const isWearingSoulreaperAxe = from.equipment.weapon?.itemName === ItemName.SOULREAPER_AXE;
+    const soulreaperAxeBonusMult = isWearingSoulreaperAxe ? 0.06 * from.soulreaperAxeStacks : 0
     return Math.floor(
-      (Math.floor(from.currentStats.strength * prayerMultiplier) + bonuses.styleStrengthBonus + 8) * bonuses.voidMultiplier,
+      (Math.floor(from.currentStats.strength * (prayerMultiplier + soulreaperAxeBonusMult)) + bonuses.styleStrengthBonus + 8) * bonuses.voidMultiplier,
     );
   }
 
@@ -120,8 +133,10 @@ export class MeleeWeapon extends Weapon {
   }
 
   _attackRoll(from: Unit, to: Unit, bonuses: AttackBonuses) {
+    const isWearingSoulreaperAxe = from.equipment.weapon?.itemName === ItemName.SOULREAPER_AXE;
+    const soulreaperBonusAccuracy = isWearingSoulreaperAxe && bonuses.isSpecialAttack ? 1.3 : 1
     return Math.floor(
-      this._attackLevel(from, to, bonuses) *
+      soulreaperBonusAccuracy * this._attackLevel(from, to, bonuses) *
         (from.bonuses.attack[bonuses.attackStyle] + 64) *
         bonuses.gearMeleeMultiplier,
     );

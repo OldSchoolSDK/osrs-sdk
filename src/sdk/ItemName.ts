@@ -34,6 +34,7 @@ export enum ItemName {
   KODAI_WAND = "Kodai Wand",
   MAGES_BOOK = "Mage's Book",
   NECKLACE_OF_ANGUISH = "Necklace of Anguish",
+  NOXIOUS_HALBERD = "Noxious Halberd",
   OCCULT_NECKLACE = "Occult necklace",
   PEGASIAN_BOOTS = "Pegasian Boots",
   RANGER_BOOTS = "Ranger boots",
@@ -71,4 +72,5 @@ export enum ItemName {
   BLADE_OF_SAELDOR = "Blade of saeldor",
   AVERNIC_DEFENDER = "Avernic defender",
   ULTOR_RING = "Ultor ring",
+  SOULREAPER_AXE = "Soulreaper axe",
 }

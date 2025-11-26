@@ -377,7 +377,10 @@ export class Player extends Unit {
       // use equipped weapon
       if (this.equipment.weapon) {
         if (this.equipment.weapon.hasSpecialAttack() && this.useSpecialAttack) {
-          if (this.currentStats.specialAttack >= this.equipment.weapon.specialAttackDrain()) {
+          // sra spec does not drain spec
+          if (this.equipment.weapon?.itemName === ItemName.SOULREAPER_AXE) {
+            this.equipment.weapon.specialAttack(this, this.aggro as Unit /* hack */)
+          } else if (this.currentStats.specialAttack >= this.equipment.weapon.specialAttackDrain()) {
             this.equipment.weapon.specialAttack(this, this.aggro as Unit /* hack */);
             this.currentStats.specialAttack -= this.equipment.weapon.specialAttackDrain();
             this.regenTimer.specUsed();
@@ -820,6 +823,18 @@ export class Player extends Unit {
   override attackStep() {
     super.attackStep();
     this.detectDeath();
+
+    // sra stack decay and heal
+    if (this.soulreaperAxeStacks > 0) {
+      this.soulreaperAxeTicksSinceAttack++;
+      if (this.soulreaperAxeTicksSinceAttack >= 20) {
+        this.currentStats.hitpoint += 8;
+        this.currentStats.hitpoint = Math.min(this.stats.hitpoint, this.currentStats.hitpoint);
+        this.soulreaperAxeStacks--;
+        this.soulreaperAxeTicksSinceAttack = 0;
+      }
+    }
+    
 
     this.processIncomingAttacks();
 
