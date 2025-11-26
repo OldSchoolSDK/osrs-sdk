@@ -1,5 +1,5 @@
 import SoulreaperAxeImage from "../../assets/images/weapons/Soulreaper_axe.png";
-import ScytheAttackSound from "../../assets/sounds/scythe_swing_2524.ogg";
+import AxeAttackSound from "../../assets/sounds/dharok_axe_slash_1321.ogg";
 import type { ProjectileOptions } from "../../sdk";
 import { AttackStyle, AttackStyleTypes } from "../../sdk/AttackStylesController";
 import type { AttackBonuses } from "../../sdk/gear/Weapon";
@@ -115,6 +115,6 @@ export class SoulreaperAxe extends MeleeWeapon {
 
   get attackSound() {
     // stab should use staff_stab.ogg
-    return new Sound(ScytheAttackSound, 0.1);
+    return new Sound(AxeAttackSound, 0.1);
   }
 }
