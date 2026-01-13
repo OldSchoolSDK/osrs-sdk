@@ -1,6 +1,7 @@
 // generated using Generate Index https://marketplace.visualstudio.com/items?itemName=JayFong.generate-index
 // @index('./*.ts', f => `export { ${f.name} } from './${f.name}';`)
 export { AncientStaff } from './AncientStaff';
+export { ArmadylCrossbow } from './ArmadylCrossbow';
 export { BlackChinchompa } from './BlackChinchompa';
 export { BladeOfSaeldor } from './BladeOfSaeldor';
 export { Blowpipe } from './Blowpipe';

@@ -20,6 +20,13 @@ export class ArmadylBrew extends Potion {
     this.updateInventorySprite();
   }
 
+  get weight(): number {
+    if (this.doses === 4) {
+      return 0.035;
+    }
+    return 0.03;
+  }
+
   get inventoryImage() {
     if (this.doses === 4) {
       return FourDose;
