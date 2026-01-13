@@ -26,6 +26,7 @@ export { DiamondDragonBoltsE } from './DiamondDragonBoltsE';
 export { DizanasQuiver } from './DizanasQuiver';
 export { DragonArrows } from './DragonArrows';
 export { FerociousGloves } from './FerociousGloves';
+export { GuthixMitre } from './GuthixMitre';
 export { GuthixRobeTop } from './GuthixRobeTop';
 export { HolyBlessing } from './HolyBlessing';
 export { InfernalCape } from './InfernalCape';
