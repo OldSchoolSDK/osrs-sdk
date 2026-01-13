@@ -59,10 +59,17 @@ export class SuperRestore extends Potion {
       player.currentStats.range += rangeBonus;
       player.currentStats.range = Math.min(player.currentStats.range, player.stats.range);
     }
+
     if (player.currentStats.magic < player.stats.magic) {
       const magicBonus = Math.floor(player.stats.magic * 0.25) + 8;
       player.currentStats.magic += magicBonus;
       player.currentStats.magic = Math.min(player.currentStats.magic, player.stats.magic);
+    }
+
+    if (player.currentStats.defence < player.stats.defence) {
+      const defenceBonus = Math.floor(player.stats.defence * 0.25) + 8;
+      player.currentStats.defence += defenceBonus;
+      player.currentStats.defence = Math.min(player.currentStats.defence, player.stats.defence);
     }
   }
 
