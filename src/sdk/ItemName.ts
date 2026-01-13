@@ -6,6 +6,7 @@ export enum ItemName {
   ANCESTRAL_ROBEBOTTOM = "Ancestral Robe bottom",
   ANCESTRAL_ROBETOP = "Ancestral Robe top",
   ANCIENT_STAFF = "Ancient staff",
+  ARANEA_BOOTS = "Aranea boots",
   ARMADYL_BREW = "Armadyl brew",
   ARMADYL_CHAINSKIRT = "Armadyl Chainskirt",
   ARMADYL_CHESTPLATE = "Armadyl Chestplate",
