@@ -5,6 +5,7 @@ export { AhrimsRobetop } from './AhrimsRobetop';
 export { AmuletOfTorture } from './AmuletOfTorture';
 export { AncestralRobebottom } from './AncestralRobebottom';
 export { AncestralRobetop } from './AncestralRobetop';
+export { AraneaBoots } from './AraneaBoots';
 export { ArmadylChainskirt } from './ArmadylChainskirt';
 export { ArmadylChestplate } from './ArmadylChestplate';
 export { AvasAccumulator } from './AvasAccumulator';
