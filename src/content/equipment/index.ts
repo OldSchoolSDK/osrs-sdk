@@ -31,6 +31,7 @@ export { InfernalCape } from './InfernalCape';
 export { JusticiarChestguard } from './JusticiarChestguard';
 export { JusticiarFaceguard } from './JusticiarFaceguard';
 export { JusticiarLegguards } from './JusticiarLegguards';
+export { Lightbearer } from './Lightbearer';
 export { MagesBook } from './MagesBook';
 export { MasoriBodyF } from './MasoriBodyF';
 export { MasoriChapsF } from './MasoriChapsF';

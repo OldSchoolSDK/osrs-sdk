@@ -1,6 +1,7 @@
 "use strict";
 
 import { Player } from "./Player";
+import { ItemName } from "./ItemName";
 
 export class PlayerRegenTimer {
   player: Player;
@@ -15,8 +16,16 @@ export class PlayerRegenTimer {
 
   specUsed() {
     if (this.spec <= 0) {
-      this.spec = 50;
+      this.spec = this.getSpecRegenRate();
     }
+  }
+
+  getSpecRegenRate(): number {
+    // Lightbearer doubles regeneration rate (25 ticks instead of 50)
+    if (this.player.equipment.ring && this.player.equipment.ring.itemName === ItemName.LIGHTBEARER) {
+      return 25;
+    }
+    return 50;
   }
 
   regen() {
@@ -27,7 +36,7 @@ export class PlayerRegenTimer {
   specRegen() {
     this.spec--;
     if (this.spec === 0) {
-      this.spec = 50;
+      this.spec = this.getSpecRegenRate();
       this.player.currentStats.specialAttack += 10;
       this.player.currentStats.specialAttack = Math.min(100, this.player.currentStats.specialAttack);
     }
