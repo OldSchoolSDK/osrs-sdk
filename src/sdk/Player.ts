@@ -244,10 +244,26 @@ export class Player extends Unit {
     });
     this.setEffects = completeSetEffects;
 
+    this.handleLightbearerChange();
+
     if (this.path.length === 0) {
       this.currentPoseAnimation = this.getIdlePoseId();
     }
     this.invalidateModel();
+  }
+
+  private handleLightbearerChange() {
+    const hasLightbearer = this.equipment.ring && this.equipment.ring.itemName === ItemName.LIGHTBEARER;
+
+    if (hasLightbearer) {
+      // Equipping: only reset if natural regen is below half (spec timer > 25)
+      if (this.regenTimer.spec > 25) {
+        this.regenTimer.spec = 25; // Reset to Lightbearer rate
+      }
+    } else {
+      // Unequipping: always reset to normal rate
+      this.regenTimer.spec = 50;
+    }
   }
 
   get bonuses(): UnitBonuses {
