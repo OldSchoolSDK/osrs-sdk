@@ -1,6 +1,6 @@
 "use strict";
 
-import KodaiInventImage from "../../assets/images/equipment/Kodai_wand.png";
+import KodaiInventImage from "../../assets/images/weapons/Kodai_wand.png";
 import { MeleeWeapon } from "../../sdk/weapons/MeleeWeapon";
 import { ItemName } from "../../sdk/ItemName";
 import { AttackStyle, AttackStyleTypes } from "../../sdk/AttackStylesController";
