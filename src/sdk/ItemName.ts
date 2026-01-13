@@ -29,6 +29,7 @@ export enum ItemName {
   DIAMOND_BOLTS_E = "Diamond bolts (e)",
   DIAMOND_DRAGON_BOLTS_E = "Diamond dragon bolts (e)",
   DRAGON_ARROWS = "Dragon arrow",
+  GUTHIX_MITRE = "Guthix mitre",
   GUTHIX_ROBE_TOP = "Guthix robe top",
   HOLY_BLESSING = "Holy Blessing",
   JUSTICIAR_CHESTGUARD = "Justiciar Chestguard",
