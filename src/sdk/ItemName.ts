@@ -40,6 +40,7 @@ export enum ItemName {
   NIGHTMARE_STAFF = "Nightmare staff",
   OCCULT_NECKLACE = "Occult necklace",
   PEGASIAN_BOOTS = "Pegasian Boots",
+  PRAYER_REGENERATION_POTION = "Prayer regeneration potion",
   RANGER_BOOTS = "Ranger boots",
   RING_OF_ENDURANCE = "Ring of Endurance",
   RING_OF_SUFFERING_I = "Ring of Suffering (i)",

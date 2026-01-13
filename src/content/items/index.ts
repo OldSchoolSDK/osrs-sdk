@@ -3,6 +3,7 @@
 export { ArmadylBrew } from "./ArmadylBrew";
 export { BastionPotion } from './BastionPotion';
 export { Karambwan } from './Karambwan';
+export { PrayerRegenerationPotion } from './PrayerRegenerationPotion';
 export { SaradominBrew } from './SaradominBrew';
 export { Shark } from './Shark';
 export { StaminaPotion } from './StaminaPotion';
