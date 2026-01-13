@@ -43,7 +43,6 @@ export { RingOfEndurance } from './RingOfEndurance';
 export { RingOfSufferingImbued } from './RingOfSufferingImbued';
 export { RobinHoodHat } from './RobinHoodHat';
 export { RubyBoltsE } from './RubyBoltsE';
-export { RuneCrossbow } from './RuneCrossbow';
 export { RuneKiteshield } from './RuneKiteshield';
 export { SaradominBody } from './SaradominBody';
 export { SaradominChaps } from './SaradominChaps';

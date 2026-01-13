@@ -1,6 +1,6 @@
 "use strict";
 
-import InventImage from "../../assets/images/equipment/Rune_crossbow.png";
+import InventImage from "../../assets/images/weapons/Rune_crossbow.png";
 import { Unit } from "../../sdk/Unit";
 import { RangedWeapon } from "../../sdk/weapons/RangedWeapon";
 import { AttackBonuses } from "../../sdk/gear/Weapon";

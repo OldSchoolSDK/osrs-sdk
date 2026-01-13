@@ -41,7 +41,7 @@ export enum ItemName {
   RING_OF_SUFFERING_I = "Ring of Suffering (i)",
   ROBIN_HOOD_HAT = "Robin hood hat",
   RUBY_BOLTS_E = "Ruby bolts (e)",
-  RUNE_CROSSBOW = "Rune Crossbow",
+  RUNE_CROSSBOW = "Rune crossbow",
   RUNE_KITESHIELD = "Rune kiteshield",
   SARADOMIN_BREW = "Saradomin Brew",
   SARADOMIN_COIF = "Saradomin coif",

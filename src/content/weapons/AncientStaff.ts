@@ -1,6 +1,6 @@
 "use strict";
 
-import InventoryImage from "../../assets/images/equipment/Ancient_staff.png";
+import InventoryImage from "../../assets/images/weapons/Ancient_staff.png";
 import { AttackStyle, AttackStyleTypes } from "../../sdk/AttackStylesController";
 import { AttackBonuses } from "../../sdk/gear/Weapon";
 import { ItemName } from "../../sdk/ItemName";
