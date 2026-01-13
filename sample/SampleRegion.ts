@@ -1,5 +1,6 @@
 import {
   AmuletOfTorture,
+  ArmadylBrew,
   BastionPotion,
   CardinalDirection,
   DizanasQuiver,
@@ -91,7 +92,7 @@ export class SampleRegion extends Region {
         new SuperRestore(),
         new BastionPotion(),
         new StaminaPotion(),
-        new SuperRestore(),
+        new ArmadylBrew(),
         new SuperRestore(),
       ],
     };
