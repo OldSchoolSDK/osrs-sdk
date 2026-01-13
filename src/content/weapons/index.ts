@@ -7,6 +7,7 @@ export { BladeOfSaeldor } from './BladeOfSaeldor';
 export { Blowpipe } from './Blowpipe';
 export { BowOfFaerdhinen } from './BowOfFaerdhinen';
 export { KodaiWand } from './KodaiWand';
+export { NightmareStaff } from './NightmareStaff';
 export { RuneCrossbow } from './RuneCrossbow';
 export { ScytheOfVitur } from './ScytheOfVitur';
 export { TwistedBow } from './TwistedBow';

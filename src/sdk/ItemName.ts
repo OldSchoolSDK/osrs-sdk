@@ -37,6 +37,7 @@ export enum ItemName {
   KODAI_WAND = "Kodai Wand",
   MAGES_BOOK = "Mage's Book",
   NECKLACE_OF_ANGUISH = "Necklace of Anguish",
+  NIGHTMARE_STAFF = "Nightmare staff",
   OCCULT_NECKLACE = "Occult necklace",
   PEGASIAN_BOOTS = "Pegasian Boots",
   RANGER_BOOTS = "Ranger boots",
