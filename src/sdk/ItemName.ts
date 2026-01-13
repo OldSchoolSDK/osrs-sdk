@@ -9,6 +9,7 @@ export enum ItemName {
   ARMADYL_BREW = "Armadyl brew",
   ARMADYL_CHAINSKIRT = "Armadyl Chainskirt",
   ARMADYL_CHESTPLATE = "Armadyl Chestplate",
+  ARMADYL_CROSSBOW = "Armadyl crossbow",
   AVAS_ACCUMULATOR = "Ava's accumulator",
   AVAS_ASSEMBLER = "Avas Assembler",
   BARROWS_GLOVES = "Barrows Gloves",
