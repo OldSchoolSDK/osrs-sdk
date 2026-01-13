@@ -32,6 +32,8 @@ export enum ItemName {
   GUTHIX_MITRE = "Guthix mitre",
   GUTHIX_ROBE_TOP = "Guthix robe top",
   HOLY_BLESSING = "Holy Blessing",
+  HUEYCOATL_HIDE_CHAPS = "Hueycoatl hide chaps",
+  HUEYCOATL_HIDE_VAMBRACES = "Hueycoatl hide vambraces",
   JUSTICIAR_CHESTGUARD = "Justiciar Chestguard",
   JUSTICIAR_FACEGUARD = "Justiciar Faceguard",
   JUSTICIAR_LEGGUARDS = "Justiciar Legguards",

@@ -29,6 +29,8 @@ export { FerociousGloves } from './FerociousGloves';
 export { GuthixMitre } from './GuthixMitre';
 export { GuthixRobeTop } from './GuthixRobeTop';
 export { HolyBlessing } from './HolyBlessing';
+export { HueycoatlHideChaps } from './HueycoatlHideChaps';
+export { HueycoatlHideVambraces } from './HueycoatlHideVambraces';
 export { InfernalCape } from './InfernalCape';
 export { JusticiarChestguard } from './JusticiarChestguard';
 export { JusticiarFaceguard } from './JusticiarFaceguard';
