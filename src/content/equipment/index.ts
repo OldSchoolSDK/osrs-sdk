@@ -56,6 +56,7 @@ export { SaradominChaps } from './SaradominChaps';
 export { SaradominCoif } from './SaradominCoif';
 export { SaradominDhideBoots } from './SaradominDhideBoots';
 export { SlayerHelmet } from './SlayerHelmet';
+export { TormentedBracelet } from './TormentedBracelet';
 export { TorvaFullhelm } from './TorvaFullhelm';
 export { TorvaPlatebody } from './TorvaPlatebody';
 export { TorvaPlatelegs } from './TorvaPlatelegs';
