@@ -8,12 +8,20 @@ import { ItemName } from "../../sdk/ItemName";
 import { AttackStyleTypes, AttackStyle } from "../../sdk/AttackStylesController";
 import { Projectile, ProjectileOptions } from "../../sdk/weapons/Projectile";
 import { Random } from "../../sdk/Random";
-import { Assets } from "../../sdk";
+import { Assets, Sound } from "../../sdk";
 import { PlayerAnimationIndices } from "../../sdk/rendering";
+import ACBAttackSound from "../../assets/sounds/shortbow_2702.ogg";
+import { ArcProjectileMotionInterpolator } from "../../sdk/weapons/Projectile";
 
 export class ArmadylCrossbow extends RangedWeapon {
   constructor() {
-    super();
+    super({
+      modelScale: 1 / 128,
+      visualDelayTicks: 1,
+      visualHitEarlyTicks: 1,
+      verticalOffset: -0.75,
+      motionInterpolator: new ArcProjectileMotionInterpolator(1),
+    });
     this.bonuses = {
       attack: {
         stab: 0,
@@ -141,6 +149,10 @@ export class ArmadylCrossbow extends RangedWeapon {
     }
   }
 
+  get attackSound() {
+    return new Sound(ACBAttackSound, 0.1);
+  }
+
   Model = Assets.getAssetUrl("models/player_armadyl_crossbow.glb");
   override get model() {
     return this.Model;
@@ -148,5 +160,10 @@ export class ArmadylCrossbow extends RangedWeapon {
 
   get attackAnimationId() {
     return PlayerAnimationIndices.FireCrossbow;
+  }
+
+  ProjectileModel = Assets.getAssetUrl("models/dragon_arrow.glb");
+  get projectileModel() {
+    return this.ProjectileModel;
   }
 }
