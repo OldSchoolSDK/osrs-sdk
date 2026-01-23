@@ -9,6 +9,7 @@ import { AttackStyleTypes, AttackStyle } from "../../sdk/AttackStylesController"
 import { Projectile, ProjectileOptions } from "../../sdk/weapons/Projectile";
 import { Random } from "../../sdk/Random";
 import { Assets } from "../../sdk";
+import { PlayerAnimationIndices } from "../../sdk/rendering";
 
 export class ArmadylCrossbow extends RangedWeapon {
   constructor() {
@@ -143,5 +144,9 @@ export class ArmadylCrossbow extends RangedWeapon {
   Model = Assets.getAssetUrl("models/player_armadyl_crossbow.glb");
   override get model() {
     return this.Model;
+  }
+
+  get attackAnimationId() {
+    return PlayerAnimationIndices.FireCrossbow;
   }
 }
