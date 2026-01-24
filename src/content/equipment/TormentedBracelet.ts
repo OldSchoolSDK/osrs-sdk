@@ -37,7 +37,7 @@ export class TormentedBracelet extends Gloves {
       other: {
         meleeStrength: 0,
         rangedStrength: 0,
-        magicDamage: 5,
+        magicDamage: 0.05,
         prayer: 2,
       },
       targetSpecific: {

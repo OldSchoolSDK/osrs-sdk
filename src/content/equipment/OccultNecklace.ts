@@ -37,7 +37,7 @@ export class OccultNecklace extends Necklace {
       other: {
         meleeStrength: 0,
         rangedStrength: 0,
-        magicDamage: 0.1,
+        magicDamage: 0.05,
         prayer: 0,
       },
       targetSpecific: {
