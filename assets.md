@@ -28,7 +28,7 @@ Using Dezinator's `osrscachereader` at https://github.com/Dezinater/osrscacherea
 
 ### Player models
 
-    npm run cmd modelBuilder item 26684,27235,27238,27241,26235,28902,13237,22249,12926,20997,11959,25865,23975,23979,23971,7462,22109,21021,21024,11785,24422,29806,30079,30082,23444,6889,10499,19720,4502,6107 maleModel0,maleModel1 anim 808,819,824,820,822,821,426,4230,5061,7618,1979 name player split
+    npm run cmd modelBuilder item 26684,27235,27238,27241,26235,28902,13237,22249,12926,20997,11959,25865,23975,23979,23971,7462,22109,21021,21024,11785,24422,29806,30079,30082,23444,6889,10499,19720,4502,6107,4675,21006 maleModel0,maleModel1 anim 808,819,824,820,822,821,426,4230,5061,7618,1979 name player split
 
     where:
 
@@ -62,6 +62,8 @@ Using Dezinator's `osrscachereader` at https://github.com/Dezinater/osrscacherea
         - 19720 # occult neck (or)
         - 4502 # bearhead
         - 6107 # ghostly robe top
+        - 4675 # ancient staff
+        - 21006 # kodai wand
 
       - 808 # idle
       - 819 # walk
