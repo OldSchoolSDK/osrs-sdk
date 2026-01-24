@@ -10,10 +10,14 @@ import { Projectile, ProjectileOptions } from "../../sdk/weapons/Projectile";
 import { Random } from "../../sdk/Random";
 import { Assets, Sound } from "../../sdk";
 import { PlayerAnimationIndices } from "../../sdk/rendering";
-import ACBAttackSound from "../../assets/sounds/shortbow_2702.ogg";
+import ACBAttackSound from "../../assets/sounds/crossbow_2695.ogg";
+import RubyBoltProcSound from "../../assets/sounds/ruby_bolt_proc.ogg";
+import DiamondBoltProcSound from "../../assets/sounds/diamond_bolt_proc.ogg";
+
 import { ArcProjectileMotionInterpolator } from "../../sdk/weapons/Projectile";
 
 export class ArmadylCrossbow extends RangedWeapon {
+  private boltProcSound?: Sound;
   constructor() {
     super({
       modelScale: 1 / 128,
@@ -119,6 +123,9 @@ export class ArmadylCrossbow extends RangedWeapon {
   }
 
   rollDamage(from: Unit, to: Unit, bonuses: AttackBonuses) {
+    // Reset bolt proc sound
+    this.boltProcSound = undefined;
+
     // Determine bolt spec chance (doubled if special attack)
     const rubyChance = bonuses.isSpecialAttack ? 0.132 : 0.066;
     const diamondChance = bonuses.isSpecialAttack ? 0.22 : 0.11;
@@ -131,6 +138,7 @@ export class ArmadylCrossbow extends RangedWeapon {
       from.currentStats.hitpoint - Math.floor(from.currentStats.hitpoint * 0.1) > 0
     ) {
       this.damage = to.currentStats.hitpoint * 0.2;
+      this.boltProcSound = new Sound(RubyBoltProcSound, 0.5);
       from.addProjectile(
         new Projectile(this, Math.floor(from.currentStats.hitpoint * 0.1), from, from, "rubyboltspec", {
           reduceDelay: 15,
@@ -143,11 +151,19 @@ export class ArmadylCrossbow extends RangedWeapon {
       Random.get() < diamondChance
     ) {
       this.damage = this._calculateHitDamage(from, to, bonuses);
+      this.boltProcSound = new Sound(DiamondBoltProcSound, 0.5);
     } else if (from.equipment.ammo) {
       super.rollDamage(from, to, bonuses);
     } else {
       this.damage = -1;
     }
+  }
+
+  registerProjectile(from: Unit, to: Unit, bonuses: AttackBonuses, options: ProjectileOptions = {}) {
+    if (this.boltProcSound) {
+      options.projectileSound = this.boltProcSound;
+    }
+    super.registerProjectile(from, to, bonuses, options);
   }
 
   get attackSound() {

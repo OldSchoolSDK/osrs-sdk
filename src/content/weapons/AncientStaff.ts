@@ -8,6 +8,7 @@ import { Unit } from "../../sdk/Unit";
 import { BarrageSpell } from "../../sdk/weapons/BarrageSpell";
 import { BloodBarrageSpell } from "../../sdk/weapons/BloodBarrageSpell";
 import { MeleeWeapon } from "../../sdk/weapons/MeleeWeapon";
+import { PlayerAnimationIndices } from "../../sdk/rendering";
 
 export class AncientStaff extends MeleeWeapon {
   autocastSpell: BarrageSpell = new BloodBarrageSpell();
@@ -62,7 +63,6 @@ export class AncientStaff extends MeleeWeapon {
     return [AttackStyle.ACCURATE, AttackStyle.AGGRESSIVECRUSH, AttackStyle.DEFENSIVE, AttackStyle.AUTOCAST];
   }
 
-
   attackStyleCategory(): AttackStyleTypes {
     return AttackStyleTypes.STAFF;
   }
@@ -96,5 +96,9 @@ export class AncientStaff extends MeleeWeapon {
 
   get inventoryImage() {
     return InventoryImage;
+  }
+
+  get attackAnimationId() {
+    return PlayerAnimationIndices.Barrage;
   }
 }
