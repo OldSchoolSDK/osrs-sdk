@@ -107,6 +107,7 @@ export class ArmadylCrossbow extends RangedWeapon {
   specialAttack(from: Unit, to: Unit, bonuses: AttackBonuses = {}, options: ProjectileOptions = {}) {
     super.specialAttack(from, to, bonuses, options);
     bonuses.isSpecialAttack = true;
+    options.model = Assets.getAssetUrl("models/acb_spec.glb");
     super.attack(from, to, bonuses, options);
   }
 
