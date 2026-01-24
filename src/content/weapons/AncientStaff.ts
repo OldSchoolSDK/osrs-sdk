@@ -9,6 +9,7 @@ import { BarrageSpell } from "../../sdk/weapons/BarrageSpell";
 import { BloodBarrageSpell } from "../../sdk/weapons/BloodBarrageSpell";
 import { MeleeWeapon } from "../../sdk/weapons/MeleeWeapon";
 import { PlayerAnimationIndices } from "../../sdk/rendering";
+import { Assets } from "../../sdk";
 
 export class AncientStaff extends MeleeWeapon {
   autocastSpell: BarrageSpell = new BloodBarrageSpell();
@@ -96,6 +97,11 @@ export class AncientStaff extends MeleeWeapon {
 
   get inventoryImage() {
     return InventoryImage;
+  }
+
+  Model = Assets.getAssetUrl("models/player_ancient_staff.glb");
+  override get model() {
+    return this.Model;
   }
 
   get attackAnimationId() {

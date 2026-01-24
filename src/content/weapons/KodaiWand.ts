@@ -10,6 +10,7 @@ import { Unit } from "../../sdk/Unit";
 import { Player } from "../../sdk/Player";
 import { BloodBarrageSpell } from "../../sdk/weapons/BloodBarrageSpell";
 import { PlayerAnimationIndices } from "../../sdk/rendering";
+import { Assets } from "../../sdk";
 
 export class KodaiWand extends MeleeWeapon {
   autocastSpell: BarrageSpell = new BloodBarrageSpell();
@@ -100,6 +101,11 @@ export class KodaiWand extends MeleeWeapon {
 
   get inventoryImage() {
     return KodaiInventImage;
+  }
+
+  Model = Assets.getAssetUrl("models/player_kodai_wand.glb");
+  override get model() {
+    return this.Model;
   }
 
   get attackAnimationId() {
