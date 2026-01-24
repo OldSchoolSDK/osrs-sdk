@@ -46,9 +46,9 @@ export class GuthixMitre extends Helmet {
       },
     };
   }
-  //todo: model, was buggy
-  // Model = Assets.getAssetUrl("models/player_armadyl_mitre.glb");
-  // override get model() {
-  //   return this.Model;
-  // }
+  // model is buggy, using bearhead as placeholder so the player isn't headless
+  Model = Assets.getAssetUrl("models/player_bearhead.glb");
+  override get model() {
+    return this.Model;
+  }
 }

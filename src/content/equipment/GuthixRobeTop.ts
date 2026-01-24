@@ -2,6 +2,7 @@ import { ImageLoader } from "../../sdk/utils/ImageLoader";
 import InventImage from "../../assets/images/equipment/Guthix_robe_top.png";
 import { Chest } from "../../sdk/gear/Chest";
 import { ItemName } from "../../sdk/ItemName";
+import { Assets } from "../../sdk";
 
 export class GuthixRobeTop extends Chest {
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
@@ -45,5 +46,11 @@ export class GuthixRobeTop extends Chest {
         slayer: 0,
       },
     };
+  }
+
+  // model is buggy, using zealot's robe top as placeholder so the player isn't bodyless
+  Model = Assets.getAssetUrl("models/player_ghostly_robe.glb");
+  override get model() {
+    return this.Model;
   }
 }
