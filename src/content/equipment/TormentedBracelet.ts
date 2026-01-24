@@ -47,7 +47,7 @@ export class TormentedBracelet extends Gloves {
     };
   }
 
-  Model = Assets.getAssetUrl("models/player_tormented_bracelet.glb");
+  Model = Assets.getAssetUrl("models/player_tormented_bracelet__or_.glb");
   override get model() {
     return this.Model;
   }
