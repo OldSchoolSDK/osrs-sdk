@@ -2,6 +2,7 @@ import { ImageLoader } from "../../sdk/utils/ImageLoader";
 import InventImage from "../../assets/images/equipment/Mages_book.png";
 import { Offhand } from "../../sdk/gear/Offhand";
 import { ItemName } from "../../sdk/ItemName";
+import { Assets } from "../../sdk";
 
 export class MagesBook extends Offhand {
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
@@ -45,5 +46,10 @@ export class MagesBook extends Offhand {
         slayer: 0,
       },
     };
+  }
+
+  Model = Assets.getAssetUrl("models/player_mage_s_book.glb");
+  override get model() {
+    return this.Model;
   }
 }
