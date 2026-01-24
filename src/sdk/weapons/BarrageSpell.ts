@@ -6,6 +6,7 @@ import { ProjectileOptions } from "./Projectile";
 import { AttackBonuses } from "../gear/Weapon";
 import { XpDrop } from "../XpDrop";
 import { AttackStyle } from "../AttackStylesController";
+import { PlayerAnimationIndices } from "../../sdk/rendering";
 
 export class BarrageSpell extends MagicWeapon {
   get aoe() {
@@ -63,5 +64,9 @@ export class BarrageSpell extends MagicWeapon {
   attack(from: Unit, to: Unit, bonuses: AttackBonuses = {}, options: ProjectileOptions = {}): boolean {
     options.forceSWTile = true;
     return super.attack(from, to, bonuses, options);
+  }
+
+  get attackAnimationId() {
+    return PlayerAnimationIndices.Barrage;
   }
 }

@@ -9,6 +9,7 @@ import { AttackBonuses } from "../../sdk/gear/Weapon";
 import { Unit } from "../../sdk/Unit";
 import { Player } from "../../sdk/Player";
 import { BloodBarrageSpell } from "../../sdk/weapons/BloodBarrageSpell";
+import { PlayerAnimationIndices } from "../../sdk/rendering";
 
 export class KodaiWand extends MeleeWeapon {
   autocastSpell: BarrageSpell = new BloodBarrageSpell();
@@ -99,5 +100,9 @@ export class KodaiWand extends MeleeWeapon {
 
   get inventoryImage() {
     return KodaiInventImage;
+  }
+
+  get attackAnimationId() {
+    return PlayerAnimationIndices.Barrage;
   }
 }

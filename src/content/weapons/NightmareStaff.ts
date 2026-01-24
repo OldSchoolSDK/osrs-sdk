@@ -10,6 +10,7 @@ import { Unit } from "../../sdk/Unit";
 import { Player } from "../../sdk/Player";
 import { BloodBarrageSpell } from "../../sdk/weapons/BloodBarrageSpell";
 import { Assets } from "../../sdk";
+import { PlayerAnimationIndices } from "../../sdk/rendering";
 
 export class NightmareStaff extends MeleeWeapon {
   autocastSpell: BarrageSpell = new BloodBarrageSpell();
@@ -105,5 +106,9 @@ export class NightmareStaff extends MeleeWeapon {
   Model = Assets.getAssetUrl("models/player_nightmare_staff.glb");
   override get model() {
     return this.Model;
+  }
+
+  get attackAnimationId() {
+    return PlayerAnimationIndices.Barrage;
   }
 }

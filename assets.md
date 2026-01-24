@@ -70,6 +70,7 @@ Using Dezinator's `osrscachereader` at https://github.com/Dezinater/osrscacherea
       - 822 # strafe left
       - 821 # strafe right
       - 426 # fire bow
-      - 427 # fire crossbow
+      - 4230 # fire crossbow
       - 5061 # fire blowpipe
       - 7618 # throw chinchompa
+      - 1979 # barrage
