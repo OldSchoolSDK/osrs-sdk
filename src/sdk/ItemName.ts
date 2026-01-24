@@ -47,6 +47,7 @@ export enum ItemName {
   PEGASIAN_BOOTS = "Pegasian Boots",
   PRAYER_REGENERATION_POTION = "Prayer regeneration potion",
   RANGER_BOOTS = "Ranger boots",
+  RANGING_CAPE_T = "Ranging cape(t)",
   RING_OF_ENDURANCE = "Ring of Endurance",
   RING_OF_SUFFERING_I = "Ring of Suffering (i)",
   ROBIN_HOOD_HAT = "Robin hood hat",

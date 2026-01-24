@@ -45,6 +45,7 @@ export { OccultNecklace } from './OccultNecklace';
 export { PegasianBoots } from './PegasianBoots';
 export { PrimordialBoots } from './PrimordialBoots';
 export { RangerBoots } from './RangerBoots';
+export { RangingCapeT } from './RangingCapeT';
 export { RingOfEndurance } from './RingOfEndurance';
 export { RingOfSufferingImbued } from './RingOfSufferingImbued';
 export { RobinHoodHat } from './RobinHoodHat';
