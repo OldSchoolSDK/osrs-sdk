@@ -43,7 +43,7 @@ export class ArmadylCrossbow extends RangedWeapon {
       },
       other: {
         meleeStrength: 0,
-        rangedStrength: 20,
+        rangedStrength: 0,
         magicDamage: 0,
         prayer: 0,
       },
