@@ -142,6 +142,10 @@ export class Weapon extends Equipment {
     return 999;
   }
 
+  getMaxDamageCap(bonuses: AttackBonuses): number {
+    return 100;
+  }
+
   // Return value: If the attack was performed or not. If the attack was not performed, do not reset timers.
   attack(from: Unit, to: Unit, bonuses: AttackBonuses = {}, options: ProjectileOptions = {}): boolean {
     this._calculatePrayerEffects(from, to, bonuses);
@@ -177,7 +181,7 @@ export class Weapon extends Equipment {
     }
 
     // sanitize damage output
-    this.damage = Math.floor(Math.max(Math.min(to.currentStats.hitpoint, this.damage, 100), 0));
+    this.damage = Math.floor(Math.max(Math.min(to.currentStats.hitpoint, this.damage, this.getMaxDamageCap(bonuses)), 0));
 
     if (to.equipment.ring && to.equipment.ring.itemName === ItemName.RING_OF_SUFFERING_I && this.damage > 0) {
       from.addProjectile(
