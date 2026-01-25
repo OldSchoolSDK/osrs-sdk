@@ -4,6 +4,7 @@ import { ProjectileOptions } from "./Projectile";
 import { AttackBonuses, Weapon } from "../gear/Weapon";
 import { EquipmentTypes } from "../Equipment";
 import { PrayerGroups } from "../BasePrayer";
+import { ItemName } from "../ItemName";
 
 export class MagicWeapon extends Weapon {
 
@@ -15,8 +16,27 @@ export class MagicWeapon extends Weapon {
     return EquipmentTypes.WEAPON;
   }
 
-  attack(from: Unit, to: Unit, bonuses: AttackBonuses = {}, options: ProjectileOptions = {}): boolean {
-    return super.attack(from, to, bonuses, options);
+  override _rollAttack(from: Unit, to: Unit, bonuses: AttackBonuses) {
+    const hasConfliction = from.equipment?.gloves?.itemName === ItemName.CONFLICTION_GAUNTLETS;
+    const weapon = from.equipment?.weapon;
+    const isTwoHanded = weapon?.isTwoHander ?? false;
+
+    const didHit = this._rollAccuracy(from, to, bonuses);
+
+    if (hasConfliction && !isTwoHanded) {
+      if (didHit) {
+        to.deactivateConfliction(from);
+      } else {
+        to.activateConfliction(from);
+      }
+    }
+
+    this.lastHitHit = false;
+    if (!didHit) {
+      return 0;
+    }
+
+    return this._calculateHitDamage(from, to, bonuses);
   }
 
   calculateHitDelay(distance: number) {
@@ -117,6 +137,49 @@ export class MagicWeapon extends Weapon {
     }
 
     return (9 + to.currentStats.magic * prayerMultiplier) * (to.bonuses.defence.magic + 64);
+  }
+
+  _calculateSingleAccuracyHitChance(attackRoll: number, defenceRoll: number): number {
+    if (attackRoll > defenceRoll) {
+      return 1 - (defenceRoll + 2) / (2 * (attackRoll + 1));
+    } else {
+      return attackRoll / (2 * (defenceRoll + 1));
+    }
+  }
+
+  //confliction gauntlets
+  _calculateDoubleAccuracyHitChance(attackRoll: number, defenceRoll: number): number {
+    if (attackRoll >= defenceRoll) {
+      return 1 - ((defenceRoll + 2) * (2 * defenceRoll + 3)) / (6 * Math.pow(attackRoll + 1, 2));
+    } else {
+      return (attackRoll * (4 * attackRoll + 5)) / (6 * (attackRoll + 1) * (defenceRoll + 1));
+    }
+  }
+
+  _shouldUseConflictionPassive(from: Unit, to: Unit): boolean {
+    const hasConfliction = from.equipment?.gloves?.itemName === ItemName.CONFLICTION_GAUNTLETS;
+    if (!hasConfliction) return false;
+
+    const weapon = from.equipment?.weapon;
+    if (weapon?.isTwoHander) return false;
+
+    return to.hasConflictionActive(from);
+  }
+
+  _rollAccuracy(from: Unit, to: Unit, bonuses: AttackBonuses): boolean {
+    const attackRoll = this._attackRoll(from, to, bonuses);
+    const defenceRoll = this._defenceRoll(from, to, bonuses);
+
+    const useDoubleAccuracy = this._shouldUseConflictionPassive(from, to);
+
+    let hitChance: number;
+    if (useDoubleAccuracy) {
+      hitChance = this._calculateDoubleAccuracyHitChance(attackRoll, defenceRoll);
+    } else {
+      hitChance = this._calculateSingleAccuracyHitChance(attackRoll, defenceRoll);
+    }
+
+    return Math.random() < hitChance;
   }
 
   _maxHit(from: Unit, to: Unit, bonuses: AttackBonuses) {
