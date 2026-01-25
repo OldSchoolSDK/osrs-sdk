@@ -20,6 +20,7 @@ export enum ItemName {
   BLACK_D_HIDE_VAMBRACES = "Black d'hide vambraces",
   BLACK_CHINCHOMPA = "Black chinchompa",
   BOWFA = "Bow of faerdhinen",
+  CONFLICTION_GAUNTLETS = "Confliction gauntlets",
   CRYSTAL_BODY = "Crystal Body",
   CRYSTAL_HELM = "Crystal Helm",
   CRYSTAL_LEGS = "Crystal Legs",

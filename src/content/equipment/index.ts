@@ -15,6 +15,7 @@ export { BarrowsGloves } from './BarrowsGloves';
 export { BlackDhideBody } from './BlackDhideBody';
 export { BlackDhideChaps } from './BlackDhideChaps';
 export { BlackDhideVambraces } from './BlackDhideVambraces';
+export { ConflictionGauntlets } from './ConflictionGauntlets';
 export { CrystalBody } from './CrystalBody';
 export { CrystalHelm } from './CrystalHelm';
 export { CrystalLegs } from './CrystalLegs';
