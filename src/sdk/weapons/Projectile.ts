@@ -54,6 +54,7 @@ export interface ProjectileOptions {
   offsetsInterpolator?: MultiModelProjectileOffsetInterpolator;
   // offset of start height
   verticalOffset?: number;
+  rollDamageOnHit?: boolean;
 }
 
 const targetIsLocation = (x: Unit | Location): x is Location => (x as Location).x !== undefined;
