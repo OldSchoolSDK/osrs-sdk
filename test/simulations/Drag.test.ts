@@ -56,7 +56,7 @@ describe("drag tests", () => {
     region.addEntity(new Wall(region, { x: 29, y: 19 }));
     region.addEntity(new Wall(region, { x: 30, y: 19 }));
 
-    Viewport.setupViewport(region, true);
+    Viewport.setupViewport(region);
   });
 
   test("drag east when clicking front npc", () => {
