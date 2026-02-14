@@ -12,4 +12,6 @@ export enum PlayerAnimationIndices {
   ScytheIdle = 9,
   ScytheSwing = 10,
   SwordSlash = 11,
+  HalberdSlash = 12,
+  HalberdIdle = 13,
 }
