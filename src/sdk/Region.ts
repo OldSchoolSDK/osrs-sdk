@@ -103,6 +103,7 @@ export abstract class Region {
   }
 
   removeMob(mob: Mob) {
+    mob.dying = 0;
     remove(this.mobs, mob);
   }
 
