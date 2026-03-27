@@ -1,20 +1,20 @@
 import { ImageLoader } from "../../sdk/utils/ImageLoader";
-import InventImage from "../../assets/images/equipment/Avas_accumulator.png";
-import { Cape } from "../../sdk/gear/Cape";
+import InventImage from "../../assets/images/equipment/Ruby_dragon_bolts_e_5.png";
+import { Ammo } from "../../sdk/gear/Ammo";
 import { ItemName } from "../../sdk/ItemName";
-import { Assets } from "../../sdk";
 
-export class AvasAccumulator extends Cape {
+export class RubyDragonBoltsE extends Ammo {
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {
     return InventImage;
   }
-  get itemName(): ItemName {
-    return ItemName.AVAS_ACCUMULATOR;
-  }
   get weight(): number {
-    return 4.535;
+    return 0;
+  }
+
+  get itemName(): ItemName {
+    return ItemName.RUBY_DRAGON_BOLTS_E;
   }
 
   constructor() {
@@ -25,18 +25,18 @@ export class AvasAccumulator extends Cape {
         slash: 0,
         crush: 0,
         magic: 0,
-        range: 4,
+        range: 0,
       },
       defence: {
         stab: 0,
-        slash: 1,
+        slash: 0,
         crush: 0,
-        magic: 4,
+        magic: 0,
         range: 0,
       },
       other: {
         meleeStrength: 0,
-        rangedStrength: 0,
+        rangedStrength: 122,
         magicDamage: 0,
         prayer: 0,
       },
@@ -45,10 +45,5 @@ export class AvasAccumulator extends Cape {
         slayer: 0,
       },
     };
-  }
-
-  Model = Assets.getAssetUrl("models/player_ava_s_accumulator.glb");
-  override get model() {
-    return this.Model;
   }
 }

@@ -1,6 +1,6 @@
 "use strict";
 
-import InventImage from "../../assets/images/equipment/Black_chinchompa.png";
+import InventImage from "../../assets/images/weapons/Black_chinchompa.png";
 import { RangedWeapon } from "../../sdk/weapons/RangedWeapon";
 import { ItemName } from "../../sdk/ItemName";
 import { AttackStyle, AttackStyleTypes } from "../../sdk/AttackStylesController";

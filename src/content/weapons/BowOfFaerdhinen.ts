@@ -1,6 +1,6 @@
 "use strict";
 
-import InventImage from "../../assets/images/equipment/Bow_of_faerdhinen.png";
+import InventImage from "../../assets/images/weapons/Bow_of_faerdhinen.png";
 import { RangedWeapon } from "../../sdk/weapons/RangedWeapon";
 import { AttackBonuses } from "../../sdk/gear/Weapon";
 import { ItemName } from "../../sdk/ItemName";

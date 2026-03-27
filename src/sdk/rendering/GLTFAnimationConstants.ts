@@ -12,4 +12,7 @@ export enum PlayerAnimationIndices {
   ScytheIdle = 9,
   ScytheSwing = 10,
   SwordSlash = 11,
+  //these two are offset since there are placeholders between for halberd and sra animations
+  FireCrossbow = 16,
+  Barrage = 17,
 }

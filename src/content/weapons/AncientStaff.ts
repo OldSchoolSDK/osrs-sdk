@@ -1,6 +1,6 @@
 "use strict";
 
-import InventoryImage from "../../assets/images/equipment/Ancient_staff.png";
+import InventoryImage from "../../assets/images/weapons/Ancient_staff.png";
 import { AttackStyle, AttackStyleTypes } from "../../sdk/AttackStylesController";
 import { AttackBonuses } from "../../sdk/gear/Weapon";
 import { ItemName } from "../../sdk/ItemName";
@@ -8,6 +8,8 @@ import { Unit } from "../../sdk/Unit";
 import { BarrageSpell } from "../../sdk/weapons/BarrageSpell";
 import { BloodBarrageSpell } from "../../sdk/weapons/BloodBarrageSpell";
 import { MeleeWeapon } from "../../sdk/weapons/MeleeWeapon";
+import { PlayerAnimationIndices } from "../../sdk/rendering";
+import { Assets } from "../../sdk";
 
 export class AncientStaff extends MeleeWeapon {
   autocastSpell: BarrageSpell = new BloodBarrageSpell();
@@ -62,7 +64,6 @@ export class AncientStaff extends MeleeWeapon {
     return [AttackStyle.ACCURATE, AttackStyle.AGGRESSIVECRUSH, AttackStyle.DEFENSIVE, AttackStyle.AUTOCAST];
   }
 
-
   attackStyleCategory(): AttackStyleTypes {
     return AttackStyleTypes.STAFF;
   }
@@ -96,5 +97,14 @@ export class AncientStaff extends MeleeWeapon {
 
   get inventoryImage() {
     return InventoryImage;
+  }
+
+  Model = Assets.getAssetUrl("models/player_ancient_staff.glb");
+  override get model() {
+    return this.Model;
+  }
+
+  get attackAnimationId() {
+    return PlayerAnimationIndices.Barrage;
   }
 }

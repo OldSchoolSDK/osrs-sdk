@@ -2,6 +2,7 @@ import { Necklace } from "../../sdk/gear/Necklace";
 import { ImageLoader } from "../../sdk/utils/ImageLoader";
 import InventImage from "../../assets/images/equipment/Occult_necklace.png";
 import { ItemName } from "../../sdk/ItemName";
+import { Assets } from "../../sdk";
 
 export class OccultNecklace extends Necklace {
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
@@ -36,7 +37,7 @@ export class OccultNecklace extends Necklace {
       other: {
         meleeStrength: 0,
         rangedStrength: 0,
-        magicDamage: 0.1,
+        magicDamage: 0.05,
         prayer: 0,
       },
       targetSpecific: {
@@ -44,5 +45,9 @@ export class OccultNecklace extends Necklace {
         slayer: 0,
       },
     };
+  }
+  Model = Assets.getAssetUrl("models/player_occult_necklace__or_.glb");
+  override get model() {
+    return this.Model;
   }
 }

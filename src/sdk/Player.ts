@@ -40,6 +40,8 @@ class PlayerEffects {
   poisoned = 0;
   venomed = 0;
   stamina = 0;
+  prayerRegeneration = 0;
+  prayerRegenerationCounter = 0;
 }
 
 // player can rotate this many JAUs per client tick
@@ -242,10 +244,26 @@ export class Player extends Unit {
     });
     this.setEffects = completeSetEffects;
 
+    this.handleLightbearerChange();
+
     if (this.path.length === 0) {
       this.currentPoseAnimation = this.getIdlePoseId();
     }
     this.invalidateModel();
+  }
+
+  private handleLightbearerChange() {
+    const hasLightbearer = this.equipment.ring && this.equipment.ring.itemName === ItemName.LIGHTBEARER;
+
+    if (hasLightbearer) {
+      // Equipping: only reset if natural regen is below half (spec timer > 25)
+      if (this.regenTimer.spec > 25) {
+        this.regenTimer.spec = 25; // Reset to Lightbearer rate
+      }
+    } else {
+      // Unequipping: always reset to normal rate
+      this.regenTimer.spec = 50;
+    }
   }
 
   get bonuses(): UnitBonuses {
@@ -840,7 +858,26 @@ export class Player extends Unit {
 
     this.regenTimer.regen();
 
+    this.tickPrayerRegeneration();
+
     this.sendXpToController();
+  }
+
+  tickPrayerRegeneration() {
+    if (this.effects.prayerRegeneration > 0) {
+      this.effects.prayerRegenerationCounter++;
+
+      // Restore 1 prayer point every 12 ticks
+      if (this.effects.prayerRegenerationCounter >= 12) {
+        this.currentStats.prayer += 1;
+        this.currentStats.prayer = Math.min(this.currentStats.prayer, this.stats.prayer);
+        this.effects.prayerRegenerationCounter = 0;
+      }
+
+      this.effects.prayerRegeneration--;
+    } else {
+      this.effects.prayerRegenerationCounter = 0;
+    }
   }
 
   attackIfPossible() {

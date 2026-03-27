@@ -100,6 +100,7 @@ export abstract class Unit extends Renderable {
   frozen = 0;
   stunned = 0;
   incomingProjectiles: Projectile[] = [];
+  conflictionActive: Map<string, boolean> = new Map();
   healHitsplatImage: HTMLImageElement = ImageLoader.createImage(HealSplat);
   missedHitsplatImage: HTMLImageElement = ImageLoader.createImage(MissSplat);
   damageHitsplatImage: HTMLImageElement = ImageLoader.createImage(DamageSplat);
@@ -808,5 +809,17 @@ export abstract class Unit extends Renderable {
 
   get deathAnimationId(): number | null {
     return null;
+  }
+
+  activateConfliction(attacker: Unit) {
+    this.conflictionActive.set(attacker.serialNumber, true);
+  }
+
+  deactivateConfliction(attacker: Unit) {
+    this.conflictionActive.set(attacker.serialNumber, false);
+  }
+
+  hasConflictionActive(attacker: Unit): boolean {
+    return this.conflictionActive.get(attacker.serialNumber) ?? false;
   }
 }
