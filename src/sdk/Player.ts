@@ -821,6 +821,8 @@ export class Player extends Unit {
     super.attackStep();
     this.detectDeath();
 
+    this.eats.tickFood(this);
+
     this.processIncomingAttacks();
 
     if (this.dying > -1) {
@@ -835,8 +837,6 @@ export class Player extends Unit {
     }
 
     this.attackIfPossible();
-
-    this.eats.tickFood(this);
 
     this.regenTimer.regen();
 
