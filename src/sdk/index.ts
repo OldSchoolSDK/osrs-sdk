@@ -85,7 +85,6 @@ export * from './utils/ImageLoader';
 export * from './utils/SoundCache';
 export * from './utils/Text';
 export * from './Viewport';
-export * from './Viewport2d';
 export * from './Viewport3d';
 export * from './World';
 export * from './XpDrop';
