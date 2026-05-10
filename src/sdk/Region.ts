@@ -5,6 +5,7 @@ import type { Entity } from "./Entity";
 import type { Item } from "./Item";
 import type { Mob } from "./Mob";
 import type { Player } from "./Player";
+import type { Renderable } from "./Renderable";
 import { Settings } from "./Settings";
 import type { World } from "./World";
 import type { Projectile } from "./weapons/Projectile";
@@ -89,7 +90,6 @@ export abstract class Region {
   }
 
   removeEntity(entity: Entity) {
-    entity.dying = 0;
     remove(this.entities, entity);
   }
 
@@ -103,8 +103,8 @@ export abstract class Region {
   }
 
   removeMob(mob: Mob) {
-    mob.dying = 0;
     remove(this.mobs, mob);
+    remove(this.newMobs, mob);
   }
 
   removePlayer(player: Player) {
@@ -223,5 +223,13 @@ export abstract class Region {
     await Promise.all(this.mobs.map((mob) => mob.preload()));
     await Promise.all(this.newMobs.map((mob) => mob.preload()));
     await Promise.all(this.players.map((players) => players.preload()));
+  }
+
+  getRenderables(): Renderable[] {
+    const units = [...this.players, ...this.mobs, ...this.newMobs];
+    const incomingProjectiles: Renderable[] = [];
+    units.forEach((unit) => incomingProjectiles.push(...unit.incomingProjectiles));
+
+    return [...this.entities, ...units, ...this.projectiles, ...incomingProjectiles];
   }
 }
