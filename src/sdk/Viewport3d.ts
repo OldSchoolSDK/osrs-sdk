@@ -10,13 +10,11 @@ import { Chrome } from "./Chrome";
 import { Settings } from "./Settings";
 import { Player } from "./Player";
 import { Mob } from "./Mob";
-import { Entity } from "./Entity";
 import { Renderable } from "./Renderable";
 import { Location } from "./Location";
 import { Actor } from "./rendering/Actor";
 import _ from "lodash";
 import { Unit } from "./Unit";
-import { Projectile } from "./weapons/Projectile";
 import { Trainer } from "./Trainer";
 import { Pathing } from "./Pathing";
 
@@ -384,70 +382,24 @@ export class Viewport3d implements ViewportDelegate {
   }
 
   draw3dScene(world: World, region: Region) {
-    // create actors
-    region.entities.forEach((entity: Entity) => {
-      let actor = this.knownActors.get(entity);
-      if (!actor) {
-        actor = new Actor(entity);
-        this.knownActors.set(entity, actor);
-      }
-    });
+    this.reconcileActors(region);
 
-    const projectiles: Projectile[] = [];
     region.players.forEach((player: Player) => {
-      let actor = this.knownActors.get(player);
-      if (!actor) {
-        actor = new Actor(player);
-        this.knownActors.set(player, actor);
+      const actor = this.knownActors.get(player);
+      const model = actor?.getModel();
+      if (!model) {
+        return;
       }
       // Update the camera position relative to the player's mesh
       const v = new THREE.Vector3(0.5, 0, -0.5);
-      v.add(actor.getModel().getWorldPosition());
+      v.add(model.getWorldPosition());
       this.pivot.position.lerp(v, 5 / world.fps);
-      // Add all projectiles to scene
-      projectiles.push(...player.incomingProjectiles);
-    });
-
-    region.mobs.concat(region.newMobs).forEach((mob: Mob) => {
-      let actor = this.knownActors.get(mob);
-      if (!actor) {
-        actor = new Actor(mob);
-        this.knownActors.set(mob, actor);
-      }
-      // Add all projectiles to scene
-      projectiles.push(...mob.incomingProjectiles);
-    });
-
-    region.projectiles.forEach((projectile: Projectile) => {
-      let actor = this.knownActors.get(projectile);
-      if (!actor) {
-        actor = new Actor(projectile);
-        this.knownActors.set(projectile, actor);
-      }
-      // Add all projectiles to scene
-      projectiles.push(projectile);
-    });
-
-    projectiles.forEach((projectile) => {
-      let actor = this.knownActors.get(projectile);
-      if (!actor) {
-        actor = new Actor(projectile);
-        this.knownActors.set(projectile, actor);
-      }
     });
 
     const delta = this.clock.getDelta();
     this.updateCamera(delta);
 
-    this.knownActors.forEach((actor, entity) => {
-      if (actor.shouldRemove()) {
-        // remove destroyed actors
-        actor.destroy(this.scene);
-        this.knownActors.delete(entity);
-      } else {
-        actor.draw(this.scene, delta, world.tickPercent);
-      }
-    });
+    this.knownActors.forEach((actor) => actor.draw(this.scene, delta, world.tickPercent));
 
     // highlight selected tile
     if (this.selectedTile) {
@@ -456,6 +408,23 @@ export class Viewport3d implements ViewportDelegate {
       this.selectedTileMesh.position.z = this.selectedTile.y - 0.5;
       this.selectedTileMesh.visible = !Trainer.clickController.hasSelectedMob();
     }
+  }
+
+  private reconcileActors(region: Region) {
+    const activeRenderables = new Set(region.getRenderables());
+
+    this.knownActors.forEach((actor, renderable) => {
+      if (!activeRenderables.has(renderable) || actor.shouldRemove()) {
+        actor.destroy(this.scene);
+        this.knownActors.delete(renderable);
+      }
+    });
+
+    activeRenderables.forEach((renderable) => {
+      if (!renderable.shouldDestroy() && !this.knownActors.has(renderable)) {
+        this.knownActors.set(renderable, new Actor(renderable));
+      }
+    });
   }
 
   draw2dScene(world: World, region: Region) {
