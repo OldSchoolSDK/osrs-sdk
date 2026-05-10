@@ -1,6 +1,6 @@
 {
   "name": "osrs-sdk",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "",
   "main": "_bundles/main.js",
   "types": "lib/index.d.ts",
