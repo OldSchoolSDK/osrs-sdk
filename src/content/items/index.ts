@@ -7,3 +7,4 @@ export { Shark } from './Shark';
 export { StaminaPotion } from './StaminaPotion';
 export { SuperCombatPotion } from './SuperCombatPotion';
 export { SuperRestore } from './SuperRestore';
+export { ArmadylBrew } from './ArmadylBrew';
