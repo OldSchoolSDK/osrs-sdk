@@ -10,13 +10,19 @@ Currently using https://github.com/lequietriot/Old-School-RuneScape-Cache-Tools.
 
 Install the [gltf-transform CLI](https://gltf-transform.dev/) using:
 
-    npm install --global @gltf-transform/cli
+    npm install --global @gltf-transform/cli@3.10.1
+
+**_NOTE:_** `gltf-transform` 4.x requires Node 20+. Since this project uses Node 16, we must use 3.x instead.
 
 Then in the directory that contains GLTF files:
 
-for file in *.gltf; do
-    gltf-transform optimize --compress meshopt $file $(echo $file | sed 's/\.gltf$/\.glb/')
-done
+    for file in *.gltf; do
+        gltf-transform optimize --compress meshopt $file $(echo $file | sed 's/\.gltf$/\.glb/')
+    done
+
+or single line:
+
+    for f in *.gltf; do gltf-transform optimize --compress meshopt "$f" "${f%.gltf}.glb"; done
 
 ## Scene models
 
@@ -28,10 +34,17 @@ Using Dezinator's `osrscachereader` at https://github.com/Dezinater/osrscacherea
 
 ### Player models
 
-    npm run cmd modelBuilder item 26684,27235,27238,27241,26235,28902,13237,22249,12926,20997,11959,25865,23975,23979,23971,7462,22109,21021,21024 maleModel0,maleModel1 anim 808,819,824,820,822,821,426,5061,7618 name player split
+The general command shape is:
 
-    where:
+    npm run cmd modelBuilder <type> <ids> <model-type> anim <animation-ids> name <output-name> [split]
 
+Example:
+
+    npm run cmd modelBuilder item 26684,27235,27238,27241,26235,28902,13237,22249,12926,20997,11959,25865,23975,23979,23971,7462,22109,21021,21024 maleModel0,maleModel1 anim 808,819,824,820,822,821,426,5061,7618,8057,8056,390 name player split
+
+where:
+
+    item
         - 26684 # tzkal slayer helmet
         - 27235 # masori mask (f)
         - 27238 # masori body (f)
@@ -51,8 +64,7 @@ Using Dezinator's `osrscachereader` at https://github.com/Dezinater/osrscacherea
         - 22109 # ava's assembler
         - 21021 # ancestral top (buggy)
         - 21024 # ancestral bottom (buggy)
-
-
+    anim
       - 808 # idle
       - 819 # walk
       - 824 # run
@@ -62,3 +74,12 @@ Using Dezinator's `osrscachereader` at https://github.com/Dezinater/osrscacherea
       - 426 # fire bow
       - 5061 # fire blowpipe
       - 7618 # throw chinchompa
+      - 8057 # scythe idle
+      - 8056 # scythe swing
+      - 390  # sword slash
+
+Practically speaking, your command should always look like this:
+
+    npm run cmd modelBuilder item <ITEM_IDS> maleModel0,maleModel1 anim 808,819,824,820,822,821,426,5061,7618,8057,8056,390 name player split
+
+See [Optimising Models](#optimising-models) on how to convert the GLTF files to GLB for inclucion in `oldschool-cdn`
