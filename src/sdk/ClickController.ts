@@ -89,7 +89,6 @@ export class ClickController {
   }
 
   mouseMoved(e: MouseEvent) {
-
     const scale = Settings.maxUiScale;
     if (this.viewport.components.some((component) => component.onMouseMove(e.offsetX / scale, e.offsetY / scale))) {
       return;
@@ -158,6 +157,11 @@ export class ClickController {
   clickDown(e: MouseEvent) {
     if (e.button === 2) {
       this.rightClickDown(e);
+    }
+
+    if (e.button === 1) {
+      e.preventDefault(); // prevent autoscroll on middle click
+      return;
     }
 
     if (e.button !== 0) {
