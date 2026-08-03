@@ -191,6 +191,10 @@ export abstract class Region {
   abstract initialiseRegion(): { player: Player };
 
   reset() {
+    if (!this.world.isPaused) {
+      this.world.stopTicking();
+    }
+
     this.players = [];
     this.mobs = [];
     this.newMobs = [];
@@ -199,18 +203,20 @@ export abstract class Region {
     this.groundItems = {};
     TileMarker.loadAll(this);
     Viewport.viewport.reset();
-    
+
     // Set countdown timer like on page load
     this.world.getReadyTimer = 6;
-    
+
     const reset = this.initialiseRegion();
     Viewport.viewport.setPlayer(reset.player);
+    this.world.startTicking();
     return reset;
   }
 
   onGameOver() {
     // Override me
     Viewport.viewport.components.push(new Button("Reset", 120, 60, () => Trainer.reset()));
+    this.world.stopTicking();
   }
 
   getSidebarContent(): string {
