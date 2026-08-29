@@ -63,7 +63,7 @@ export class SampleNpc extends Mob {
   }
 
   get size() {
-    return 4;
+    return 7;
   }
 
   // A simple SDK clickbox keeps the sample NPC targetable regardless of the
