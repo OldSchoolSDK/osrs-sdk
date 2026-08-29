@@ -3,7 +3,7 @@ import { RSCache, IndexType, ConfigType, ModelGroup } from "../../osrscachereade
 
 const itemKey = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-const NPC_ID = 8250; // Verzik Vitur
+const NPC_ID = 8373; // Verzik Vitur (phase 3)
 
 function payload(group) {
   const model = group.getMergedModel();

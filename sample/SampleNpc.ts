@@ -78,9 +78,9 @@ export class SampleNpc extends Mob {
 
   create3dModel() {
     if (CacheRender.isConfigured()) {
-      // Verzik Vitur's definition is pinned by the render-bundle extractor manifest.
+      // Verzik Vitur's phase-3 definition is pinned by the bundle.
       return new FallbackModel(
-        CacheRenderModel.forRenderable(this, CacheRenderReferences.npc(8250)),
+        CacheRenderModel.forRenderable(this, CacheRenderReferences.npc(8373)),
         GLTFModel.forRenderable(this, Assets.getAssetUrl("models/verzik.glb")),
       );
     }
