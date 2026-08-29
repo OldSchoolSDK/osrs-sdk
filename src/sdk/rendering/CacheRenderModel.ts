@@ -193,6 +193,9 @@ export class CacheRenderModel implements Model, RenderableListener {
   private sourceVertices: number[] = [];
   private spotAnims: SpotAnimRuntime[] = [];
   private activeSpotAnims: CacheRenderSpotAnim[] = [];
+  private outline: THREE.LineSegments | null = null;
+  private trueTile: THREE.LineSegments;
+  private clickbox: THREE.Mesh | null = null;
   private modelGeneration = 0;
   private meshGeneration = -1;
 
@@ -203,6 +206,18 @@ export class CacheRenderModel implements Model, RenderableListener {
     // considered as a click target.
     this.root.userData.clickable = renderable.selectable;
     this.root.userData.unit = renderable;
+    const size = renderable.size;
+    const points = [
+      new THREE.Vector3(0, 0, 0), new THREE.Vector3(size, 0, 0),
+      new THREE.Vector3(size, 0, 0), new THREE.Vector3(size, 0, -size),
+      new THREE.Vector3(size, 0, -size), new THREE.Vector3(0, 0, -size),
+      new THREE.Vector3(0, 0, -size), new THREE.Vector3(0, 0, 0),
+    ];
+    this.trueTile = new THREE.LineSegments(
+      new THREE.BufferGeometry().setFromPoints(points),
+      new THREE.LineBasicMaterial({ color: 0x00ffff }),
+    );
+    if (renderable.trueTileRenderOrder !== null) this.trueTile.renderOrder = renderable.trueTileRenderOrder;
   }
   static forRenderable(renderable: Renderable, reference: CacheRenderReference) { return new CacheRenderModel(renderable, reference); }
   spotAnimChanged(spotAnims: CacheRenderSpotAnim[]) { this.activeSpotAnims = spotAnims.slice(); }
@@ -250,6 +265,8 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.ready = (async () => {
       const generation = this.modelGeneration;
       const previousChildren = this.root.children.slice();
+      const previousOutline = this.outline;
+      const previousClickbox = this.clickbox;
       const bundle = await CacheRender.bundle();
       const payloads = await Promise.all(bundle.assetIds(this.reference).map((id) => cachedPayload(bundle, id)));
       // Preload effect meshes independently of the active list. Gameplay can
@@ -303,7 +320,22 @@ export class CacheRenderModel implements Model, RenderableListener {
       hitbox.position.y = (this.renderable.clickboxHeight ?? this.renderable.size) / 2 - 0.49;
       hitbox.userData.clickable = this.renderable.selectable;
       hitbox.userData.unit = this.renderable;
-      this.root.add(hitbox);
+      this.clickbox = hitbox;
+      if (this.renderable.drawOutline) {
+        const size = this.renderable.size;
+        const outlinePoints = [
+          new THREE.Vector3(0, 0, 0), new THREE.Vector3(size, 0, 0),
+          new THREE.Vector3(size, 0, 0), new THREE.Vector3(size, 0, -size),
+          new THREE.Vector3(size, 0, -size), new THREE.Vector3(0, 0, -size),
+          new THREE.Vector3(0, 0, -size), new THREE.Vector3(0, 0, 0),
+        ];
+        const outline = new THREE.LineSegments(
+          new THREE.BufferGeometry().setFromPoints(outlinePoints),
+          new THREE.LineBasicMaterial({ color: this.renderable.colorHex }),
+        );
+        if (this.renderable.outlineRenderOrder !== null) outline.renderOrder = this.renderable.outlineRenderOrder;
+        this.outline = outline;
+      }
       this.mesh = mesh;
       this.meshGeneration = generation;
       spotPayloads.forEach((spotPayload) => {
@@ -331,6 +363,8 @@ export class CacheRenderModel implements Model, RenderableListener {
       previousChildren.forEach((child) => {
         if (child.parent === this.root) this.root.remove(child);
       });
+      if (previousOutline?.parent) previousOutline.parent.remove(previousOutline);
+      if (previousClickbox?.parent) previousClickbox.parent.remove(previousClickbox);
     })();
     return this.ready;
   }
@@ -346,9 +380,28 @@ export class CacheRenderModel implements Model, RenderableListener {
     }
     const size = this.renderable.size;
     this.root.visible = visible && this.mesh !== null;
+    if (this.outline) this.outline.visible = visible && this.renderable.drawOutline;
     this.root.position.set(location.x + size / 2, location.z - 0.49, location.y - size / 2);
     this.root.rotation.order = "YXZ";
     this.root.rotation.set(pitch, rotation + Math.PI / 2, 0);
+    if (this.outline) {
+      if (this.outline.parent !== scene) scene.add(this.outline);
+      this.outline.position.set(location.x, -0.49, location.y);
+      this.outline.rotation.set(0, 0, 0);
+    }
+    if (this.clickbox) {
+      if (this.clickbox.parent !== scene) scene.add(this.clickbox);
+      const clickboxHeight = this.renderable.clickboxHeight ?? this.renderable.size;
+      this.clickbox.position.set(location.x + this.renderable.size / 2, clickboxHeight / 2 - 0.49, location.y - this.renderable.size / 2);
+      this.clickbox.rotation.set(0, 0, 0);
+      this.clickbox.visible = this.renderable.selectable;
+    }
+    if (this.trueTile) {
+      if (this.trueTile.parent !== scene) scene.add(this.trueTile);
+      const trueLocation = this.renderable.getTrueLocation();
+      this.trueTile.position.set(trueLocation.x, -0.495, trueLocation.y);
+      this.trueTile.visible = this.renderable.drawTrueTile && visible;
+    }
     this.root.children.forEach((child, index) => {
       const offset = modelOffsets[index]; child.position.set(offset?.x ?? 0, offset?.z ?? 0, offset?.y ?? 0);
     });
@@ -375,7 +428,12 @@ export class CacheRenderModel implements Model, RenderableListener {
       let elapsed = 0;
       let frame = 0;
       for (; frame < animation.lengths.length - 1 && time >= elapsed + animation.lengths[frame] / 50; frame++) elapsed += animation.lengths[frame] / 50;
-      const next = Math.min(frame + 1, animation.frames.length - 1);
+      // Looping pose animations need to blend the final frame back to the
+      // first frame; holding the final frame creates a visible snap at the
+      // run-cycle boundary. One-shot attack animations still clamp normally.
+      const next = !this.animationPlaying
+        ? (frame + 1) % animation.frames.length
+        : Math.min(frame + 1, animation.frames.length - 1);
       const blend = animation.lengths[frame] ? Math.min(1, (time - elapsed) / (animation.lengths[frame] / 50)) : 0;
       const vertices = animation.frames[frame];
       const nextVertices = animation.frames[next];
@@ -476,6 +534,12 @@ export class CacheRenderModel implements Model, RenderableListener {
       // the new payload arrives.
       if (this.mesh && this.meshGeneration === this.modelGeneration) this.lastPose = pose;
   }
-  destroy(scene: THREE.Scene) { if (this.root.parent === scene) scene.remove(this.root); this.renderable.clearAnimationListener(); }
+  destroy(scene: THREE.Scene) {
+    if (this.root.parent === scene) scene.remove(this.root);
+    if (this.outline?.parent === scene) scene.remove(this.outline);
+    if (this.trueTile?.parent === scene) scene.remove(this.trueTile);
+    if (this.clickbox?.parent === scene) scene.remove(this.clickbox);
+    this.renderable.clearAnimationListener();
+  }
   getWorldPosition() { return this.root.getWorldPosition(new THREE.Vector3()); }
 }

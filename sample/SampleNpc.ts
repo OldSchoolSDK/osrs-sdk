@@ -76,6 +76,10 @@ export class SampleNpc extends Mob {
     return this.size * 0.5;
   }
 
+  override get outlineRenderOrder() {
+    return 10;
+  }
+
   create3dModel() {
     if (CacheRender.isConfigured()) {
       // Verzik Vitur's phase-3 definition is pinned by the bundle.
