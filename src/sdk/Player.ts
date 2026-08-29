@@ -50,7 +50,7 @@ class PlayerEffects {
 const PLAYER_ROTATION_RATE_JAU = 64;
 const CLIENT_TICKS_PER_SECOND = 50;
 const JAU_PER_RADIAN = 512;
-const RADIANS_PER_TICK = ((CLIENT_TICKS_PER_SECOND * PLAYER_ROTATION_RATE_JAU) / JAU_PER_RADIAN) * 0.6;
+const ROTATION_RADIANS_PER_CLIENT_TICK = PLAYER_ROTATION_RATE_JAU / JAU_PER_RADIAN;
 
 const ENABLE_POSITION_DEBUG = false;
 
@@ -532,7 +532,12 @@ export class Player extends Unit {
     let { x, y } = this.perceivedLocation;
     const { x: nextX, y: nextY, run } = this.path[0];
 
-    const currentAngle = this.getPerceivedRotation(tickPercent);
+    const currentAngle = this._angle;
+    this.rotationFromAngle = this._angle;
+    this.rotationTimestamp = window.performance.now();
+    const angleDelta = ((this.nextAngle - this._angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    if (Math.abs(angleDelta) <= ROTATION_RADIANS_PER_CLIENT_TICK) this._angle = this.nextAngle;
+    else this._angle += Math.sign(angleDelta) * ROTATION_RADIANS_PER_CLIENT_TICK;
 
     // Match the game client's cache-unit movement: four cache units per
     // 20ms client update (128 cache units per tile).
@@ -731,8 +736,9 @@ export class Player extends Unit {
   private nextAngle = 0;
 
   private _angle = 0;
+  private rotationFromAngle = 0;
+  private rotationTimestamp = 0;
 
-  private lastTickPercent = 0;
 
   getPerceivedRotation(tickPercent) {
     // https://gist.github.com/shaunlebron/8832585
@@ -741,16 +747,9 @@ export class Player extends Unit {
       return ((2 * da) % (Math.PI * 2)) - da;
     }
     //
-    const turnAmount = RADIANS_PER_TICK * Math.max(0, tickPercent - this.lastTickPercent);
-    this.lastTickPercent = tickPercent;
-    const diff = (this.nextAngle - this._angle + Math.PI * 2) % (Math.PI * 2);
-    const direction = diff - Math.PI > 0 ? -1 : 1;
-    if (diff >= turnAmount) {
-      this._angle += turnAmount * direction;
-    } else {
-      this._angle = this.nextAngle;
-    }
-    return this._angle;
+    const alpha = Math.min(1, Math.max(0, (window.performance.now() - this.rotationTimestamp) / 20));
+    const delta = ((this._angle - this.rotationFromAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    return this.rotationFromAngle + delta * alpha;
   }
 
   getTargetAngle() {
