@@ -31,8 +31,28 @@ export class World {
   nextTickTimer = 0;
   clientTickTimer = 0;
   fps = 50; // updates to track realtime framerate
+  private pausedForVisibility = false;
+  private browserLoopStarted = false;
 
   clientTickHandle: ReturnType<typeof setTimeout> | null = null;
+
+  constructor() {
+    // Browsers heavily throttle timers and rendering for background tabs. Do
+    // not accumulate a large client-tick backlog while the tab is hidden.
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") {
+          this.pausedForVisibility = !this.isPaused;
+          if (this.pausedForVisibility) this.stopTicking();
+        } else if (this.pausedForVisibility) {
+          this.pausedForVisibility = false;
+          this.deltaTimeSincePause = -1;
+          this.deltaTimeSinceLastTick = -1;
+          this.startTicking();
+        }
+      });
+    }
+  }
 
   addRegion(region: Region) {
     this.regions.push(region);
@@ -41,6 +61,9 @@ export class World {
   startTicking() {
     this.isPaused = false;
     const now = window.performance.now();
+    // Always start client-tick accounting from the current frame. This also
+    // prevents the initial callback from treating epoch time as missed ticks.
+    this.clientTickTimer = now;
     if (this.deltaTimeSincePause === -1) {
       this.tickTimer = now;
       this.then = now;
@@ -51,7 +74,10 @@ export class World {
     }
     this.nextTickTimer = this.tickTimer + Settings.tickMs;
     ControlPanelController.controller.onWorldTick();
-    this.browserLoop(window.performance.now());
+    if (!this.browserLoopStarted) {
+      this.browserLoopStarted = true;
+      this.browserLoop(window.performance.now());
+    }
     this.clientTickHandle = setInterval(() => this.doClientTick(), CLIENT_TICK_MS);
   }
 
@@ -68,7 +94,10 @@ export class World {
     const clientTickElapsed = now - this.clientTickTimer;
     // client tick every 20ms, doing multiple if missed
     const tickPercent = (now - this.tickTimer) / Settings.tickMs;
-    const clientTicksElapsed = Math.min(50, Math.max(1, Math.floor(clientTickElapsed / CLIENT_TICK_MS)));
+    // A delayed callback should not replay a large amount of simulation work.
+    // Visibility handling normally prevents this, while the cap protects
+    // against timer stalls caused by other browser scheduling interruptions.
+    const clientTicksElapsed = Math.min(2, Math.max(1, Math.floor(clientTickElapsed / CLIENT_TICK_MS)));
     for (let i = 0; i < clientTicksElapsed; i++) {
       this.tickClient(tickPercent);
       this.clientTickTimer = now;
@@ -91,7 +120,7 @@ export class World {
       }
       this.tickWorld();
     }
-    this.tickPercent = (now - this.tickTimer) / Settings.tickMs;
+    this.tickPercent = Math.min(1, Math.max(0, (now - this.tickTimer) / Settings.tickMs));
     Viewport.viewport.draw(this);
     this.then = now;
     this.frameCount++;

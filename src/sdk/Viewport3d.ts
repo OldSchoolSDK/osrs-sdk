@@ -64,6 +64,8 @@ export class Viewport3d implements ViewportDelegate {
   private clock = new THREE.Clock();
 
   private animateHandle: number;
+  private renderingSuspended = false;
+  private renderFailureLogged = false;
 
   constructor(faceCameraSouth = true) {
     this.scene = new THREE.Scene();
@@ -82,12 +84,35 @@ export class Viewport3d implements ViewportDelegate {
     const worldCanvas = document.getElementById("world") as HTMLCanvasElement;
     this.initCameraEvents(worldCanvas);
     window.addEventListener("resize", () => this.updateCanvasSize());
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") {
+        this.renderingSuspended = true;
+        if (this.animateHandle !== undefined) cancelAnimationFrame(this.animateHandle);
+      } else if (this.renderingSuspended) {
+        this.renderingSuspended = false;
+        this.nextRenderTime = 0;
+        this.animate();
+      }
+    });
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
       logarithmicDepthBuffer: true,
       antialias: true,
       //precision: "lowp", // is this making everything purple on mobile?
+    });
+    const webglCanvas = this.renderer.domElement as unknown as {
+      addEventListener?: (type: string, listener: (event: Event) => void) => void;
+    };
+    webglCanvas.addEventListener?.("webglcontextlost", (event: Event) => {
+      event.preventDefault();
+      console.error("[osrs-sdk] WebGL context lost while rendering the 3D viewport", {
+        visibility: typeof document !== "undefined" ? document.visibilityState : "unknown",
+      });
+    });
+    webglCanvas.addEventListener?.("webglcontextrestored", () => {
+      console.warn("[osrs-sdk] WebGL context restored; Three.js resources may need rebuilding");
+      this.nextRenderTime = 0;
     });
 
     // Set up camera positioning
@@ -289,10 +314,18 @@ export class Viewport3d implements ViewportDelegate {
   }
 
   render() {
-    this.renderer.render(this.scene, this.camera);
+    try {
+      this.renderer.render(this.scene, this.camera);
+    } catch (error) {
+      if (!this.renderFailureLogged) {
+        this.renderFailureLogged = true;
+        console.error("[osrs-sdk] WebGL render failed", error);
+      }
+    }
   }
 
   animate() {
+    if (this.renderingSuspended) return;
     this.animateHandle = requestAnimationFrame(() => this.animate());
     const now = window.performance.now();
     const frameInterval = Settings.renderFps > 0 ? 1000 / Settings.renderFps : 0;
