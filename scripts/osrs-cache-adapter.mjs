@@ -8,11 +8,25 @@ const NPC_ID = 8250; // Verzik Vitur
 function payload(group) {
   const model = group.getMergedModel();
   if (!model || !model.vertexCount) throw new Error("Decoded model has no vertices");
+  const positions = [], indices = [], colors = [], vertexGroups = (model.vertexGroups ?? []).map(() => []);
+  const rgb = (hsl) => {
+    const hue = ((hsl >> 10) & 63) / 64 + 0.5 / 64, saturation = ((hsl >> 7) & 7) / 8 + 0.5 / 8, luminance = (hsl & 127) / 128;
+    const chroma = (1 - Math.abs(2 * luminance - 1)) * saturation, x = chroma * (1 - Math.abs(((hue * 6) % 2) - 1)), lightness = luminance - chroma / 2;
+    let r = lightness, g = lightness, b = lightness;
+    switch (Math.floor(hue * 6)) { case 0: r += chroma; g += x; break; case 1: g += chroma; r += x; break; case 2: g += chroma; b += x; break; case 3: b += chroma; g += x; break; case 4: b += chroma; r += x; break; default: r += chroma; b += x; }
+    const brighten = (v) => Math.floor(Math.pow(Math.floor(v * 256) / 256, 0.6) * 256);
+    return (brighten(r) << 16) | (brighten(g) << 8) | brighten(b) || 1;
+  };
+  for (let face = 0; face < model.faceVertexIndices1.length; face++) {
+    for (const source of [model.faceVertexIndices1[face], model.faceVertexIndices2[face], model.faceVertexIndices3[face]]) {
+      const index = positions.length / 3; positions.push(model.vertexPositionsX[source] / 128, -model.vertexPositionsY[source] / 128, -model.vertexPositionsZ[source] / 128); indices.push(index);
+      colors.push(rgb(model.faceColors?.[face] ?? 0));
+      for (let groupIndex = 0; groupIndex < vertexGroups.length; groupIndex++) if (model.vertexGroups[groupIndex]?.includes(source)) vertexGroups[groupIndex].push(index);
+    }
+  }
   return {
-    positions: model.vertexPositionsX.flatMap((x, i) => [x / 128, -model.vertexPositionsY[i] / 128, -model.vertexPositionsZ[i] / 128]),
-    indices: model.faceVertexIndices1.flatMap((x, i) => [x, model.faceVertexIndices2[i], model.faceVertexIndices3[i]]),
-    vertexGroups: (model.vertexGroups ?? []).map((group) => group.slice()),
-    color: model.faceColors?.[0] ?? 0xffffff,
+    positions, indices, vertexGroups, colors,
+    color: 0xffffff,
     animations: {},
   };
 }
