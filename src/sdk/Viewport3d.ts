@@ -481,6 +481,7 @@ export class Viewport3d implements ViewportDelegate {
     };
     const intersections = this.raycaster.intersectObjects(
       this.scene.children.filter((c) => c.userData.clickable === true),
+      true,
     );
 
     // check if there were any NPCs on the way.

@@ -66,6 +66,16 @@ export class SampleNpc extends Mob {
     return 4;
   }
 
+  // A simple SDK clickbox keeps the sample NPC targetable regardless of the
+  // decoded model's triangle layout.
+  get clickboxHeight() {
+    return this.size;
+  }
+
+  get clickboxRadius() {
+    return this.size * 0.5;
+  }
+
   create3dModel() {
     if (CacheRender.isConfigured()) {
       // Verzik Vitur's definition is pinned by the render-bundle extractor manifest.

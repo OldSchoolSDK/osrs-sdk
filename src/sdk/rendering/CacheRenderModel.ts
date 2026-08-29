@@ -107,7 +107,13 @@ export class CacheRenderModel implements Model, RenderableListener {
   private basePositions: Float32Array | null = null;
   private vertexGroups: number[][] = [];
 
-  constructor(private renderable: Renderable, private reference: CacheRenderReference) { }
+  constructor(private renderable: Renderable, private reference: CacheRenderReference) {
+    // Viewport3d filters scene roots before recursively raycasting children.
+    // Mark this group as belonging to the renderable so its box hitbox is
+    // considered as a click target.
+    this.root.userData.clickable = renderable.selectable;
+    this.root.userData.unit = renderable;
+  }
   static forRenderable(renderable: Renderable, reference: CacheRenderReference) { return new CacheRenderModel(renderable, reference); }
   async animationChanged(id: number, _blend: boolean) {
     if (ENABLE_CACHE_RENDER_ANIMATIONS) { this.activeAnimation = id; this.animationTime = 0; this.animationPlaying = true; }
@@ -153,6 +159,17 @@ export class CacheRenderModel implements Model, RenderableListener {
       mesh.userData.unit = this.renderable;
       mesh.userData.cacheAnimations = payload.animations ?? {};
       this.root.add(mesh);
+      // Keep targeting reliable even when the decoded model has sparse or
+      // unusual triangles. The viewport raycasts recursively, so this simple
+      // tile-sized volume is enough to select the NPC and trigger attacks.
+      const hitbox = new THREE.Mesh(
+        new THREE.BoxGeometry((this.renderable.clickboxRadius ?? this.renderable.size * 0.4) * 2, this.renderable.clickboxHeight ?? this.renderable.size, (this.renderable.clickboxRadius ?? this.renderable.size * 0.4) * 2),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
+      );
+      hitbox.position.y = (this.renderable.clickboxHeight ?? this.renderable.size) / 2 - 0.49;
+      hitbox.userData.clickable = this.renderable.selectable;
+      hitbox.userData.unit = this.renderable;
+      this.root.add(hitbox);
       this.mesh = mesh;
     })();
     return this.ready;
