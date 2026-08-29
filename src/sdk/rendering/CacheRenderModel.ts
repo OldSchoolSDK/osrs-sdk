@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { Location3 } from "../Location";
 import { Renderable, RenderableListener } from "../Renderable";
-import { CacheRender, CacheRenderBundleError } from "./CacheRenderBundle";
+import { CacheRender, CacheRenderBundle, CacheRenderBundleError } from "./CacheRenderBundle";
 import { CacheRenderReference, CacheRenderSpotAnim } from "./CacheRenderReference";
 import { Model } from "./Model";
 import { Settings } from "../Settings";
@@ -15,6 +15,24 @@ type AnimationPayload = { frames: number[][]; lengths: number[]; rawFrames?: Raw
 type TexturePayload = { width: number; height: number; pixels: number[] };
 type Payload = { version: 1; positions: number[]; indices?: number[]; vertexGroups?: number[][]; sourceVertices?: number[]; colors?: number[]; faceColors?: number[]; alphas?: number[]; alphaGroups?: number[][]; uvs?: number[]; textureIds?: number[]; textures?: Record<string, TexturePayload>; normals?: number[]; color?: number; animations?: Record<string, AnimationPayload>; poseMap?: Record<string, number>; spotAnim?: { id?: number; animationId?: number; resizeX?: number; resizeY?: number; rotation?: number; height?: number; delay?: number } };
 type SpotAnimRuntime = { mesh: THREE.Mesh; basePositions: Float32Array; vertexGroups: number[][]; sourceVertices: number[]; baseAlphas: Float32Array; alphaGroups: number[][]; animation?: AnimationPayload; scaleX: number; scaleY: number; rotation: number; height: number; delay: number };
+
+// Decoded payloads are immutable bundle data, so retain them across model
+// invalidations and rapid equipment swaps. Cache promises too, allowing
+// concurrent swaps to share one fetch/decode operation. Failed loads are
+// evicted so a later attempt can retry.
+const decodedPayloadCache = new Map<string, Promise<Payload>>();
+
+function cachedPayload(bundle: CacheRenderBundle, assetId: string): Promise<Payload> {
+  const key = `${bundle.manifest.bundleVersion}:${assetId}`;
+  const existing = decodedPayloadCache.get(key);
+  if (existing) return existing;
+  const pending = bundle.fetchAsset(assetId).then(decodeCacheRenderPayload);
+  decodedPayloadCache.set(key, pending);
+  pending.catch(() => {
+    if (decodedPayloadCache.get(key) === pending) decodedPayloadCache.delete(key);
+  });
+  return pending;
+}
 
 function mergePayloads(payloads: Payload[]): Payload {
   const nonEmpty = payloads.filter((payload) => (payload.indices?.length ?? 0) > 0 || payload.positions.length > 3);
@@ -175,6 +193,8 @@ export class CacheRenderModel implements Model, RenderableListener {
   private sourceVertices: number[] = [];
   private spotAnims: SpotAnimRuntime[] = [];
   private activeSpotAnims: CacheRenderSpotAnim[] = [];
+  private modelGeneration = 0;
+  private meshGeneration = -1;
 
   constructor(private renderable: Renderable, private reference: CacheRenderReference) {
     this.activeSpotAnims = this.currentSpotAnims(reference.spotAnims);
@@ -207,7 +227,8 @@ export class CacheRenderModel implements Model, RenderableListener {
     if (next instanceof CacheRenderModel && next !== this) this.reference = next.reference;
     else if (nextPrimary instanceof CacheRenderModel) this.reference = nextPrimary.reference;
     this.ready = null;
-    this.mesh = null;
+    this.modelGeneration++;
+    this.meshGeneration = -1;
     this.animations = {};
     this.poseMap = {};
     this.lastPose = -1;
@@ -221,18 +242,20 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.sourceVertices = [];
     this.spotAnims = [];
     this.activeSpotAnims = this.currentSpotAnims(this.reference.spotAnims);
-    this.root.clear();
   }
   async preload() { await this.ensureLoaded(); }
 
   private async ensureLoaded() {
     if (this.ready) return this.ready;
     this.ready = (async () => {
+      const generation = this.modelGeneration;
+      const previousChildren = this.root.children.slice();
       const bundle = await CacheRender.bundle();
-      const payloads = await Promise.all(bundle.assetIds(this.reference).map(async id => decodeCacheRenderPayload(await bundle.fetchAsset(id))));
+      const payloads = await Promise.all(bundle.assetIds(this.reference).map((id) => cachedPayload(bundle, id)));
       // Preload effect meshes independently of the active list. Gameplay can
       // attach a Spotanim later without invalidating/rebuilding the base model.
-      const spotPayloads = await Promise.all(bundle.allSpotAnimIds().map(async id => decodeCacheRenderPayload(await bundle.fetchAsset(id))));
+      const spotPayloads = await Promise.all(bundle.allSpotAnimIds().map((id) => cachedPayload(bundle, id)));
+      if (generation !== this.modelGeneration) return;
       const payload = mergePayloads(payloads);
       Object.assign(this.animations, payload.animations ?? {});
       Object.assign(this.poseMap, payload.poseMap ?? {});
@@ -282,6 +305,7 @@ export class CacheRenderModel implements Model, RenderableListener {
       hitbox.userData.unit = this.renderable;
       this.root.add(hitbox);
       this.mesh = mesh;
+      this.meshGeneration = generation;
       spotPayloads.forEach((spotPayload) => {
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute("position", new THREE.Float32BufferAttribute(spotPayload.positions, 3));
@@ -303,6 +327,9 @@ export class CacheRenderModel implements Model, RenderableListener {
         effect.rotation.y = ((placement?.rotation ?? metadata.rotation) ?? 0) * Math.PI / 1024;
         this.root.add(effect);
         this.spotAnims.push({ mesh: effect, basePositions: new Float32Array(spotPayload.positions), vertexGroups: spotPayload.vertexGroups ?? [], sourceVertices: spotPayload.sourceVertices ?? [], baseAlphas: new Float32Array(spotPayload.alphas ?? Array(spotPayload.positions.length / 3).fill(0)), alphaGroups: spotPayload.alphaGroups ?? [], animation: metadata.animationId >= 0 ? spotPayload.animations?.[String(metadata.animationId)] : undefined, scaleX: metadata.resizeX ?? 128, scaleY: metadata.resizeY ?? 128, rotation: metadata.rotation ?? 0, height: placement?.height ?? 0, delay: placement?.delay ?? 0 });
+      });
+      previousChildren.forEach((child) => {
+        if (child.parent === this.root) this.root.remove(child);
       });
     })();
     return this.ready;
@@ -447,7 +474,7 @@ export class CacheRenderModel implements Model, RenderableListener {
       // During an equipment swap ensureLoaded() is asynchronous; recording the
       // pose while mesh is null would prevent it from being initialized once
       // the new payload arrives.
-      if (this.mesh) this.lastPose = pose;
+      if (this.mesh && this.meshGeneration === this.modelGeneration) this.lastPose = pose;
   }
   destroy(scene: THREE.Scene) { if (this.root.parent === scene) scene.remove(this.root); this.renderable.clearAnimationListener(); }
   getWorldPosition() { return this.root.getWorldPosition(new THREE.Vector3()); }
