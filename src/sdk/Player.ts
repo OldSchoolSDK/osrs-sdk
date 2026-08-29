@@ -534,8 +534,9 @@ export class Player extends Unit {
 
     const currentAngle = this.getPerceivedRotation(tickPercent);
 
-    // 30 client ticks per tick and we want to walk 1 tile per tick so
-    const baseMovementSpeed = 1 / 30;
+    // Match the game client's cache-unit movement: four cache units per
+    // 20ms client update (128 cache units per tile).
+    const baseMovementSpeed = 4 / 128;
     let movementSpeed = baseMovementSpeed;
 
     this.currentPoseAnimation = PlayerAnimationIndices.Walk;
@@ -954,9 +955,12 @@ export class Player extends Unit {
   }
 
   getPerceivedLocation(tickPercent: number) {
-    const elapsed = Math.max(0, window.performance.now() - this.renderPositionTimestamp);
-    const alpha = Math.min(1, elapsed / 20);
-    return { x: this.renderFromLocation.x + (this.perceivedLocation.x - this.renderFromLocation.x) * alpha, y: this.renderFromLocation.y + (this.perceivedLocation.y - this.renderFromLocation.y) * alpha, z: 0 };
+    const alpha = Math.min(1, Math.max(0, (window.performance.now() - this.renderPositionTimestamp) / 20));
+    return {
+      x: this.renderFromLocation.x + (this.perceivedLocation.x - this.renderFromLocation.x) * alpha,
+      y: this.renderFromLocation.y + (this.perceivedLocation.y - this.renderFromLocation.y) * alpha,
+      z: 0,
+    };
   }
 
   drawUILayer(
