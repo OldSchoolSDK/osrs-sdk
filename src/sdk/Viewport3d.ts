@@ -41,6 +41,8 @@ export class Viewport3d implements ViewportDelegate {
   private renderer: THREE.WebGLRenderer;
   private camera: THREE.PerspectiveCamera;
   private raycaster: THREE.Raycaster;
+  private lastRenderTime = 0;
+  private nextRenderTime = 0;
 
   private pivot = new THREE.Object3D();
   private yaw = new THREE.Object3D();
@@ -292,10 +294,15 @@ export class Viewport3d implements ViewportDelegate {
 
   animate() {
     this.animateHandle = requestAnimationFrame(() => this.animate());
-
-    this.render();
-
-    this.stats.update();
+    const now = window.performance.now();
+    const frameInterval = Settings.renderFps > 0 ? 1000 / Settings.renderFps : 0;
+    if (frameInterval === 0 || now >= this.nextRenderTime) {
+      this.render();
+      this.stats.update();
+      this.lastRenderTime = now;
+      this.nextRenderTime = frameInterval === 0 ? now : (this.nextRenderTime > 0 ? this.nextRenderTime + frameInterval : now + frameInterval);
+      if (this.nextRenderTime < now - frameInterval * 2) this.nextRenderTime = now + frameInterval;
+    }
   }
 
   async initialise(world: World, region: Region) {
@@ -384,19 +391,14 @@ export class Viewport3d implements ViewportDelegate {
   draw3dScene(world: World, region: Region) {
     this.reconcileActors(region);
 
-    region.players.forEach((player: Player) => {
-      const actor = this.knownActors.get(player);
-      const model = actor?.getModel();
-      if (!model) {
-        return;
-      }
-      // Update the camera position relative to the player's mesh
-      const v = new THREE.Vector3(0.5, 0, -0.5);
-      v.add(model.getWorldPosition());
-      this.pivot.position.lerp(v, 5 / world.fps);
-    });
-
     const delta = this.clock.getDelta();
+    region.players.forEach((player: Player) => {
+      const location = player.getPerceivedLocation(world.tickPercent);
+      const target = new THREE.Vector3(location.x + 0.5, 0, location.y - 0.5);
+      // Frame-rate independent smoothing keeps camera and player sampling in
+      // the same interpolated coordinate space.
+      this.pivot.position.lerp(target, 1 - Math.exp(-8 * delta));
+    });
     this.updateCamera(delta);
 
     this.knownActors.forEach((actor) => actor.draw(this.scene, delta, world.tickPercent));

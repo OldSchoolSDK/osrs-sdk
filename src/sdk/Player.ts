@@ -90,9 +90,13 @@ export class Player extends Unit {
 
   pathMarkers: ClickMarker[] = [];
   currentPoseAnimation = PlayerAnimationIndices.Idle;
+  private renderFromLocation: Location = { x: 0, y: 0 };
+  private renderPositionTimestamp = 0;
 
   constructor(region: Region, location: Location, options: UnitOptions = {}) {
     super(region, location, options);
+    this.renderFromLocation = { ...this.perceivedLocation };
+    this.renderPositionTimestamp = window.performance.now();
 
     this.destinationLocation = location;
     this.pathTargetLocation = location;
@@ -571,7 +575,9 @@ export class Player extends Unit {
         y = Math.max(y - movementSpeed, nextY);
       }
     }
+    this.renderFromLocation = { ...this.perceivedLocation };
     this.perceivedLocation = { x, y };
+    this.renderPositionTimestamp = window.performance.now();
     diffX = Math.abs(x - nextX);
     diffY = Math.abs(y - nextY);
     if (diffX < EPSILON && diffY < EPSILON) {
@@ -948,7 +954,9 @@ export class Player extends Unit {
   }
 
   getPerceivedLocation(tickPercent: number) {
-    return { ...this.perceivedLocation, z: 0 };
+    const elapsed = Math.max(0, window.performance.now() - this.renderPositionTimestamp);
+    const alpha = Math.min(1, elapsed / 20);
+    return { x: this.renderFromLocation.x + (this.perceivedLocation.x - this.renderFromLocation.x) * alpha, y: this.renderFromLocation.y + (this.perceivedLocation.y - this.renderFromLocation.y) * alpha, z: 0 };
   }
 
   drawUILayer(

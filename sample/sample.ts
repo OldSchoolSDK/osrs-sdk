@@ -48,6 +48,13 @@ tileMarkerColor.addEventListener("input", () => {
 }, false);
 tileMarkerColor.value = Settings.tileMarkerColor;
 
+const renderFps = document.getElementById("renderFps") as HTMLSelectElement;
+renderFps.value = String(Settings.renderFps);
+renderFps.addEventListener("change", () => {
+  Settings.renderFps = parseInt(renderFps.value, 10);
+  Settings.persistToStorage();
+});
+
 const { player } = selectedRegion.initialiseRegion();
 
 Viewport.setupViewport(selectedRegion);

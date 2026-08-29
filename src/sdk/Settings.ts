@@ -14,6 +14,7 @@ export class Settings {
   }
 
   static tickMs = 600;
+  static renderFps = 60;
   static playsAudio: boolean;
   static playsAreaAudio: boolean;
   static inputDelay: number;
@@ -80,6 +81,7 @@ export class Settings {
     // window.localStorage.setItem('tileSize', Settings.tileSize);
     // window.localStorage.setItem('framesPerTick', Settings.framesPerTick);
     window.localStorage.setItem("zoomScale", String(Settings.zoomScale));
+    window.localStorage.setItem("renderFps", String(Settings.renderFps));
     window.localStorage.setItem("playsAudio", String(Settings.playsAudio));
     window.localStorage.setItem("playsAreaAudio", String(Settings.playsAreaAudio));
     window.localStorage.setItem("inputDelay", String(Settings.inputDelay));
@@ -126,6 +128,7 @@ export class Settings {
     Settings.controlPanelScale = Settings.mobileCheck() ? 0.9 : 1.5;
 
     Settings.zoomScale = parseFloat(window.localStorage.getItem("zoomScale")) || 1;
+    Settings.renderFps = parseInt(window.localStorage.getItem("renderFps") || "60", 10) || 60;
 
     Settings.playsAudio = window.localStorage.getItem("playsAudio") === "true" || false;
     Settings.playsAreaAudio = window.localStorage.getItem("playsAreaAudio") === "true" || false;
