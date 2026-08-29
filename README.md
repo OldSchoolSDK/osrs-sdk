@@ -67,5 +67,3 @@ This creates the version-bump pull request; it does not publish the package.
 4. Review and merge that release PR.
 5. Create a GitHub release with a tag matching the package version, for example `0.1.9`. This runs the `publish-npm` workflow, which tests, builds, and publishes the package to npm.
 6. After the npm publish succeeds, open a client PR (such as in the Colosseum trainer) that updates its `osrs-sdk` dependency and lockfile to the published version.
-
-Before using the workflow, repository settings must allow GitHub Actions to create pull requests: **Settings** → **Actions** → **General** → **Allow GitHub Actions to create and approve pull requests**.
