@@ -11,6 +11,7 @@ export type CacheRenderBundleManifest = {
   references: Record<string, string[]>;
   /** Maps semantic SDK item IDs (item:<id>) or legacy names to composable player payloads. */
   playerItems?: Record<string, string>;
+  spotAnims?: Record<string, string>;
 };
 
 export class CacheRenderBundleError extends Error {
@@ -32,6 +33,10 @@ export function validateCacheRenderBundleManifest(value: any): CacheRenderBundle
       throw new CacheRenderBundleError("manifest", `Invalid asset entry: ${key}`);
     }
   });
+  if (value.spotAnims !== undefined && (!value.spotAnims || typeof value.spotAnims !== "object" ||
+      Object.values(value.spotAnims).some((id: any) => typeof id !== "string"))) {
+    throw new CacheRenderBundleError("manifest", "Invalid spot animation asset mapping");
+  }
   return value as CacheRenderBundleManifest;
 }
 
@@ -76,6 +81,16 @@ export class CacheRenderBundle {
     const ids = this.manifest.references[referenceKey(reference)];
     if (ids) return ids;
     throw new CacheRenderBundleError("missing-asset", `Bundle has no render data for ${referenceKey(reference)}`);
+  }
+
+  spotAnimIds(reference: CacheRenderReference): string[] {
+    return (reference.spotAnims ?? []).map((spotAnim) => this.manifest.spotAnims?.[String(spotAnim.id)]).filter((id): id is string => Boolean(id));
+  }
+
+  allSpotAnimIds(): string[] {
+    const ids: string[] = [];
+    Object.keys(this.manifest.spotAnims ?? {}).forEach((key) => { const id = this.manifest.spotAnims?.[key]; if (id && ids.indexOf(id) < 0) ids.push(id); });
+    return ids;
   }
 
   async fetchAsset(id: string): Promise<ArrayBuffer> {

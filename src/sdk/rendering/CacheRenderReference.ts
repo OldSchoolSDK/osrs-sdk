@@ -1,7 +1,25 @@
 /** A semantic reference to cache-derived render data. */
 export type CacheRenderReference =
-  | { kind: "npc"; definitionId: number; bundleId?: string }
-  | { kind: "player"; loadout: Array<string | number>; poses?: Record<string, number>; bundleId?: string };
+  | { kind: "npc"; definitionId: number; spotAnims?: CacheRenderSpotAnim[]; bundleId?: string }
+  | { kind: "player"; loadout: Array<string | number>; poses?: Record<string, number>; spotAnims?: CacheRenderSpotAnim[]; bundleId?: string };
+
+/** Runtime placement/timing for a cache-derived effect. The cache stores the
+ * effect model and sequence, but actor-specific height, offset, and delay are
+ * supplied by gameplay code. */
+export type CacheRenderSpotAnim = {
+  id: number;
+  /** Optional replacement channel for mutually exclusive effects. */
+  channel?: string;
+  /** Semantic player animation that activates this effect. */
+  animation?: number;
+  height?: number;
+  /** Tile-plane world offset from the player (x/east, y/north). */
+  offset?: { x: number; y: number };
+  delay?: number;
+  rotation?: number;
+  /** Optional mapping from cache HSL face colours to Three.js RGB values. */
+  recolor?: Record<string, number>;
+};
 
 /** Stable semantic key for item references; display-name casing/punctuation is not significant. */
 export function cacheRenderItemKey(item: string | number): string {
@@ -9,13 +27,17 @@ export function cacheRenderItemKey(item: string | number): string {
 }
 
 export const CacheRenderReferences = {
-  npc(definitionId: number, bundleId?: string): CacheRenderReference {
-    return { kind: "npc", definitionId, bundleId };
+  npc(definitionId: number, spotAnimsOrBundleId?: CacheRenderSpotAnim[] | string, bundleId?: string): CacheRenderReference {
+    const spotAnims = Array.isArray(spotAnimsOrBundleId) ? spotAnimsOrBundleId : undefined;
+    const resolvedBundleId = typeof spotAnimsOrBundleId === "string" ? spotAnimsOrBundleId : bundleId;
+    return { kind: "npc", definitionId, spotAnims, bundleId: resolvedBundleId };
   },
-  player(loadout: Array<string | number>, poses?: Record<string, number>, bundleId?: string): CacheRenderReference {
+  player(loadout: Array<string | number>, poses?: Record<string, number>, spotAnimsOrBundleId?: CacheRenderSpotAnim[] | string, bundleId?: string): CacheRenderReference {
     // Preserve equipment-slot order. The cache animation groups are merged in
     // this order; sorting IDs changes the correspondence between concatenated
     // vertices and animation frames.
-    return { kind: "player", loadout: loadout.slice(), poses, bundleId };
+    const spotAnims = Array.isArray(spotAnimsOrBundleId) ? spotAnimsOrBundleId : undefined;
+    const resolvedBundleId = typeof spotAnimsOrBundleId === "string" ? spotAnimsOrBundleId : bundleId;
+    return { kind: "player", loadout: loadout.slice(), poses, spotAnims, bundleId: resolvedBundleId };
   },
 };

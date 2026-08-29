@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { Location3 } from "../Location";
 import { Renderable, RenderableListener } from "../Renderable";
 import { CacheRender, CacheRenderBundleError } from "./CacheRenderBundle";
-import { CacheRenderReference } from "./CacheRenderReference";
+import { CacheRenderReference, CacheRenderSpotAnim } from "./CacheRenderReference";
 import { Model } from "./Model";
 import { Settings } from "../Settings";
 
@@ -13,7 +13,8 @@ const ENABLE_CACHE_RENDER_ANIMATIONS = true;
 type RawFrame = { baseId?: number; types: number[]; maps: number[][]; indexFrameIds: number[]; x: number[]; y: number[]; z: number[] };
 type AnimationPayload = { frames: number[][]; lengths: number[]; rawFrames?: RawFrame[]; interleaveLeave?: number[] };
 type TexturePayload = { width: number; height: number; pixels: number[] };
-type Payload = { version: 1; positions: number[]; indices?: number[]; vertexGroups?: number[][]; sourceVertices?: number[]; colors?: number[]; uvs?: number[]; textureIds?: number[]; textures?: Record<string, TexturePayload>; normals?: number[]; color?: number; animations?: Record<string, AnimationPayload>; poseMap?: Record<string, number> };
+type Payload = { version: 1; positions: number[]; indices?: number[]; vertexGroups?: number[][]; sourceVertices?: number[]; colors?: number[]; faceColors?: number[]; alphas?: number[]; alphaGroups?: number[][]; uvs?: number[]; textureIds?: number[]; textures?: Record<string, TexturePayload>; normals?: number[]; color?: number; animations?: Record<string, AnimationPayload>; poseMap?: Record<string, number>; spotAnim?: { id?: number; animationId?: number; resizeX?: number; resizeY?: number; rotation?: number; height?: number; delay?: number } };
+type SpotAnimRuntime = { mesh: THREE.Mesh; basePositions: Float32Array; vertexGroups: number[][]; sourceVertices: number[]; baseAlphas: Float32Array; alphaGroups: number[][]; animation?: AnimationPayload; scaleX: number; scaleY: number; rotation: number; height: number; delay: number };
 
 function mergePayloads(payloads: Payload[]): Payload {
   const nonEmpty = payloads.filter((payload) => (payload.indices?.length ?? 0) > 0 || payload.positions.length > 3);
@@ -93,7 +94,7 @@ type TransformSelection = { indices: Set<number>; include: boolean };
  * always run, while other transform slots are selected by the primary
  * sequence's opcode-3 interleave list.
  */
-export function applyRawFrame(positions: Float32Array, groups: number[][], sourceVertices: number[], frame: RawFrame, selection?: TransformSelection) {
+export function applyRawFrame(positions: Float32Array, groups: number[][], sourceVertices: number[], frame: RawFrame, selection?: TransformSelection, alphas?: Float32Array, alphaGroups?: number[][]) {
   const x = new Float64Array(positions.length / 3), y = new Float64Array(x.length), z = new Float64Array(x.length);
   // Work in the cache's native model units. Besides avoiding accumulating
   // scale error, this lets the fixed-point rotations match the game/client
@@ -105,6 +106,10 @@ export function applyRawFrame(positions: Float32Array, groups: number[][], sourc
     const type = frame.types[transform], map = frame.maps[transform] ?? [];
     if (type !== 0 && selection && selection.indices.has(transform) !== selection.include) continue;
     const dx0 = frame.x[i] ?? 0, dy0 = frame.y[i] ?? 0, dz0 = frame.z[i] ?? 0;
+    if (type === 5) {
+      for (const group of map) for (const index of alphaGroups?.[group] ?? []) alphas[index] = Math.max(0, Math.min(255, alphas[index] + dx0 * 8));
+      continue;
+    }
     if (type === 0) {
       let count = 0; pivot.x = pivot.y = pivot.z = 0; const seen = new Set<number>();
       for (const group of map) for (const index of groups[group] ?? []) {
@@ -168,8 +173,11 @@ export class CacheRenderModel implements Model, RenderableListener {
   private basePositions: Float32Array | null = null;
   private vertexGroups: number[][] = [];
   private sourceVertices: number[] = [];
+  private spotAnims: SpotAnimRuntime[] = [];
+  private activeSpotAnims: CacheRenderSpotAnim[] = [];
 
   constructor(private renderable: Renderable, private reference: CacheRenderReference) {
+    this.activeSpotAnims = this.currentSpotAnims(reference.spotAnims);
     // Viewport3d filters scene roots before recursively raycasting children.
     // Mark this group as belonging to the renderable so its box hitbox is
     // considered as a click target.
@@ -177,6 +185,11 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.root.userData.unit = renderable;
   }
   static forRenderable(renderable: Renderable, reference: CacheRenderReference) { return new CacheRenderModel(renderable, reference); }
+  spotAnimChanged(spotAnims: CacheRenderSpotAnim[]) { this.activeSpotAnims = spotAnims.slice(); }
+  private currentSpotAnims(fallback?: CacheRenderSpotAnim[]) {
+    const attached = this.renderable.spotAnims;
+    return attached.length ? attached.slice() : (fallback ?? []).slice();
+  }
   async animationChanged(id: number, blend: boolean) {
     if (ENABLE_CACHE_RENDER_ANIMATIONS) {
       // SDK callers use semantic pose indices (e.g. FireBow = 6), while the
@@ -200,6 +213,8 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.basePositions = null;
     this.vertexGroups = [];
     this.sourceVertices = [];
+    this.spotAnims = [];
+    this.activeSpotAnims = this.currentSpotAnims(this.reference.spotAnims);
     this.root.clear();
   }
   async preload() { await this.ensureLoaded(); }
@@ -209,6 +224,9 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.ready = (async () => {
       const bundle = await CacheRender.bundle();
       const payloads = await Promise.all(bundle.assetIds(this.reference).map(async id => decodeCacheRenderPayload(await bundle.fetchAsset(id))));
+      // Preload effect meshes independently of the active list. Gameplay can
+      // attach a Spotanim later without invalidating/rebuilding the base model.
+      const spotPayloads = await Promise.all(bundle.allSpotAnimIds().map(async id => decodeCacheRenderPayload(await bundle.fetchAsset(id))));
       const payload = mergePayloads(payloads);
       Object.assign(this.animations, payload.animations ?? {});
       Object.assign(this.poseMap, payload.poseMap ?? {});
@@ -258,6 +276,28 @@ export class CacheRenderModel implements Model, RenderableListener {
       hitbox.userData.unit = this.renderable;
       this.root.add(hitbox);
       this.mesh = mesh;
+      spotPayloads.forEach((spotPayload) => {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(spotPayload.positions, 3));
+        if (spotPayload.colors && spotPayload.colors.length * 3 === spotPayload.positions.length) {
+          const values: number[] = [];
+          spotPayload.colors.forEach((value, index) => { const color = new THREE.Color(value); values.push(color.r, color.g, color.b, 1 - (spotPayload.alphas?.[index] ?? 0) / 255); });
+          geometry.setAttribute("color", new THREE.Float32BufferAttribute(values, 4));
+        }
+        geometry.setIndex(spotPayload.indices ?? []);
+        geometry.computeVertexNormals();
+        const effect = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: spotPayload.color ?? 0xffffff, vertexColors: Boolean(spotPayload.colors?.length), flatShading: true, transparent: true }));
+        const metadata = spotPayload.spotAnim ?? {};
+        const placement = this.activeSpotAnims[0];
+        effect.userData.spotAnimId = metadata.id;
+        effect.userData.cacheBaseColors = spotPayload.colors ?? [];
+        effect.userData.cacheFaceColors = spotPayload.faceColors ?? [];
+        effect.visible = false;
+        effect.scale.set((metadata.resizeX ?? 128) / 128, (metadata.resizeY ?? 128) / 128, (metadata.resizeX ?? 128) / 128);
+        effect.rotation.y = ((placement?.rotation ?? metadata.rotation) ?? 0) * Math.PI / 1024;
+        this.root.add(effect);
+        this.spotAnims.push({ mesh: effect, basePositions: new Float32Array(spotPayload.positions), vertexGroups: spotPayload.vertexGroups ?? [], sourceVertices: spotPayload.sourceVertices ?? [], baseAlphas: new Float32Array(spotPayload.alphas ?? Array(spotPayload.positions.length / 3).fill(0)), alphaGroups: spotPayload.alphaGroups ?? [], animation: metadata.animationId >= 0 ? spotPayload.animations?.[String(metadata.animationId)] : undefined, scaleX: metadata.resizeX ?? 128, scaleY: metadata.resizeY ?? 128, rotation: metadata.rotation ?? 0, height: placement?.height ?? 0, delay: placement?.delay ?? 0 });
+      });
     })();
     return this.ready;
   }
@@ -339,8 +379,65 @@ export class CacheRenderModel implements Model, RenderableListener {
         position.needsUpdate = true;
         this.mesh?.geometry.computeVertexNormals();
       }
-    }
-    this.lastPose = pose;
+      }
+      for (const spot of this.spotAnims) {
+        const animation = spot.animation;
+        const placement = this.activeSpotAnims.filter((spotAnim) => spotAnim.id === spot.mesh.userData.spotAnimId)[0];
+        const delay = placement?.delay ?? spot.delay;
+        const effectTime = this.animationTime - delay / 50;
+        const activationAnimation = placement?.animation == null ? true : (this.poseMap[String(placement.animation)] ?? placement.animation) === this.activeAnimation;
+        spot.mesh.visible = this.animationPlaying && activationAnimation && Boolean(placement) && effectTime >= 0 && Boolean(animation?.frames.length);
+        if (!spot.mesh.visible || !animation) continue;
+        const total = animation.lengths.reduce((sum, length) => sum + length, 0) / 50;
+        const time = total > 0 ? effectTime % total : 0;
+        let elapsed = 0, frame = 0;
+        for (; frame < animation.lengths.length - 1 && time >= elapsed + animation.lengths[frame] / 50; frame++) elapsed += animation.lengths[frame] / 50;
+        const next = Math.min(frame + 1, animation.frames.length - 1);
+        const blend = animation.lengths[frame] ? Math.min(1, (time - elapsed) / (animation.lengths[frame] / 50)) : 0;
+        const transformed = new Float32Array(spot.basePositions);
+        const alphaValues = new Float32Array(spot.baseAlphas);
+        if (animation.rawFrames?.[frame]) applyRawFrame(transformed, spot.vertexGroups, spot.sourceVertices, animation.rawFrames[frame], undefined, alphaValues, spot.alphaGroups);
+        else if (animation.frames[frame] && transformed.length === animation.frames[frame].length) {
+          const nextFrame = animation.frames[next] ?? animation.frames[frame];
+          for (let i = 0; i < transformed.length; i++) transformed[i] = animation.frames[frame][i] + (nextFrame[i] - animation.frames[frame][i]) * blend;
+        }
+        (spot.mesh.geometry.getAttribute("position") as THREE.BufferAttribute).array.set(transformed);
+        (spot.mesh.geometry.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
+        const color = spot.mesh.geometry.getAttribute("color") as THREE.BufferAttribute | undefined;
+        if (color && color.itemSize === 4) {
+          const recolor = placement?.recolor ?? {};
+          const baseColors = spot.mesh.userData.cacheBaseColors as number[];
+          const faceColors = spot.mesh.userData.cacheFaceColors as number[];
+          for (let i = 0; i < alphaValues.length; i++) {
+            const replacement = recolor[String(faceColors[i])];
+            if (replacement != null) {
+              const rgb = new THREE.Color(replacement);
+              color.array[i * 4] = rgb.r; color.array[i * 4 + 1] = rgb.g; color.array[i * 4 + 2] = rgb.b;
+            } else if (baseColors[i] != null) {
+              const rgb = new THREE.Color(baseColors[i]);
+              color.array[i * 4] = rgb.r; color.array[i * 4 + 1] = rgb.g; color.array[i * 4 + 2] = rgb.b;
+            }
+            color.array[i * 4 + 3] = 1 - alphaValues[i] / 255;
+          }
+          color.needsUpdate = true;
+        }
+        // Spotanim height/offset placement is supplied by the actor update,
+        // not by the cache definition. Keep it in the actor's local frame so
+        // the effect follows the player's facing direction.
+        const offset = placement?.offset;
+        if (offset) {
+          // Convert world tile offset into the player's local frame because
+          // the effect remains a child of the rotated player root.
+          const yaw = this.root.rotation.y;
+          const cos = Math.cos(yaw), sin = Math.sin(yaw);
+          spot.mesh.position.set(cos * offset.x - sin * offset.y, placement?.height ?? spot.height, sin * offset.x + cos * offset.y);
+        } else spot.mesh.position.set(0, placement?.height ?? spot.height, 0);
+        // Directional scythe meshes are authored in world orientation. The
+        // player root is yaw-rotated, so cancel that yaw to avoid rotating the
+        // slash a second time with the character.
+        spot.mesh.rotation.y = -this.root.rotation.y + ((placement?.rotation ?? spot.rotation) * Math.PI / 1024);
+      }
+      this.lastPose = pose;
   }
   destroy(scene: THREE.Scene) { if (this.root.parent === scene) scene.remove(this.root); this.renderable.clearAnimationListener(); }
   getWorldPosition() { return this.root.getWorldPosition(new THREE.Vector3()); }

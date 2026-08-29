@@ -31,6 +31,7 @@ import { Sound, SoundCache } from "./utils/SoundCache";
 import { DelayedAction } from "./DelayedAction";
 import { TextSegment, parseText } from "./utils/Text";
 import { UnitStats } from "./UnitStats";
+import { CacheRenderSpotAnim } from "./rendering/CacheRenderReference";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export enum UnitTypes {
@@ -91,6 +92,12 @@ export interface UnitTargetBonuses {
 }
 
 export abstract class Unit extends Renderable {
+  protected cacheRenderSpotAnims: CacheRenderSpotAnim[] = [];
+
+  /** Snapshot of the spotanims currently attached to this unit. */
+  get spotAnims(): CacheRenderSpotAnim[] {
+    return this.cacheRenderSpotAnims.slice();
+  }
   prayerController: PrayerController;
   aggro?: Unit;
   perceivedLocation: Location;
@@ -113,6 +120,14 @@ export abstract class Unit extends Renderable {
   lastRotation = 0;
   hasDiedAndAwaitingRemoval = false;
   nulledTicks = 0;
+
+  /** Attach or replace a temporary cache-derived graphic without rebuilding the base model. */
+  addSpotAnim(spotAnim: CacheRenderSpotAnim) {
+    const channel = spotAnim.channel ?? String(spotAnim.id);
+    this.cacheRenderSpotAnims = this.cacheRenderSpotAnims.filter((existing) => (existing.channel ?? String(existing.id)) !== channel);
+    this.cacheRenderSpotAnims.push({ ...spotAnim });
+    this.notifySpotAnimChanged(this.cacheRenderSpotAnims);
+  }
   
   overheadText: string | null = null;
   overheadTextTimer = 0;

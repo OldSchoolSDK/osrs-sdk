@@ -993,9 +993,9 @@ export class Player extends Unit {
             this.equipment.chest, this.equipment.legs, this.equipment.feet,
             this.equipment.gloves, this.equipment.ring, this.equipment.ammo,
             this.equipment.weapon, this.equipment.offhand]
-            .filter((e) => !!e).map((e) => e.cacheItemId ?? e.itemName),
+          .filter((e) => !!e).map((e) => e.cacheItemId ?? e.itemName),
           { idle: PlayerAnimationIndices.Idle, walk: PlayerAnimationIndices.Walk, run: PlayerAnimationIndices.Run },
-      );
+        );
       return new FallbackModel(
         CacheRenderModel.forRenderable(this, reference),
         GLTFModel.forRenderableMulti(this, Object.values(this.equipment).map((e) => e?.model).filter((e) => !!e)),

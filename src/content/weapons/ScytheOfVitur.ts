@@ -10,6 +10,7 @@ import ScytheAttackSound from "../../assets/sounds/scythe_swing_2524.ogg";
 import { Collision } from "../../sdk/Collision";
 import { AttackBonuses } from "../../sdk/gear/Weapon";
 import { Unit } from "../../sdk/Unit";
+import { Player } from "../../sdk/Player";
 
 const EXTRA_HIT_LOCATIONS = [
   [
@@ -121,6 +122,11 @@ export class ScytheOfVitur extends MeleeWeapon {
       direction = 2; // South
     } else {
       direction = 0; // North
+    }
+    if (from instanceof Player) {
+      const spotAnimByDirection = [506, 1172, 478, 1231];
+      const offsetByDirection = [{ x: 0, y: -0.5 }, { x: 0.5, y: 0 }, { x: 0, y: 0.5 }, { x: -0.5, y: 0 }];
+      from.addSpotAnim({ id: spotAnimByDirection[direction], channel: "scythe-swing", animation: PlayerAnimationIndices.ScytheSwing, height: 0.49 + 96 / 128, delay: 20, offset: offsetByDirection[direction], recolor: { "960": 0xffffff } });
     }
     // Full damage attack, but each subsequent hit does half of the last.
     let multiplier = 1.0;

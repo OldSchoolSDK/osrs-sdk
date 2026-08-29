@@ -8,7 +8,7 @@ const NPC_ID = 8373; // Verzik Vitur (phase 3)
 function payload(group) {
   const model = group.getMergedModel();
   if (!model || !model.vertexCount) throw new Error("Decoded model has no vertices");
-  const positions = [], indices = [], colors = [], uvs = [], textureIds = [], sourceVertices = [], vertexGroups = (model.vertexGroups ?? []).map(() => []);
+  const positions = [], indices = [], colors = [], faceColors = [], uvs = [], textureIds = [], sourceVertices = [], alphas = [], alphaGroups = (model.faceLabelsAlpha ?? []).map(() => []), vertexGroups = (model.vertexGroups ?? []).map(() => []);
   const rgb = (hsl) => {
     const hue = ((hsl >> 10) & 63) / 64 + 0.5 / 64, saturation = ((hsl >> 7) & 7) / 8 + 0.5 / 8, luminance = (hsl & 127) / 128;
     const chroma = (1 - Math.abs(2 * luminance - 1)) * saturation, x = chroma * (1 - Math.abs(((hue * 6) % 2) - 1)), lightness = luminance - chroma / 2;
@@ -23,13 +23,16 @@ function payload(group) {
       const index = positions.length / 3; positions.push(model.vertexPositionsX[source] / 128, -model.vertexPositionsY[source] / 128, -model.vertexPositionsZ[source] / 128); indices.push(index);
       sourceVertices.push(source);
       colors.push(rgb(model.faceColors?.[face] ?? 0));
+      faceColors.push(model.faceColors?.[face] ?? 0);
+      alphas.push(model.faceAlphas?.[face] ?? 0);
       uvs.push(model.faceTextureUCoordinates?.[face]?.[corner] ?? 0, model.faceTextureVCoordinates?.[face]?.[corner] ?? 0);
       textureIds.push(model.faceTextures?.[face] ?? -1);
       for (let groupIndex = 0; groupIndex < vertexGroups.length; groupIndex++) if (model.vertexGroups[groupIndex]?.includes(source)) vertexGroups[groupIndex].push(index);
+      for (let groupIndex = 0; groupIndex < alphaGroups.length; groupIndex++) if (model.faceLabelsAlpha[groupIndex]?.includes(face)) alphaGroups[groupIndex].push(index);
     }
   }
   return {
-    positions, indices, vertexGroups, sourceVertices, colors, uvs, textureIds,
+    positions, indices, vertexGroups, sourceVertices, colors, faceColors, alphas, alphaGroups, uvs, textureIds,
     color: 0xffffff,
     animations: {},
   };
@@ -97,6 +100,20 @@ async function itemModels(cache, item, models) {
   return ids;
 }
 
+async function spotAnimAsset(cache, id, models) {
+  const definition = await cache.getDef(IndexType.CONFIGS.id, ConfigType.SPOTANIM.id, id);
+  if (!definition || definition.modelId == null) throw new Error(`Missing spotanim definition ${id}`);
+  await modelAsset(cache, definition.modelId, models);
+  // Keep the raw model for Spotanims: ModelGroup's geometry merge intentionally
+  // omits face-label alpha groups, which are required by sequence type-5
+  // fade transforms.
+  const group = { getMergedModel: () => models.get(definition.modelId) };
+  const result = await attachTextures(cache, payload(group));
+  result.animations = definition.animationId >= 0 ? await animations(cache, group, [definition.animationId]) : {};
+  result.spotAnim = { id, animationId: definition.animationId, resizeX: definition.resizeX ?? 128, resizeY: definition.resizeY ?? 128, rotation: definition.rotation ?? 0 };
+  return result;
+}
+
 export async function decodeSample({ cachePath, revision }) {
   const cache = new RSCache(cachePath);
   await cache.onload;
@@ -110,6 +127,14 @@ export async function decodeSample({ cachePath, revision }) {
   npcPayload.animations = await animations(cache, npcGroup, [npc.standingAnimation, npc.walkingAnimation]);
   npcPayload.poseMap = { 0: npc.standingAnimation, 1: npc.walkingAnimation };
   assets.push({ id: `npc-${NPC_ID}`, payload: npcPayload });
+
+  const spotAnimIds = [478, 506, 1172, 1231];
+  const spotAnimAssets = {};
+  for (const id of spotAnimIds) {
+    const assetId = `spotanim-${id}`;
+    assets.push({ id: assetId, payload: await spotAnimAsset(cache, id, models) });
+    spotAnimAssets[String(id)] = assetId;
+  }
 
   const itemDefs = await cache.getAllDefs(IndexType.CONFIGS.id, ConfigType.ITEM.id);
   // These names intentionally match ItemName values used by the SDK (Dragon arrow is singular).
@@ -180,6 +205,7 @@ export async function decodeSample({ cachePath, revision }) {
     source: `openrs2:${rev}`,
     assets,
     references: { [`npc:${NPC_ID}`]: [`npc-${NPC_ID}`] },
+    spotAnims: spotAnimAssets,
     playerItems: playerItemAssets,
   };
 }

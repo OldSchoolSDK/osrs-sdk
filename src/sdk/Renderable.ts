@@ -2,10 +2,12 @@ import { create } from "lodash";
 import { Location, Location3 } from "./Location";
 
 import { Model } from "./rendering/Model";
+import { CacheRenderSpotAnim } from "./rendering/CacheRenderReference";
 
 export interface RenderableListener {
   animationChanged(id: number, blend: boolean): Promise<void>;
   modelChanged();
+  spotAnimChanged?(spotAnims: CacheRenderSpotAnim[]);
 }
 
 const NIL_OFFSET: Location3[] = [{ x: 0, y: 0, z: 0 }];
@@ -157,6 +159,15 @@ export abstract class Renderable {
       listener.animationChanged(this.queuedAnimationId, false);
       this.queuedAnimationId = -1;
     }
+  }
+
+  protected notifySpotAnimChanged(spotAnims: CacheRenderSpotAnim[]) {
+    this.animationChangeListener?.spotAnimChanged?.(spotAnims);
+  }
+
+  /** Spotanims currently attached to this renderable. */
+  get spotAnims(): CacheRenderSpotAnim[] {
+    return [];
   }
 
   clearAnimationListener() {

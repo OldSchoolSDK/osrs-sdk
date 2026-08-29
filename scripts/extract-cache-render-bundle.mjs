@@ -25,7 +25,7 @@ for (const asset of decoded.assets.sort((a, b) => a.id.localeCompare(b.id))) {
   await writeFile(resolve(outputDirectory, file), bytes);
   assets[asset.id] = { file, sha256: hash, bytes: bytes.length };
 }
-const sourceHash = createHash("sha256").update(JSON.stringify({ assets, references: decoded.references, playerItems: decoded.playerItems })).digest("hex");
-const manifest = { schemaVersion: 1, bundleVersion: `osrs-${decoded.revision}-${sourceHash.slice(0, 12)}`, cache: { revision: decoded.revision, source: decoded.source, contentHash: sourceHash }, assets, references: decoded.references, ...(decoded.playerItems ? { playerItems: decoded.playerItems } : {}) };
+const sourceHash = createHash("sha256").update(JSON.stringify({ assets, references: decoded.references, playerItems: decoded.playerItems, spotAnims: decoded.spotAnims })).digest("hex");
+const manifest = { schemaVersion: 1, bundleVersion: `osrs-${decoded.revision}-${sourceHash.slice(0, 12)}`, cache: { revision: decoded.revision, source: decoded.source, contentHash: sourceHash }, assets, references: decoded.references, ...(decoded.playerItems ? { playerItems: decoded.playerItems } : {}), ...(decoded.spotAnims ? { spotAnims: decoded.spotAnims } : {}) };
 await writeFile(resolve(outputDirectory, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 console.log(`Wrote ${Object.keys(assets).length} cache render payloads for revision ${decoded.revision}`);
