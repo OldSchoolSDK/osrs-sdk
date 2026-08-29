@@ -55,6 +55,13 @@ renderFps.addEventListener("change", () => {
   Settings.persistToStorage();
 });
 
+const smoothCacheAnimations = document.getElementById("smoothCacheAnimations") as HTMLInputElement;
+smoothCacheAnimations.checked = Settings.smoothCacheAnimations;
+smoothCacheAnimations.addEventListener("change", () => {
+  Settings.smoothCacheAnimations = smoothCacheAnimations.checked;
+  Settings.persistToStorage();
+});
+
 const { player } = selectedRegion.initialiseRegion();
 
 Viewport.setupViewport(selectedRegion);

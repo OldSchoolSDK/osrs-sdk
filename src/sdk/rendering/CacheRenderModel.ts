@@ -4,6 +4,7 @@ import { Renderable, RenderableListener } from "../Renderable";
 import { CacheRender, CacheRenderBundleError } from "./CacheRenderBundle";
 import { CacheRenderReference } from "./CacheRenderReference";
 import { Model } from "./Model";
+import { Settings } from "../Settings";
 
 const MAGIC = "OSRB";
 // CPU-side frame-map animation is used for standard sequences. Animaya
@@ -308,22 +309,29 @@ export class CacheRenderModel implements Model, RenderableListener {
       const position = this.mesh?.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
       if (position && this.basePositions) {
         if (animation.rawFrames?.[frame]) {
-          const transformed = new Float32Array(this.basePositions);
           const poseSequence = this.poseMap[String(pose)];
           const poseAnimation = this.animations[String(poseSequence)];
           const interleave = animation.interleaveLeave?.filter((index) => index !== 9999999) ?? [];
-          if (this.animationPlaying && this.animationCanBlend && interleave.length && poseAnimation?.rawFrames?.length) {
-            // This is the legacy client's animate2 ordering. The primary
-            // (attack) sequence controls every non-interleaved transform slot;
-            // poseAnimation supplies the interleaved slots (normally legs).
-            // Origin transforms run in both passes and each pass has its own
-            // pivot state.
-            const poseTotal = poseAnimation.lengths.reduce((sum, length) => sum + length, 0) / 50;
-            const poseTime = poseTotal > 0 ? this.poseAnimationTime % poseTotal : 0;
-            let poseElapsed = 0, poseFrame = 0;
-            for (; poseFrame < poseAnimation.lengths.length - 1 && poseTime >= poseElapsed + poseAnimation.lengths[poseFrame] / 50; poseFrame++) poseElapsed += poseAnimation.lengths[poseFrame] / 50;
-            applyBlendedRawFrames(transformed, this.vertexGroups, this.sourceVertices, animation.rawFrames[frame], poseAnimation.rawFrames[poseFrame] ?? poseAnimation.rawFrames[0], interleave);
-          } else applyRawFrame(transformed, this.vertexGroups, this.sourceVertices, animation.rawFrames[frame]);
+          // Evaluate a frame in the same way as the game client, including
+          // animate2's interleaved pose/attack sequence composition. Keeping
+          // this in one function is important: smoothing must not discard the
+          // lower-body pose when interpolating an attack animation.
+          const applyAnimationFrame = (target: Float32Array, rawFrame: RawFrame) => {
+            if (this.animationPlaying && this.animationCanBlend && interleave.length && poseAnimation?.rawFrames?.length) {
+              const poseTotal = poseAnimation.lengths.reduce((sum, length) => sum + length, 0) / 50;
+              const poseTime = poseTotal > 0 ? this.poseAnimationTime % poseTotal : 0;
+              let poseElapsed = 0, poseFrame = 0;
+              for (; poseFrame < poseAnimation.lengths.length - 1 && poseTime >= poseElapsed + poseAnimation.lengths[poseFrame] / 50; poseFrame++) poseElapsed += poseAnimation.lengths[poseFrame] / 50;
+              applyBlendedRawFrames(target, this.vertexGroups, this.sourceVertices, rawFrame, poseAnimation.rawFrames[poseFrame] ?? poseAnimation.rawFrames[0], interleave);
+            } else applyRawFrame(target, this.vertexGroups, this.sourceVertices, rawFrame);
+          };
+          const transformed = new Float32Array(this.basePositions);
+          applyAnimationFrame(transformed, animation.rawFrames[frame]);
+          if (Settings.smoothCacheAnimations && animation.rawFrames[next] && next !== frame) {
+            const nextTransformed = new Float32Array(this.basePositions);
+            applyAnimationFrame(nextTransformed, animation.rawFrames[next]);
+            for (let i = 0; i < transformed.length; i++) transformed[i] += (nextTransformed[i] - transformed[i]) * blend;
+          }
           position.array.set(transformed);
         } else if (position.count * 3 === vertices.length) {
           for (let i = 0; i < vertices.length; i++) position.array[i] = vertices[i] + (nextVertices[i] - vertices[i]) * blend;
