@@ -210,6 +210,12 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.mesh = null;
     this.animations = {};
     this.poseMap = {};
+    this.lastPose = -1;
+    this.activeAnimation = -1;
+    this.animationTime = 0;
+    this.poseAnimationTime = 0;
+    this.animationPlaying = false;
+    this.animationCanBlend = false;
     this.basePositions = null;
     this.vertexGroups = [];
     this.sourceVertices = [];
@@ -437,7 +443,11 @@ export class CacheRenderModel implements Model, RenderableListener {
         // slash a second time with the character.
         spot.mesh.rotation.y = -this.root.rotation.y + ((placement?.rotation ?? spot.rotation) * Math.PI / 1024);
       }
-      this.lastPose = pose;
+      // Do not mark the pose as handled until the replacement mesh exists.
+      // During an equipment swap ensureLoaded() is asynchronous; recording the
+      // pose while mesh is null would prevent it from being initialized once
+      // the new payload arrives.
+      if (this.mesh) this.lastPose = pose;
   }
   destroy(scene: THREE.Scene) { if (this.root.parent === scene) scene.remove(this.root); this.renderable.clearAnimationListener(); }
   getWorldPosition() { return this.root.getWorldPosition(new THREE.Vector3()); }
