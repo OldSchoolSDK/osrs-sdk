@@ -26,6 +26,14 @@ Likely. Please open a issue above. Videos, screenshots, proof of OSRS science, e
 
 Sure. Right now the code is undergoing rapid development and the API is not stable. I am open to pull requests but I suggest you start small and [join our Discord](https://discord.gg/Z3ZyY7Yzt5), specifically the #development room.
 
+### Cache animation research
+
+The cache animation model and sequence-grouping approach used by the SDK were
+informed by the open-source [rs-map-viewer](https://github.com/Dezinater/rs-map-viewer),
+particularly its `src/rs/model` sequence and model implementations. We are
+grateful for that project’s clear reference implementation of merged model
+animation, transform labels, pivots, and sequence masks.
+
 ## Development notes
 
 ### Developing the project from this project (with the "sample" environment):

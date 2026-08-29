@@ -9,27 +9,48 @@ const MAGIC = "OSRB";
 // CPU-side frame-map animation is used for standard sequences. Animaya
 // sequences continue to use the extracted baked-frame fallback.
 const ENABLE_CACHE_RENDER_ANIMATIONS = true;
-type RawFrame = { types: number[]; maps: number[][]; indexFrameIds: number[]; x: number[]; y: number[]; z: number[] };
-type AnimationPayload = { frames: number[][]; lengths: number[]; rawFrames?: RawFrame[] };
+type RawFrame = { baseId?: number; types: number[]; maps: number[][]; indexFrameIds: number[]; x: number[]; y: number[]; z: number[] };
+type AnimationPayload = { frames: number[][]; lengths: number[]; rawFrames?: RawFrame[]; interleaveLeave?: number[] };
 type TexturePayload = { width: number; height: number; pixels: number[] };
-type Payload = { version: 1; positions: number[]; indices?: number[]; vertexGroups?: number[][]; colors?: number[]; uvs?: number[]; textureIds?: number[]; textures?: Record<string, TexturePayload>; normals?: number[]; color?: number; animations?: Record<string, AnimationPayload>; poseMap?: Record<string, number> };
+type Payload = { version: 1; positions: number[]; indices?: number[]; vertexGroups?: number[][]; sourceVertices?: number[]; colors?: number[]; uvs?: number[]; textureIds?: number[]; textures?: Record<string, TexturePayload>; normals?: number[]; color?: number; animations?: Record<string, AnimationPayload>; poseMap?: Record<string, number> };
 
 function mergePayloads(payloads: Payload[]): Payload {
   const nonEmpty = payloads.filter((payload) => (payload.indices?.length ?? 0) > 0 || payload.positions.length > 3);
   const positions: number[] = [];
   const indices: number[] = [];
   const vertexGroups: number[][] = [];
+  const sourceVertices: number[] = [];
   const colors: number[] = [];
   const uvs: number[] = [], textureIds: number[] = [];
   const textures: Record<string, TexturePayload> = {};
   const animations: Record<string, AnimationPayload> = {};
   let vertexOffset = 0;
+  let sourceVertexOffset = 0;
   nonEmpty.forEach((payload) => {
     positions.push(...payload.positions);
     if (payload.colors) colors.push(...payload.colors);
     if (payload.uvs) uvs.push(...payload.uvs);
     if (payload.textureIds) textureIds.push(...payload.textureIds);
     Object.assign(textures, payload.textures ?? {});
+    const localVertexCount = payload.positions.length / 3;
+    const localSources = payload.sourceVertices?.length === localVertexCount
+      ? payload.sourceVertices
+      : (() => {
+        // Bundles extracted before sourceVertices existed can only recover
+        // identity from bind-pose coordinates. Keep that recovery local to an
+        // equipment payload so coincident vertices in separate items are never
+        // accidentally treated as one animation vertex.
+        const ids: number[] = [], byPosition = new Map<string, number>();
+        for (let index = 0; index < localVertexCount; index++) {
+          const key = `${payload.positions[index * 3]},${payload.positions[index * 3 + 1]},${payload.positions[index * 3 + 2]}`;
+          let source = byPosition.get(key);
+          if (source == null) { source = byPosition.size; byPosition.set(key, source); }
+          ids.push(source);
+        }
+        return ids;
+      })();
+    sourceVertices.push(...localSources.map((index) => index + sourceVertexOffset));
+    sourceVertexOffset += Math.max(localVertexCount, localSources.reduce((max, index) => Math.max(max, index + 1), 0));
     const localIndices = payload.indices ?? Array.from({ length: payload.positions.length / 3 }, (_, index) => index);
     indices.push(...localIndices.map((index) => index + vertexOffset));
     vertexOffset += payload.positions.length / 3;
@@ -40,7 +61,7 @@ function mergePayloads(payloads: Payload[]): Payload {
     Object.entries(payload.animations ?? {}).forEach(([id, animation]) => {
       const existing = animations[id];
       if (!existing) {
-        animations[id] = { frames: animation.frames.map((frame) => frame.slice()), lengths: animation.lengths.slice(), rawFrames: animation.rawFrames };
+        animations[id] = { frames: animation.frames.map((frame) => frame.slice()), lengths: animation.lengths.slice(), rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave };
       } else {
         animation.frames.forEach((frame, index) => {
           if (existing.frames[index]) existing.frames[index].push(...frame);
@@ -53,6 +74,7 @@ function mergePayloads(payloads: Payload[]): Payload {
     positions,
     indices,
     vertexGroups,
+    sourceVertices,
     colors: colors.length ? colors : undefined,
     uvs: uvs.length ? uvs : undefined, textureIds: textureIds.length ? textureIds : undefined,
     textures: Object.keys(textures).length ? textures : undefined,
@@ -62,33 +84,61 @@ function mergePayloads(payloads: Payload[]): Payload {
   };
 }
 
-function applyRawFrame(positions: Float32Array, groups: number[][], frame: RawFrame) {
+type TransformSelection = { indices: Set<number>; include: boolean };
+
+/** Apply one legacy cache frame to a composed model.
+ *
+ * `selection` mirrors the client's two-pass animate2 operation: origin slots
+ * always run, while other transform slots are selected by the primary
+ * sequence's opcode-3 interleave list.
+ */
+export function applyRawFrame(positions: Float32Array, groups: number[][], sourceVertices: number[], frame: RawFrame, selection?: TransformSelection) {
   const x = new Float64Array(positions.length / 3), y = new Float64Array(x.length), z = new Float64Array(x.length);
-  for (let i = 0; i < x.length; i++) { x[i] = positions[i * 3]; y[i] = -positions[i * 3 + 1]; z[i] = -positions[i * 3 + 2]; }
+  // Work in the cache's native model units. Besides avoiding accumulating
+  // scale error, this lets the fixed-point rotations match the game/client
+  // implementation's signed >> 16 arithmetic.
+  for (let i = 0; i < x.length; i++) { x[i] = positions[i * 3] * 128; y[i] = -positions[i * 3 + 1] * 128; z[i] = -positions[i * 3 + 2] * 128; }
   const pivot = { x: 0, y: 0, z: 0 };
   for (let i = 0; i < frame.indexFrameIds.length; i++) {
-    const type = frame.types[frame.indexFrameIds[i]], map = frame.maps[frame.indexFrameIds[i]] ?? [];
+    const transform = frame.indexFrameIds[i];
+    const type = frame.types[transform], map = frame.maps[transform] ?? [];
+    if (type !== 0 && selection && selection.indices.has(transform) !== selection.include) continue;
     const dx0 = frame.x[i] ?? 0, dy0 = frame.y[i] ?? 0, dz0 = frame.z[i] ?? 0;
-    const dx = dx0 / 128, dy = dy0 / 128, dz = dz0 / 128;
     if (type === 0) {
-      let count = 0; pivot.x = pivot.y = pivot.z = 0;
-      for (const group of map) for (const index of groups[group] ?? []) { pivot.x += x[index]; pivot.y += y[index]; pivot.z += z[index]; count++; }
-      if (count) { pivot.x = dx + pivot.x / count; pivot.y = dy + pivot.y / count; pivot.z = dz + pivot.z / count; }
-      else { pivot.x = dx; pivot.y = dy; pivot.z = dz; }
+      let count = 0; pivot.x = pivot.y = pivot.z = 0; const seen = new Set<number>();
+      for (const group of map) for (const index of groups[group] ?? []) {
+        // Textures/flat face colours expand a cache vertex into several render
+        // vertices. Count that source vertex once when calculating a pivot,
+        // but do not weld unrelated coincident vertices from different items.
+        const source = sourceVertices[index] ?? index;
+        if (seen.has(source)) continue;
+        seen.add(source); pivot.x += x[index]; pivot.y += y[index]; pivot.z += z[index]; count++;
+      }
+      if (count) { pivot.x = dx0 + pivot.x / count; pivot.y = dy0 + pivot.y / count; pivot.z = dz0 + pivot.z / count; }
+      else { pivot.x = dx0; pivot.y = dy0; pivot.z = dz0; }
       continue;
     }
     for (const group of map) for (const index of groups[group] ?? []) {
-      if (type === 1) { x[index] += dx; y[index] += dy; z[index] += dz; continue; }
+      if (type === 1) { x[index] += dx0; y[index] += dy0; z[index] += dz0; continue; }
       x[index] -= pivot.x; y[index] -= pivot.y; z[index] -= pivot.z;
       if (type === 2) {
-        let s = Math.sin((dz0 & 255) * 8 * Math.PI / 1024), c = Math.cos((dz0 & 255) * 8 * Math.PI / 1024), t = s * y[index] + c * x[index]; y[index] = c * y[index] - s * x[index]; x[index] = t;
-        s = Math.sin((dx0 & 255) * 8 * Math.PI / 1024); c = Math.cos((dx0 & 255) * 8 * Math.PI / 1024); t = c * y[index] - s * z[index]; z[index] = s * y[index] + c * z[index]; y[index] = t;
-        s = Math.sin((dy0 & 255) * 8 * Math.PI / 1024); c = Math.cos((dy0 & 255) * 8 * Math.PI / 1024); t = s * z[index] + c * x[index]; z[index] = c * z[index] - s * x[index]; x[index] = t;
+        let angle = (dz0 & 255) * 8, s = Math.floor(65536 * Math.sin(angle * Math.PI / 1024)), c = Math.floor(65536 * Math.cos(angle * Math.PI / 1024));
+        let t = (s * y[index] + c * x[index]) >> 16; y[index] = (c * y[index] - s * x[index]) >> 16; x[index] = t;
+        angle = (dx0 & 255) * 8; s = Math.floor(65536 * Math.sin(angle * Math.PI / 1024)); c = Math.floor(65536 * Math.cos(angle * Math.PI / 1024));
+        t = (c * y[index] - s * z[index]) >> 16; z[index] = (s * y[index] + c * z[index]) >> 16; y[index] = t;
+        angle = (dy0 & 255) * 8; s = Math.floor(65536 * Math.sin(angle * Math.PI / 1024)); c = Math.floor(65536 * Math.cos(angle * Math.PI / 1024));
+        t = (s * z[index] + c * x[index]) >> 16; z[index] = (c * z[index] - s * x[index]) >> 16; x[index] = t;
       } else if (type === 3) { x[index] *= dx0 / 128; y[index] *= dy0 / 128; z[index] *= dz0 / 128; }
       x[index] += pivot.x; y[index] += pivot.y; z[index] += pivot.z;
     }
   }
-  for (let i = 0; i < x.length; i++) { positions[i * 3] = x[i]; positions[i * 3 + 1] = -y[i]; positions[i * 3 + 2] = -z[i]; }
+  for (let i = 0; i < x.length; i++) { positions[i * 3] = x[i] / 128; positions[i * 3 + 1] = -y[i] / 128; positions[i * 3 + 2] = -z[i] / 128; }
+}
+
+export function applyBlendedRawFrames(positions: Float32Array, groups: number[][], sourceVertices: number[], primary: RawFrame, pose: RawFrame, interleave: number[]) {
+  const selection = new Set(interleave.filter((index) => index !== 9999999));
+  applyRawFrame(positions, groups, sourceVertices, primary, { indices: selection, include: false });
+  applyRawFrame(positions, groups, sourceVertices, pose, { indices: selection, include: true });
 }
 
 export function decodeCacheRenderPayload(bytes: ArrayBuffer): Payload {
@@ -111,9 +161,12 @@ export class CacheRenderModel implements Model, RenderableListener {
   private animations: Record<string, AnimationPayload> = {};
   private poseMap: Record<string, number> = {};
   private animationTime = 0;
+  private poseAnimationTime = 0;
   private animationPlaying = false;
+  private animationCanBlend = false;
   private basePositions: Float32Array | null = null;
   private vertexGroups: number[][] = [];
+  private sourceVertices: number[] = [];
 
   constructor(private renderable: Renderable, private reference: CacheRenderReference) {
     // Viewport3d filters scene roots before recursively raycasting children.
@@ -123,13 +176,14 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.root.userData.unit = renderable;
   }
   static forRenderable(renderable: Renderable, reference: CacheRenderReference) { return new CacheRenderModel(renderable, reference); }
-  async animationChanged(id: number, _blend: boolean) {
+  async animationChanged(id: number, blend: boolean) {
     if (ENABLE_CACHE_RENDER_ANIMATIONS) {
       // SDK callers use semantic pose indices (e.g. FireBow = 6), while the
       // bundle is keyed by the actual cache sequence ID (e.g. 426).
       this.activeAnimation = this.poseMap[String(id)] ?? id;
       this.animationTime = 0;
       this.animationPlaying = true;
+      this.animationCanBlend = blend;
     }
     return Promise.resolve();
   }
@@ -144,6 +198,7 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.poseMap = {};
     this.basePositions = null;
     this.vertexGroups = [];
+    this.sourceVertices = [];
     this.root.clear();
   }
   async preload() { await this.ensureLoaded(); }
@@ -185,6 +240,7 @@ export class CacheRenderModel implements Model, RenderableListener {
       const mesh = new THREE.Mesh(geometry, materials.length > 1 ? materials : materials[0]);
       this.basePositions = new Float32Array(payload.positions);
       this.vertexGroups = payload.vertexGroups ?? [];
+      this.sourceVertices = payload.sourceVertices ?? Array.from({ length: payload.positions.length / 3 }, (_, index) => index);
       mesh.userData.clickable = this.renderable.selectable;
       mesh.userData.unit = this.renderable;
       mesh.userData.cacheAnimations = payload.animations ?? {};
@@ -224,6 +280,8 @@ export class CacheRenderModel implements Model, RenderableListener {
     });
     const pose = this.renderable.animationIndex;
     if (!ENABLE_CACHE_RENDER_ANIMATIONS) { this.lastPose = pose; return; }
+    if (pose !== this.lastPose) this.poseAnimationTime = 0;
+    else this.poseAnimationTime += clockDelta;
     if (!this.animationPlaying && pose !== this.lastPose) {
       this.activeAnimation = this.poseMap[String(pose)] ?? -1;
       this.animationTime = 0;
@@ -235,6 +293,7 @@ export class CacheRenderModel implements Model, RenderableListener {
       let time = this.animationTime;
       if (this.animationPlaying && time >= total) {
         this.animationPlaying = false;
+        this.animationCanBlend = false;
         this.activeAnimation = this.poseMap[String(pose)] ?? -1;
         this.animationTime = 0;
         time = 0;
@@ -250,7 +309,21 @@ export class CacheRenderModel implements Model, RenderableListener {
       if (position && this.basePositions) {
         if (animation.rawFrames?.[frame]) {
           const transformed = new Float32Array(this.basePositions);
-          applyRawFrame(transformed, this.vertexGroups, animation.rawFrames[frame]);
+          const poseSequence = this.poseMap[String(pose)];
+          const poseAnimation = this.animations[String(poseSequence)];
+          const interleave = animation.interleaveLeave?.filter((index) => index !== 9999999) ?? [];
+          if (this.animationPlaying && this.animationCanBlend && interleave.length && poseAnimation?.rawFrames?.length) {
+            // This is the legacy client's animate2 ordering. The primary
+            // (attack) sequence controls every non-interleaved transform slot;
+            // poseAnimation supplies the interleaved slots (normally legs).
+            // Origin transforms run in both passes and each pass has its own
+            // pivot state.
+            const poseTotal = poseAnimation.lengths.reduce((sum, length) => sum + length, 0) / 50;
+            const poseTime = poseTotal > 0 ? this.poseAnimationTime % poseTotal : 0;
+            let poseElapsed = 0, poseFrame = 0;
+            for (; poseFrame < poseAnimation.lengths.length - 1 && poseTime >= poseElapsed + poseAnimation.lengths[poseFrame] / 50; poseFrame++) poseElapsed += poseAnimation.lengths[poseFrame] / 50;
+            applyBlendedRawFrames(transformed, this.vertexGroups, this.sourceVertices, animation.rawFrames[frame], poseAnimation.rawFrames[poseFrame] ?? poseAnimation.rawFrames[0], interleave);
+          } else applyRawFrame(transformed, this.vertexGroups, this.sourceVertices, animation.rawFrames[frame]);
           position.array.set(transformed);
         } else if (position.count * 3 === vertices.length) {
           for (let i = 0; i < vertices.length; i++) position.array[i] = vertices[i] + (nextVertices[i] - vertices[i]) * blend;

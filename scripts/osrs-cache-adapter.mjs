@@ -8,7 +8,7 @@ const NPC_ID = 8250; // Verzik Vitur
 function payload(group) {
   const model = group.getMergedModel();
   if (!model || !model.vertexCount) throw new Error("Decoded model has no vertices");
-  const positions = [], indices = [], colors = [], uvs = [], textureIds = [], vertexGroups = (model.vertexGroups ?? []).map(() => []);
+  const positions = [], indices = [], colors = [], uvs = [], textureIds = [], sourceVertices = [], vertexGroups = (model.vertexGroups ?? []).map(() => []);
   const rgb = (hsl) => {
     const hue = ((hsl >> 10) & 63) / 64 + 0.5 / 64, saturation = ((hsl >> 7) & 7) / 8 + 0.5 / 8, luminance = (hsl & 127) / 128;
     const chroma = (1 - Math.abs(2 * luminance - 1)) * saturation, x = chroma * (1 - Math.abs(((hue * 6) % 2) - 1)), lightness = luminance - chroma / 2;
@@ -21,6 +21,7 @@ function payload(group) {
     for (const source of [model.faceVertexIndices1[face], model.faceVertexIndices2[face], model.faceVertexIndices3[face]]) {
       const corner = positions.length / 3 % 3;
       const index = positions.length / 3; positions.push(model.vertexPositionsX[source] / 128, -model.vertexPositionsY[source] / 128, -model.vertexPositionsZ[source] / 128); indices.push(index);
+      sourceVertices.push(source);
       colors.push(rgb(model.faceColors?.[face] ?? 0));
       uvs.push(model.faceTextureUCoordinates?.[face]?.[corner] ?? 0, model.faceTextureVCoordinates?.[face]?.[corner] ?? 0);
       textureIds.push(model.faceTextures?.[face] ?? -1);
@@ -28,7 +29,7 @@ function payload(group) {
     }
   }
   return {
-    positions, indices, vertexGroups, colors, uvs, textureIds,
+    positions, indices, vertexGroups, sourceVertices, colors, uvs, textureIds,
     color: 0xffffff,
     animations: {},
   };
@@ -61,6 +62,7 @@ async function animations(cache, group, sequenceIds) {
         const frame = await cache.getDef(IndexType.FRAMES.id, frameId >> 16, frameId & 65535);
         if (!frame) throw new Error(`Missing animation frame ${frameId} for sequence ${id}`);
         rawFrames.push({
+          baseId: frame.framemap.id,
           types: frame.framemap.types,
           maps: frame.framemap.frameMaps,
           indexFrameIds: frame.indexFrameIds,
@@ -74,6 +76,7 @@ async function animations(cache, group, sequenceIds) {
       frames: animation.vertexData.map((frame) => frame.flatMap(([x, y, z]) => [x / 128, y / 128, z / 128])),
       lengths: animation.lengths,
       ...(rawFrames.length ? { rawFrames } : {}),
+      interleaveLeave: sequence.interleaveLeave ?? [],
     };
   }
   return result;
