@@ -1,0 +1,77 @@
+name: Prepare release
+
+run-name: Prepare release ${{ inputs.version }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, without a v prefix (for example 0.1.9)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: prepare-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Create release branch
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must be major.minor.patch"
+            exit 1
+          fi
+
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          if [[ "$VERSION" == "$CURRENT_VERSION" ]]; then
+            echo "Version $VERSION is already current"
+            exit 1
+          fi
+
+          BRANCH="release/$VERSION"
+          if git ls-remote --exit-code origin "refs/heads/$BRANCH"; then
+            echo "Branch $BRANCH already exists"
+            exit 1
+          fi
+
+          npm version "$VERSION" --no-git-tag-version --ignore-scripts
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git add package.json package-lock.json
+          git commit -m "Release $VERSION"
+          git push --set-upstream origin "$BRANCH"
+
+      - name: Open release PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          gh pr create \
+            --base main \
+            --head "release/$VERSION" \
+            --title "Release $VERSION" \
+            --body "Release preparation for \`osrs-sdk@$VERSION\`."
