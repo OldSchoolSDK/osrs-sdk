@@ -978,7 +978,11 @@ export class Player extends Unit {
     // Cache references use explicit OSRS item IDs where available; names remain a legacy fallback.
     if (CacheRender.isConfigured()) {
       const reference = CacheRenderReferences.player(
-          Object.values(this.equipment).filter((e) => !!e).map((e) => e.cacheItemId ?? e.itemName),
+          [this.equipment.helmet, this.equipment.necklace, this.equipment.cape,
+            this.equipment.chest, this.equipment.legs, this.equipment.feet,
+            this.equipment.gloves, this.equipment.ring, this.equipment.ammo,
+            this.equipment.weapon, this.equipment.offhand]
+            .filter((e) => !!e).map((e) => e.cacheItemId ?? e.itemName),
           { idle: PlayerAnimationIndices.Idle, walk: PlayerAnimationIndices.Walk, run: PlayerAnimationIndices.Run },
       );
       return new FallbackModel(

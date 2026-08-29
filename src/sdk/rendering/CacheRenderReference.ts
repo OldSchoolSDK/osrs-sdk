@@ -13,6 +13,9 @@ export const CacheRenderReferences = {
     return { kind: "npc", definitionId, bundleId };
   },
   player(loadout: Array<string | number>, poses?: Record<string, number>, bundleId?: string): CacheRenderReference {
-    return { kind: "player", loadout: loadout.slice().sort(), poses, bundleId };
+    // Preserve equipment-slot order. The cache animation groups are merged in
+    // this order; sorting IDs changes the correspondence between concatenated
+    // vertices and animation frames.
+    return { kind: "player", loadout: loadout.slice(), poses, bundleId };
   },
 };

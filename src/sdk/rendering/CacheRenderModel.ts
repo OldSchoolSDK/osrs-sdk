@@ -6,8 +6,79 @@ import { CacheRenderReference } from "./CacheRenderReference";
 import { Model } from "./Model";
 
 const MAGIC = "OSRB";
-type AnimationPayload = { frames: number[][]; lengths: number[] };
-type Payload = { version: 1; positions: number[]; indices?: number[]; normals?: number[]; color?: number; animations?: Record<string, AnimationPayload>; poseMap?: Record<string, number> };
+// CPU-side frame-map animation is used for standard sequences. Animaya
+// sequences continue to use the extracted baked-frame fallback.
+const ENABLE_CACHE_RENDER_ANIMATIONS = true;
+type RawFrame = { types: number[]; maps: number[][]; indexFrameIds: number[]; x: number[]; y: number[]; z: number[] };
+type AnimationPayload = { frames: number[][]; lengths: number[]; rawFrames?: RawFrame[] };
+type Payload = { version: 1; positions: number[]; indices?: number[]; vertexGroups?: number[][]; normals?: number[]; color?: number; animations?: Record<string, AnimationPayload>; poseMap?: Record<string, number> };
+
+function mergePayloads(payloads: Payload[]): Payload {
+  const nonEmpty = payloads.filter((payload) => (payload.indices?.length ?? 0) > 0 || payload.positions.length > 3);
+  const positions: number[] = [];
+  const indices: number[] = [];
+  const vertexGroups: number[][] = [];
+  const animations: Record<string, AnimationPayload> = {};
+  let vertexOffset = 0;
+  nonEmpty.forEach((payload) => {
+    positions.push(...payload.positions);
+    const localIndices = payload.indices ?? Array.from({ length: payload.positions.length / 3 }, (_, index) => index);
+    indices.push(...localIndices.map((index) => index + vertexOffset));
+    vertexOffset += payload.positions.length / 3;
+    (payload.vertexGroups ?? []).forEach((group, groupIndex) => {
+      vertexGroups[groupIndex] ??= [];
+      vertexGroups[groupIndex].push(...group.map((index) => index + vertexOffset - payload.positions.length / 3));
+    });
+    Object.entries(payload.animations ?? {}).forEach(([id, animation]) => {
+      const existing = animations[id];
+      if (!existing) {
+        animations[id] = { frames: animation.frames.map((frame) => frame.slice()), lengths: animation.lengths.slice(), rawFrames: animation.rawFrames };
+      } else {
+        animation.frames.forEach((frame, index) => {
+          if (existing.frames[index]) existing.frames[index].push(...frame);
+        });
+      }
+    });
+  });
+  return {
+    version: 1,
+    positions,
+    indices,
+    vertexGroups,
+    color: nonEmpty[0]?.color,
+    animations,
+    poseMap: Object.assign({}, ...payloads.map((payload) => payload.poseMap ?? {})),
+  };
+}
+
+function applyRawFrame(positions: Float32Array, groups: number[][], frame: RawFrame) {
+  const x = new Float64Array(positions.length / 3), y = new Float64Array(x.length), z = new Float64Array(x.length);
+  for (let i = 0; i < x.length; i++) { x[i] = positions[i * 3]; y[i] = -positions[i * 3 + 1]; z[i] = -positions[i * 3 + 2]; }
+  const pivot = { x: 0, y: 0, z: 0 };
+  for (let i = 0; i < frame.indexFrameIds.length; i++) {
+    const type = frame.types[frame.indexFrameIds[i]], map = frame.maps[frame.indexFrameIds[i]] ?? [];
+    const dx0 = frame.x[i] ?? 0, dy0 = frame.y[i] ?? 0, dz0 = frame.z[i] ?? 0;
+    const dx = dx0 / 128, dy = dy0 / 128, dz = dz0 / 128;
+    if (type === 0) {
+      let count = 0; pivot.x = pivot.y = pivot.z = 0;
+      for (const group of map) for (const index of groups[group] ?? []) { pivot.x += x[index]; pivot.y += y[index]; pivot.z += z[index]; count++; }
+      if (count) { pivot.x = dx + pivot.x / count; pivot.y = dy + pivot.y / count; pivot.z = dz + pivot.z / count; }
+      else { pivot.x = dx; pivot.y = dy; pivot.z = dz; }
+      continue;
+    }
+    for (const group of map) for (const index of groups[group] ?? []) {
+      if (type === 1) { x[index] += dx; y[index] += dy; z[index] += dz; continue; }
+      x[index] -= pivot.x; y[index] -= pivot.y; z[index] -= pivot.z;
+      if (type === 2) {
+        let s = Math.sin((dz0 & 255) * 8 * Math.PI / 1024), c = Math.cos((dz0 & 255) * 8 * Math.PI / 1024), t = s * y[index] + c * x[index]; y[index] = c * y[index] - s * x[index]; x[index] = t;
+        s = Math.sin((dx0 & 255) * 8 * Math.PI / 1024); c = Math.cos((dx0 & 255) * 8 * Math.PI / 1024); t = c * y[index] - s * z[index]; z[index] = s * y[index] + c * z[index]; y[index] = t;
+        s = Math.sin((dy0 & 255) * 8 * Math.PI / 1024); c = Math.cos((dy0 & 255) * 8 * Math.PI / 1024); t = s * z[index] + c * x[index]; z[index] = c * z[index] - s * x[index]; x[index] = t;
+      } else if (type === 3) { x[index] *= dx0 / 128; y[index] *= dy0 / 128; z[index] *= dz0 / 128; }
+      x[index] += pivot.x; y[index] += pivot.y; z[index] += pivot.z;
+    }
+  }
+  for (let i = 0; i < x.length; i++) { positions[i * 3] = x[i]; positions[i * 3 + 1] = -y[i]; positions[i * 3 + 2] = -z[i]; }
+}
 
 export function decodeCacheRenderPayload(bytes: ArrayBuffer): Payload {
   const input = new Uint8Array(bytes);
@@ -30,10 +101,15 @@ export class CacheRenderModel implements Model, RenderableListener {
   private poseMap: Record<string, number> = {};
   private animationTime = 0;
   private animationPlaying = false;
+  private basePositions: Float32Array | null = null;
+  private vertexGroups: number[][] = [];
 
   constructor(private renderable: Renderable, private reference: CacheRenderReference) { }
   static forRenderable(renderable: Renderable, reference: CacheRenderReference) { return new CacheRenderModel(renderable, reference); }
-  async animationChanged(id: number, _blend: boolean) { this.activeAnimation = id; this.animationTime = 0; this.animationPlaying = true; return Promise.resolve(); }
+  async animationChanged(id: number, _blend: boolean) {
+    if (ENABLE_CACHE_RENDER_ANIMATIONS) { this.activeAnimation = id; this.animationTime = 0; this.animationPlaying = true; }
+    return Promise.resolve();
+  }
   modelChanged() {
     const next = this.renderable.get3dModel();
     const nextPrimary = (next as any)?.getPrimaryModel?.();
@@ -43,6 +119,8 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.mesh = null;
     this.animations = {};
     this.poseMap = {};
+    this.basePositions = null;
+    this.vertexGroups = [];
     this.root.clear();
   }
   async preload() { await this.ensureLoaded(); }
@@ -52,21 +130,22 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.ready = (async () => {
       const bundle = await CacheRender.bundle();
       const payloads = await Promise.all(bundle.assetIds(this.reference).map(async id => decodeCacheRenderPayload(await bundle.fetchAsset(id))));
-      payloads.forEach((payload) => {
-        Object.assign(this.animations, payload.animations ?? {});
-        Object.assign(this.poseMap, payload.poseMap ?? {});
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute("position", new THREE.Float32BufferAttribute(payload.positions, 3));
-        if (payload.normals) geometry.setAttribute("normal", new THREE.Float32BufferAttribute(payload.normals, 3)); else geometry.computeVertexNormals();
-        if (payload.indices) geometry.setIndex(payload.indices);
-        geometry.computeBoundingSphere();
-        const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: payload.color ?? 0xffffff, flatShading: !payload.normals }));
-        mesh.userData.clickable = this.renderable.selectable;
-        mesh.userData.unit = this.renderable;
-        mesh.userData.cacheAnimations = payload.animations ?? {};
-        this.root.add(mesh);
-        this.mesh ??= mesh;
-      });
+      const payload = mergePayloads(payloads);
+      Object.assign(this.animations, payload.animations ?? {});
+      Object.assign(this.poseMap, payload.poseMap ?? {});
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(payload.positions, 3));
+      geometry.setIndex(payload.indices ?? []);
+      geometry.computeVertexNormals();
+      geometry.computeBoundingSphere();
+      const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: payload.color ?? 0xffffff, flatShading: true }));
+      this.basePositions = new Float32Array(payload.positions);
+      this.vertexGroups = payload.vertexGroups ?? [];
+      mesh.userData.clickable = this.renderable.selectable;
+      mesh.userData.unit = this.renderable;
+      mesh.userData.cacheAnimations = payload.animations ?? {};
+      this.root.add(mesh);
+      this.mesh = mesh;
     })();
     return this.ready;
   }
@@ -89,6 +168,7 @@ export class CacheRenderModel implements Model, RenderableListener {
       const offset = modelOffsets[index]; child.position.set(offset?.x ?? 0, offset?.z ?? 0, offset?.y ?? 0);
     });
     const pose = this.renderable.animationIndex;
+    if (!ENABLE_CACHE_RENDER_ANIMATIONS) { this.lastPose = pose; return; }
     if (!this.animationPlaying && pose !== this.lastPose) {
       this.activeAnimation = this.poseMap[String(pose)] ?? -1;
       this.animationTime = 0;
@@ -111,16 +191,18 @@ export class CacheRenderModel implements Model, RenderableListener {
       const blend = animation.lengths[frame] ? Math.min(1, (time - elapsed) / (animation.lengths[frame] / 50)) : 0;
       const vertices = animation.frames[frame];
       const nextVertices = animation.frames[next];
-      this.root.children.forEach((child: THREE.Mesh) => {
-        const childAnimation = child.userData.cacheAnimations?.[String(this.activeAnimation)] ?? animation;
-        const childVertices = childAnimation.frames[frame] ?? vertices;
-        const childNextVertices = childAnimation.frames[next] ?? nextVertices;
-        const position = child.geometry.getAttribute("position") as THREE.BufferAttribute;
-        if (position.count * 3 !== childVertices.length) return;
-        for (let i = 0; i < childVertices.length; i++) position.array[i] = childVertices[i] + (childNextVertices[i] - childVertices[i]) * blend;
+      const position = this.mesh?.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
+      if (position && this.basePositions) {
+        if (animation.rawFrames?.[frame]) {
+          const transformed = new Float32Array(this.basePositions);
+          applyRawFrame(transformed, this.vertexGroups, animation.rawFrames[frame]);
+          position.array.set(transformed);
+        } else if (position.count * 3 === vertices.length) {
+          for (let i = 0; i < vertices.length; i++) position.array[i] = vertices[i] + (nextVertices[i] - vertices[i]) * blend;
+        }
         position.needsUpdate = true;
-        child.geometry.computeVertexNormals();
-      });
+        this.mesh?.geometry.computeVertexNormals();
+      }
     }
     this.lastPose = pose;
   }

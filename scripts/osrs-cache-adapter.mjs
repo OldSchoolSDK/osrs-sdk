@@ -11,6 +11,7 @@ function payload(group) {
   return {
     positions: model.vertexPositionsX.flatMap((x, i) => [x / 128, -model.vertexPositionsY[i] / 128, -model.vertexPositionsZ[i] / 128]),
     indices: model.faceVertexIndices1.flatMap((x, i) => [x, model.faceVertexIndices2[i], model.faceVertexIndices3[i]]),
+    vertexGroups: (model.vertexGroups ?? []).map((group) => group.slice()),
     color: model.faceColors?.[0] ?? 0xffffff,
     animations: {},
   };
@@ -22,9 +23,28 @@ async function animations(cache, group, sequenceIds) {
     const sequence = await cache.getDef(IndexType.CONFIGS.id, ConfigType.SEQUENCE.id, id);
     if (!sequence) throw new Error(`Missing animation sequence definition ${id}`);
     const animation = await group.getMergedModel().loadAnimation(cache, id, false, true);
+    const rawFrames = [];
+    // Standard (frame-map) sequences can be evaluated against the final
+    // composed model. This is important for equipment: animation pivots are
+    // calculated from the merged vertex groups, not independently per item.
+    if (sequence.animMayaID == null || sequence.animMayaID === -1) {
+      for (const frameId of sequence.frameIDs ?? []) {
+        const frame = await cache.getDef(IndexType.FRAMES.id, frameId >> 16, frameId & 65535);
+        if (!frame) throw new Error(`Missing animation frame ${frameId} for sequence ${id}`);
+        rawFrames.push({
+          types: frame.framemap.types,
+          maps: frame.framemap.frameMaps,
+          indexFrameIds: frame.indexFrameIds,
+          x: frame.translator_x,
+          y: frame.translator_y,
+          z: frame.translator_z,
+        });
+      }
+    }
     result[id] = {
       frames: animation.vertexData.map((frame) => frame.flatMap(([x, y, z]) => [x / 128, y / 128, z / 128])),
       lengths: animation.lengths,
+      ...(rawFrames.length ? { rawFrames } : {}),
     };
   }
   return result;
@@ -71,7 +91,7 @@ export async function decodeSample({ cachePath, revision }) {
     ["Torva platebody", 26384], ["Torva platelegs", 26386], ["Primordial boots", 13239],
     ["Ferocious gloves", 22981], ["Ultor ring", 25485], ["Dragon arrow", 11212],
     ["Scythe of Vitur", 22325], ["Twisted Bow", 20997], ["Toxic blowpipe", 12926],
-    ["Black chinchompa", 11959], ["Bow of faerdhinen", 25865], ["Noxious halberd", 29577],
+    ["Black chinchompa", 11959], ["Bow of faerdhinen", 25865], ["Noxious halberd", 29796],
     ["Blade of saeldor", 23995], ["Avernic defender", 22322],
     // Remaining SDK equipment/weapons (IDs will be made explicit on the
     // definitions in a follow-up; names are used only for this inventory).
@@ -127,9 +147,7 @@ export async function decodeSample({ cachePath, revision }) {
     revision: rev,
     source: `openrs2:${rev}`,
     assets,
-    references: {
-      [`npc:${NPC_ID}`]: [`npc-${NPC_ID}`],
-    },
+    references: { [`npc:${NPC_ID}`]: [`npc-${NPC_ID}`] },
     playerItems: playerItemAssets,
   };
 }

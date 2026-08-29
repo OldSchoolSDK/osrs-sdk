@@ -67,14 +67,14 @@ export class CacheRenderBundle {
   }
 
   assetIds(reference: CacheRenderReference): string[] {
-    const ids = this.manifest.references[referenceKey(reference)];
-    if (ids) return ids;
     if (reference.kind === "player" && this.manifest.playerItems) {
       const itemIds = reference.loadout.map((item) => this.manifest.playerItems[cacheRenderItemKey(item)] || this.manifest.playerItems[item]);
       const missing = reference.loadout.filter((item, index) => !itemIds[index]);
       if (!missing.length) return itemIds.filter((id, index) => itemIds.indexOf(id) === index);
       throw new CacheRenderBundleError("missing-asset", `Bundle has no player item data for ${missing.join(", ")}`);
     }
+    const ids = this.manifest.references[referenceKey(reference)];
+    if (ids) return ids;
     throw new CacheRenderBundleError("missing-asset", `Bundle has no render data for ${referenceKey(reference)}`);
   }
 
