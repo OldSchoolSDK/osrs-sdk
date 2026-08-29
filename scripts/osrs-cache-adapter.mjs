@@ -175,7 +175,23 @@ export async function decodeSample({ cachePath, revision }) {
     if (!item) throw new Error(`Missing player equipment definition: ${name} (${id})`);
     return item;
   };
-  const playerPoseMap = { 0: 808, 1: 819, 2: 824, 3: 820, 4: 822, 5: 821, 6: 426, 7: 5061, 8: 7618, 9: 8057, 10: 8056, 11: 390 };
+  // Keep these semantic indices aligned with PlayerAnimationIndices in the
+  // SDK. The values are the corresponding sequence IDs from the OSRS cache.
+  const playerPoseMap = {
+    0: 808,  // Idle
+    1: 819,  // Walk
+    2: 824,  // Run
+    3: 820,  // Rotate180
+    4: 822,  // StrafeLeft
+    5: 821,  // StrafeRight
+    6: 426,  // FireBow
+    7: 5061, // FireBlowpipe
+    8: 7618, // ThrowChinchompa
+    9: 8057, // ScytheIdle
+    10: 8056, // ScytheSwing
+    11: 390,  // SwordSlash
+    12: 829,  // Eat / drink
+  };
   const playerItemAssets = {};
   for (const [itemName, itemId] of playerItems) {
     const item = findItem(itemName, itemId);

@@ -2,6 +2,7 @@ import Vial from "../../assets/images/potions/Vial.png";
 import { Item } from "../Item";
 import { Player } from "../Player";
 import { ImageLoader } from "../utils/ImageLoader";
+import { PlayerAnimationIndices } from "../rendering/GLTFAnimationConstants";
 
 import PotionSound from "../../assets/sounds/liquid_2401.ogg";
 import { Sound, SoundCache } from "../utils/SoundCache";
@@ -17,6 +18,7 @@ export class Potion extends Item {
   }
   drink(player: Player) {
     player.interruptCombat();
+    player.playAnimation(PlayerAnimationIndices.Eat, true);
   }
 
   get weight(): number {

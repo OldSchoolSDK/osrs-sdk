@@ -1,6 +1,7 @@
 import { Item } from "../Item";
 import { ImageLoader } from "../utils/ImageLoader";
 import { Player } from "../Player";
+import { PlayerAnimationIndices } from "../rendering/GLTFAnimationConstants";
 
 export class Food extends Item {
   healAmount = 0;
@@ -14,6 +15,7 @@ export class Food extends Item {
 
   eat(player: Player) {
     player.interruptCombat();
+    player.playAnimation(PlayerAnimationIndices.Eat, false);
     if (player.currentStats.hitpoint < player.stats.hitpoint) {
       player.currentStats.hitpoint += this.healAmount;
       player.currentStats.hitpoint = Math.min(player.currentStats.hitpoint, player.stats.hitpoint);
