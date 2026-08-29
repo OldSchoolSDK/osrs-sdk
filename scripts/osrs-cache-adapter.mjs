@@ -8,7 +8,7 @@ const NPC_ID = 8250; // Verzik Vitur
 function payload(group) {
   const model = group.getMergedModel();
   if (!model || !model.vertexCount) throw new Error("Decoded model has no vertices");
-  const positions = [], indices = [], colors = [], vertexGroups = (model.vertexGroups ?? []).map(() => []);
+  const positions = [], indices = [], colors = [], uvs = [], textureIds = [], vertexGroups = (model.vertexGroups ?? []).map(() => []);
   const rgb = (hsl) => {
     const hue = ((hsl >> 10) & 63) / 64 + 0.5 / 64, saturation = ((hsl >> 7) & 7) / 8 + 0.5 / 8, luminance = (hsl & 127) / 128;
     const chroma = (1 - Math.abs(2 * luminance - 1)) * saturation, x = chroma * (1 - Math.abs(((hue * 6) % 2) - 1)), lightness = luminance - chroma / 2;
@@ -19,16 +19,31 @@ function payload(group) {
   };
   for (let face = 0; face < model.faceVertexIndices1.length; face++) {
     for (const source of [model.faceVertexIndices1[face], model.faceVertexIndices2[face], model.faceVertexIndices3[face]]) {
+      const corner = positions.length / 3 % 3;
       const index = positions.length / 3; positions.push(model.vertexPositionsX[source] / 128, -model.vertexPositionsY[source] / 128, -model.vertexPositionsZ[source] / 128); indices.push(index);
       colors.push(rgb(model.faceColors?.[face] ?? 0));
+      uvs.push(model.faceTextureUCoordinates?.[face]?.[corner] ?? 0, model.faceTextureVCoordinates?.[face]?.[corner] ?? 0);
+      textureIds.push(model.faceTextures?.[face] ?? -1);
       for (let groupIndex = 0; groupIndex < vertexGroups.length; groupIndex++) if (model.vertexGroups[groupIndex]?.includes(source)) vertexGroups[groupIndex].push(index);
     }
   }
   return {
-    positions, indices, vertexGroups, colors,
+    positions, indices, vertexGroups, colors, uvs, textureIds,
     color: 0xffffff,
     animations: {},
   };
+}
+
+async function attachTextures(cache, result) {
+  const ids = [...new Set((result.textureIds ?? []).filter((id) => id >= 0))];
+  result.textures = {};
+  for (const id of ids) {
+    const definition = await cache.getDef(IndexType.TEXTURES.id, 0, id, { loadSprites: true });
+    const sprite = definition?.sprites?.[0]?.def?.sprites?.[0];
+    if (!sprite) continue;
+    result.textures[id] = { width: sprite.width, height: sprite.height, pixels: sprite.pixels };
+  }
+  return result;
 }
 
 async function animations(cache, group, sequenceIds) {
@@ -87,8 +102,8 @@ export async function decodeSample({ cachePath, revision }) {
   const npc = await cache.getNPC(NPC_ID);
   if (!npc || !npc.models?.length) throw new Error(`Missing NPC definition ${NPC_ID}`);
   for (const id of npc.models) await modelAsset(cache, id, models);
-  const npcGroup = new ModelGroup([...models.values()]);
-  const npcPayload = payload(npcGroup);
+  const npcGroup = new ModelGroup([...models.values()], false);
+  const npcPayload = await attachTextures(cache, payload(npcGroup));
   npcPayload.animations = await animations(cache, npcGroup, [npc.standingAnimation, npc.walkingAnimation]);
   npcPayload.poseMap = { 0: npc.standingAnimation, 1: npc.walkingAnimation };
   assets.push({ id: `npc-${NPC_ID}`, payload: npcPayload });
@@ -144,8 +159,8 @@ export async function decodeSample({ cachePath, revision }) {
       // semantic loadout key; represent them as an empty composable asset.
       playerPayload = { positions: [0, 0, 0], indices: [], color: 0xffffff, animations: {}, poseMap: playerPoseMap };
     } else {
-      const group = new ModelGroup(itemIds.map((id) => models.get(id)));
-      playerPayload = payload(group);
+      const group = new ModelGroup(itemIds.map((id) => models.get(id)), false);
+      playerPayload = await attachTextures(cache, payload(group));
       playerPayload.animations = await animations(cache, group, Object.values(playerPoseMap));
       playerPayload.poseMap = playerPoseMap;
     }

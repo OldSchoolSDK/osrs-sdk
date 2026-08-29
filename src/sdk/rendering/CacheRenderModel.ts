@@ -11,7 +11,8 @@ const MAGIC = "OSRB";
 const ENABLE_CACHE_RENDER_ANIMATIONS = true;
 type RawFrame = { types: number[]; maps: number[][]; indexFrameIds: number[]; x: number[]; y: number[]; z: number[] };
 type AnimationPayload = { frames: number[][]; lengths: number[]; rawFrames?: RawFrame[] };
-type Payload = { version: 1; positions: number[]; indices?: number[]; vertexGroups?: number[][]; colors?: number[]; normals?: number[]; color?: number; animations?: Record<string, AnimationPayload>; poseMap?: Record<string, number> };
+type TexturePayload = { width: number; height: number; pixels: number[] };
+type Payload = { version: 1; positions: number[]; indices?: number[]; vertexGroups?: number[][]; colors?: number[]; uvs?: number[]; textureIds?: number[]; textures?: Record<string, TexturePayload>; normals?: number[]; color?: number; animations?: Record<string, AnimationPayload>; poseMap?: Record<string, number> };
 
 function mergePayloads(payloads: Payload[]): Payload {
   const nonEmpty = payloads.filter((payload) => (payload.indices?.length ?? 0) > 0 || payload.positions.length > 3);
@@ -19,11 +20,16 @@ function mergePayloads(payloads: Payload[]): Payload {
   const indices: number[] = [];
   const vertexGroups: number[][] = [];
   const colors: number[] = [];
+  const uvs: number[] = [], textureIds: number[] = [];
+  const textures: Record<string, TexturePayload> = {};
   const animations: Record<string, AnimationPayload> = {};
   let vertexOffset = 0;
   nonEmpty.forEach((payload) => {
     positions.push(...payload.positions);
     if (payload.colors) colors.push(...payload.colors);
+    if (payload.uvs) uvs.push(...payload.uvs);
+    if (payload.textureIds) textureIds.push(...payload.textureIds);
+    Object.assign(textures, payload.textures ?? {});
     const localIndices = payload.indices ?? Array.from({ length: payload.positions.length / 3 }, (_, index) => index);
     indices.push(...localIndices.map((index) => index + vertexOffset));
     vertexOffset += payload.positions.length / 3;
@@ -48,6 +54,8 @@ function mergePayloads(payloads: Payload[]): Payload {
     indices,
     vertexGroups,
     colors: colors.length ? colors : undefined,
+    uvs: uvs.length ? uvs : undefined, textureIds: textureIds.length ? textureIds : undefined,
+    textures: Object.keys(textures).length ? textures : undefined,
     color: nonEmpty[0]?.color,
     animations,
     poseMap: Object.assign({}, ...payloads.map((payload) => payload.poseMap ?? {})),
@@ -153,6 +161,7 @@ export class CacheRenderModel implements Model, RenderableListener {
       }
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute("position", new THREE.Float32BufferAttribute(payload.positions, 3));
+      if (payload.uvs?.length === (payload.positions.length / 3) * 2) geometry.setAttribute("uv", new THREE.Float32BufferAttribute(payload.uvs, 2));
       if (payload.colors && payload.colors.length * 3 === payload.positions.length) {
         const colorValues: number[] = [];
         payload.colors.forEach((value) => { const color = new THREE.Color(value); colorValues.push(color.r, color.g, color.b); });
@@ -161,7 +170,19 @@ export class CacheRenderModel implements Model, RenderableListener {
       geometry.setIndex(payload.indices ?? []);
       geometry.computeVertexNormals();
       geometry.computeBoundingSphere();
-      const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: payload.color ?? 0xffffff, vertexColors: Boolean(payload.colors?.length), flatShading: true }));
+      const materials: THREE.Material[] = [new THREE.MeshStandardMaterial({ color: payload.color ?? 0xffffff, vertexColors: Boolean(payload.colors?.length), flatShading: true })];
+      const textureMaterial = new Map<number, number>();
+      Object.entries(payload.textures ?? {}).forEach(([id, texture]) => {
+        const rgba = new Uint8Array(texture.pixels.length * 4);
+        texture.pixels.forEach((pixel, index) => { const value = pixel >>> 0; rgba[index * 4] = value >> 16 & 255; rgba[index * 4 + 1] = value >> 8 & 255; rgba[index * 4 + 2] = value & 255; rgba[index * 4 + 3] = value >> 24 & 255; });
+        const image = new THREE.DataTexture(rgba, texture.width, texture.height, THREE.RGBAFormat); image.flipY = false; image.needsUpdate = true;
+        textureMaterial.set(Number(id), materials.length); materials.push(new THREE.MeshStandardMaterial({ map: image, vertexColors: false, flatShading: true, transparent: true, alphaTest: 0.01 }));
+      });
+      if (payload.textureIds?.length) {
+        geometry.clearGroups();
+        for (let vertex = 0; vertex < payload.textureIds.length; vertex += 3) geometry.addGroup(vertex, 3, textureMaterial.get(payload.textureIds[vertex]) ?? 0);
+      }
+      const mesh = new THREE.Mesh(geometry, materials.length > 1 ? materials : materials[0]);
       this.basePositions = new Float32Array(payload.positions);
       this.vertexGroups = payload.vertexGroups ?? [];
       mesh.userData.clickable = this.renderable.selectable;
