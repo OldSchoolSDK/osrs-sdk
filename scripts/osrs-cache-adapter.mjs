@@ -14,6 +14,20 @@ function payload(group) {
   };
 }
 
+async function animations(cache, group, sequenceIds) {
+  const result = {};
+  for (const id of [...new Set(sequenceIds.filter((value) => Number.isInteger(value) && value >= 0))]) {
+    const sequence = await cache.getDef(IndexType.CONFIGS.id, ConfigType.SEQUENCE.id, id);
+    if (!sequence) throw new Error(`Missing animation sequence definition ${id}`);
+    const animation = await group.getMergedModel().loadAnimation(cache, id, false, true);
+    result[id] = {
+      frames: animation.vertexData.map((frame) => frame.flatMap(([x, y, z]) => [x / 128, y / 128, z / 128])),
+      lengths: animation.lengths,
+    };
+  }
+  return result;
+}
+
 async function modelAsset(cache, id, models) {
   if (id < 0 || models.has(id)) return;
   const model = await cache.getDef(IndexType.MODELS.id, id);
@@ -30,7 +44,10 @@ export async function decodeSample({ cachePath, revision }) {
   if (!npc || !npc.models?.length) throw new Error(`Missing NPC definition ${NPC_ID}`);
   for (const id of npc.models) await modelAsset(cache, id, models);
   const npcGroup = new ModelGroup([...models.values()]);
-  assets.push({ id: `npc-${NPC_ID}`, payload: payload(npcGroup) });
+  const npcPayload = payload(npcGroup);
+  npcPayload.animations = await animations(cache, npcGroup, [npc.standingAnimation, npc.walkingAnimation]);
+  npcPayload.poseMap = { 0: npc.standingAnimation, 1: npc.walkingAnimation };
+  assets.push({ id: `npc-${NPC_ID}`, payload: npcPayload });
 
   const itemDefs = await cache.getAllDefs(IndexType.CONFIGS.id, ConfigType.ITEM.id);
   // These names intentionally match ItemName values used by the SDK (Dragon arrow is singular).
@@ -45,7 +62,12 @@ export async function decodeSample({ cachePath, revision }) {
     for (const key of ["maleModel0", "maleModel1", "maleModel2"]) if (item[key] >= 0) { await modelAsset(cache, item[key], models); playerIds.push(item[key]); }
   }
   const playerModels = playerIds.map((id) => models.get(id));
-  assets.push({ id: "player-sample", payload: payload(new ModelGroup(playerModels)) });
+  const playerGroup = new ModelGroup(playerModels);
+  const playerPayload = payload(playerGroup);
+  const playerPoseMap = { 0: 808, 1: 819, 2: 824, 3: 820, 4: 822, 5: 821, 6: 426, 7: 5061, 8: 7618, 9: 8057, 10: 8056, 11: 390 };
+  playerPayload.animations = await animations(cache, playerGroup, Object.values(playerPoseMap));
+  playerPayload.poseMap = playerPoseMap;
+  assets.push({ id: "player-sample", payload: playerPayload });
   await cache.close?.();
   const rev = Number(revision || 0);
   return {
