@@ -592,11 +592,12 @@ export abstract class Unit extends Renderable {
     if (this.deathAnimationId) {
       DelayedAction.registerDelayedAction(
         new DelayedAction(
-          () =>
+            () =>
             this.playAnimation(this.deathAnimationId, false).then(() => {
               if (this.hasDiedAndAwaitingRemoval) {
-                // can be cancelled
-                this.dying = 0;
+                // The death countdown controls removal. The renderer's
+                // animation promise may resolve immediately for cache frames,
+                // so do not remove the unit before its configured duration.
                 this.detectDeath();
               }
             }),

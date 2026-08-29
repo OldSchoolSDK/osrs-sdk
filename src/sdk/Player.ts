@@ -1048,7 +1048,10 @@ export class Player extends Unit {
     return 1000;
   }
   override get deathAnimationLength() {
-    return 1;
+    return 4;
+  }
+  override get deathAnimationId() {
+    return PlayerAnimationIndices.Dying;
   }
 }
 

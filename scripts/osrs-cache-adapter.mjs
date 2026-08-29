@@ -191,6 +191,7 @@ export async function decodeSample({ cachePath, revision }) {
     10: 8056, // ScytheSwing
     11: 390,  // SwordSlash
     12: 829,  // Eat / drink
+    13: 836,  // Dying
   };
   const playerItemAssets = {};
   for (const [itemName, itemId] of playerItems) {
