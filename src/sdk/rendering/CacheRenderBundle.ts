@@ -1,4 +1,4 @@
-import { CacheRenderReference } from "./CacheRenderReference";
+import { CacheRenderReference, cacheRenderItemKey } from "./CacheRenderReference";
 
 export const CACHE_RENDER_BUNDLE_SCHEMA_VERSION = 1;
 
@@ -9,6 +9,8 @@ export type CacheRenderBundleManifest = {
   cache: { revision: number; source: string; contentHash: string };
   assets: Record<string, CacheRenderAsset>;
   references: Record<string, string[]>;
+  /** Maps semantic SDK item IDs (item:<id>) or legacy names to composable player payloads. */
+  playerItems?: Record<string, string>;
 };
 
 export class CacheRenderBundleError extends Error {
@@ -36,7 +38,7 @@ export function validateCacheRenderBundleManifest(value: any): CacheRenderBundle
 function referenceKey(reference: CacheRenderReference): string {
   return reference.kind === "npc"
     ? `npc:${reference.definitionId}`
-    : `player:${reference.loadout.join(",")}`;
+    : `player:${reference.loadout.map(cacheRenderItemKey).join(",")}`;
 }
 
 async function sha256(bytes: ArrayBuffer): Promise<string> {
@@ -66,8 +68,14 @@ export class CacheRenderBundle {
 
   assetIds(reference: CacheRenderReference): string[] {
     const ids = this.manifest.references[referenceKey(reference)];
-    if (!ids) throw new CacheRenderBundleError("missing-asset", `Bundle has no render data for ${referenceKey(reference)}`);
-    return ids;
+    if (ids) return ids;
+    if (reference.kind === "player" && this.manifest.playerItems) {
+      const itemIds = reference.loadout.map((item) => this.manifest.playerItems[cacheRenderItemKey(item)] || this.manifest.playerItems[item]);
+      const missing = reference.loadout.filter((item, index) => !itemIds[index]);
+      if (!missing.length) return itemIds.filter((id, index) => itemIds.indexOf(id) === index);
+      throw new CacheRenderBundleError("missing-asset", `Bundle has no player item data for ${missing.join(", ")}`);
+    }
+    throw new CacheRenderBundleError("missing-asset", `Bundle has no render data for ${referenceKey(reference)}`);
   }
 
   async fetchAsset(id: string): Promise<ArrayBuffer> {

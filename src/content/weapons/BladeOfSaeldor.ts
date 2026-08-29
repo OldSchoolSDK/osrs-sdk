@@ -9,6 +9,7 @@ import { MeleeWeapon } from "../../sdk/weapons/MeleeWeapon";
 import ScytheAttackSound from "../../assets/sounds/scythe_swing_2524.ogg";
 
 export class BladeOfSaeldor extends MeleeWeapon {
+  get cacheItemId(): number { return 23995; }
   constructor() {
     super();
 

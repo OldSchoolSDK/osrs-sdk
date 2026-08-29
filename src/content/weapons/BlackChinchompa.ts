@@ -17,6 +17,7 @@ import { Assets } from "../../sdk/utils/Assets";
 import { PlayerAnimationIndices } from "../../sdk/rendering/GLTFAnimationConstants";
 
 export class BlackChinchompa extends RangedWeapon {
+  get cacheItemId(): number { return 11959; }
   maxConcurrentHits = 9;
 
   constructor() {

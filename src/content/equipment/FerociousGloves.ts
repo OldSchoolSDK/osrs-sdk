@@ -5,6 +5,7 @@ import { ItemName } from "../../sdk/ItemName";
 import { Assets } from "../../sdk/utils/Assets";
 
 export class FerociousGloves extends Gloves {
+  get cacheItemId(): number { return 22981; }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

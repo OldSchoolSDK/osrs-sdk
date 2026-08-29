@@ -13,6 +13,7 @@ import { Sound } from "../../sdk/utils/SoundCache";
 import BofaAttackSound from "../../assets/sounds/crystal_bow_1352.ogg";
 
 export class BowOfFaerdhinen extends RangedWeapon {
+  get cacheItemId(): number { return 25865; }
   constructor() {
     super();
     this.bonuses = {

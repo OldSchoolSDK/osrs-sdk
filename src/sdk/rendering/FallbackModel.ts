@@ -8,10 +8,14 @@ export class FallbackModel implements Model {
   private attempted = false;
   private fallbackWasDrawn = false;
   constructor(private primary: Model, private fallback: Model) {}
+  getPrimaryModel() { return this.primary; }
   private select() {
     if (this.attempted) return;
     this.attempted = true;
-    this.primary.preload().then(() => { this.active = this.primary; }).catch(() => { this.active = this.fallback; });
+    this.primary.preload().then(() => { this.active = this.primary; }).catch((error) => {
+      console.error("[osrs-sdk] Cache render unavailable; using GLTF fallback", error);
+      this.active = this.fallback;
+    });
   }
   draw(scene: THREE.Scene, clockDelta: number, tickPercent: number, location: Location3, rotation: number, pitch: number, visible: boolean, modelOffsets: Location3[]) {
     this.select();

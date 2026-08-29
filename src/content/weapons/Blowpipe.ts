@@ -16,6 +16,7 @@ import { PlayerAnimationIndices } from "../../sdk/rendering/GLTFAnimationConstan
 import { Assets } from "../../sdk/utils/Assets";
 
 export class Blowpipe extends RangedWeapon {
+  get cacheItemId(): number { return 12926; }
   constructor() {
     super({
       modelScale: 1 / 128,

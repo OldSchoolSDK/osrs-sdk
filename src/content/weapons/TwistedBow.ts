@@ -14,6 +14,7 @@ import TwistedBowAttackSound from "../../assets/sounds/shortbow_2702.ogg";
 import { ArcProjectileMotionInterpolator } from "../../sdk/weapons/Projectile";
 
 export class TwistedBow extends RangedWeapon {
+  get cacheItemId(): number { return 20997; }
   constructor(geno = false) {
     super({
       modelScale: 1 / 128,

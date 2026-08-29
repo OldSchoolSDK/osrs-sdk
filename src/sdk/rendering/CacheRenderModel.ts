@@ -36,7 +36,9 @@ export class CacheRenderModel implements Model, RenderableListener {
   async animationChanged(id: number, _blend: boolean) { this.activeAnimation = id; this.animationTime = 0; this.animationPlaying = true; return Promise.resolve(); }
   modelChanged() {
     const next = this.renderable.get3dModel();
+    const nextPrimary = (next as any)?.getPrimaryModel?.();
     if (next instanceof CacheRenderModel && next !== this) this.reference = next.reference;
+    else if (nextPrimary instanceof CacheRenderModel) this.reference = nextPrimary.reference;
     this.ready = null;
     this.mesh = null;
     this.animations = {};
@@ -61,6 +63,7 @@ export class CacheRenderModel implements Model, RenderableListener {
         const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: payload.color ?? 0xffffff, flatShading: !payload.normals }));
         mesh.userData.clickable = this.renderable.selectable;
         mesh.userData.unit = this.renderable;
+        mesh.userData.cacheAnimations = payload.animations ?? {};
         this.root.add(mesh);
         this.mesh ??= mesh;
       });
@@ -68,7 +71,11 @@ export class CacheRenderModel implements Model, RenderableListener {
     return this.ready;
   }
   draw(scene: THREE.Scene, clockDelta: number, _tickPercent: number, location: Location3, rotation: number, pitch: number, visible: boolean, modelOffsets: Location3[]) {
-    this.ensureLoaded().catch(() => { /* caller can retain its GLTF fallback; rendering must not crash the viewport */ });
+    this.ensureLoaded().catch((error) => {
+      // FallbackModel keeps the viewport alive, but do not hide why cache rendering
+      // was skipped (bad URL, integrity failure, or an absent loadout reference).
+      console.error("[osrs-sdk] Cache render preload failed; using GLTF fallback", error);
+    });
     if (this.root.parent !== scene) {
       scene.add(this.root);
       this.renderable.setAnimationListener(this);
@@ -105,9 +112,12 @@ export class CacheRenderModel implements Model, RenderableListener {
       const vertices = animation.frames[frame];
       const nextVertices = animation.frames[next];
       this.root.children.forEach((child: THREE.Mesh) => {
+        const childAnimation = child.userData.cacheAnimations?.[String(this.activeAnimation)] ?? animation;
+        const childVertices = childAnimation.frames[frame] ?? vertices;
+        const childNextVertices = childAnimation.frames[next] ?? nextVertices;
         const position = child.geometry.getAttribute("position") as THREE.BufferAttribute;
-        if (position.count * 3 !== vertices.length) return;
-        for (let i = 0; i < vertices.length; i++) position.array[i] = vertices[i] + (nextVertices[i] - vertices[i]) * blend;
+        if (position.count * 3 !== childVertices.length) return;
+        for (let i = 0; i < childVertices.length; i++) position.array[i] = childVertices[i] + (childNextVertices[i] - childVertices[i]) * blend;
         position.needsUpdate = true;
         child.geometry.computeVertexNormals();
       });

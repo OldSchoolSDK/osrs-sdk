@@ -5,6 +5,7 @@ import { Assets } from "../../sdk/utils/Assets";
 import { ImageLoader } from "../../sdk/utils/ImageLoader";
 
 export class AmuletOfTorture extends Necklace {
+  get cacheItemId(): number { return 19553; }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

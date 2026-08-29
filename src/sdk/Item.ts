@@ -69,6 +69,11 @@ export class Item {
     return null;
   }
 
+  /** OSRS cache item definition ID used by the cache-render bundle (male model for now). */
+  get cacheItemId(): number | "TODO" | null {
+    return null;
+  }
+
   get weight(): number {
     return 0;
   }

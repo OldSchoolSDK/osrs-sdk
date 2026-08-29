@@ -31,6 +31,7 @@ const EXTRA_HIT_LOCATIONS = [
 ];
 
 export class ScytheOfVitur extends MeleeWeapon {
+  get cacheItemId(): number { return 22325; }
   constructor() {
     super();
 

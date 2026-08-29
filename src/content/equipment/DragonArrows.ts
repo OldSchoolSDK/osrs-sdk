@@ -4,6 +4,8 @@ import { Ammo } from "../../sdk/gear/Ammo";
 import { ItemName } from "../../sdk/ItemName";
 
 export class DragonArrows extends Ammo {
+  // Dragon arrows have no character mesh; the cache item ID is still explicit.
+  get cacheItemId(): number { return 11212; }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

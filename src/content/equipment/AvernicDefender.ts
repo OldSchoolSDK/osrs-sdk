@@ -5,6 +5,7 @@ import { ItemName } from "../../sdk/ItemName";
 import { Assets } from "../../sdk/utils/Assets";
 
 export class AvernicDefender extends Offhand {
+  get cacheItemId(): number { return 22322; }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

@@ -4,6 +4,7 @@ import { Ring } from "../../sdk/gear/Ring";
 import { ItemName } from "../../sdk/ItemName";
 
 export class UltorRing extends Ring {
+  get cacheItemId(): number { return 25485; }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

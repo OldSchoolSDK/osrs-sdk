@@ -975,10 +975,10 @@ export class Player extends Unit {
   }
 
   create3dModel(): Model {
-    // Cache references are semantic item names, so changing a CDN path never changes the bundle contract.
+    // Cache references use explicit OSRS item IDs where available; names remain a legacy fallback.
     if (CacheRender.isConfigured()) {
       const reference = CacheRenderReferences.player(
-          Object.values(this.equipment).filter((e) => !!e).map((e) => e.itemName),
+          Object.values(this.equipment).filter((e) => !!e).map((e) => e.cacheItemId ?? e.itemName),
           { idle: PlayerAnimationIndices.Idle, walk: PlayerAnimationIndices.Walk, run: PlayerAnimationIndices.Run },
       );
       return new FallbackModel(

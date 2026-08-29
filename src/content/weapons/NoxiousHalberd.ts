@@ -9,6 +9,7 @@ import { MeleeWeapon } from "../../sdk/weapons/MeleeWeapon";
 import ScytheAttackSound from "../../assets/sounds/scythe_swing_2524.ogg";
 
 export class NoxiousHalberd extends MeleeWeapon {
+  get cacheItemId(): number { return 29577; }
   constructor() {
     super();
 
