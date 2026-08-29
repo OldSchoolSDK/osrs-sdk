@@ -526,18 +526,23 @@ export class Player extends Unit {
   // visual logic.
   clientTick(tickPercent) {
     // based on https://github.com/dennisdev/rs-map-viewer/blob/master/src/mapviewer/webgl/npc/Npc.ts#L115
+    const currentAngle = this._angle;
+    this.rotationFromAngle = this._angle;
+    this.rotationTimestamp = window.performance.now();
+    let angleDelta = ((this.nextAngle - this._angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    // Exactly opposite headings are ambiguous after normalization. Preserve
+    // the previous turn direction so west/east transitions do not flip-flop
+    // between the two equivalent 180-degree paths.
+    if (Math.abs(Math.abs(angleDelta) - Math.PI) < 1e-6) angleDelta = this.rotationDirection * Math.PI;
+    else if (Math.abs(angleDelta) > 1e-6) this.rotationDirection = Math.sign(angleDelta);
+    if (Math.abs(angleDelta) <= ROTATION_RADIANS_PER_CLIENT_TICK) this._angle = this.nextAngle;
+    else this._angle += Math.sign(angleDelta) * ROTATION_RADIANS_PER_CLIENT_TICK;
+
     if (this.path.length === 0) {
       return;
     }
     let { x, y } = this.perceivedLocation;
     const { x: nextX, y: nextY, run } = this.path[0];
-
-    const currentAngle = this._angle;
-    this.rotationFromAngle = this._angle;
-    this.rotationTimestamp = window.performance.now();
-    const angleDelta = ((this.nextAngle - this._angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-    if (Math.abs(angleDelta) <= ROTATION_RADIANS_PER_CLIENT_TICK) this._angle = this.nextAngle;
-    else this._angle += Math.sign(angleDelta) * ROTATION_RADIANS_PER_CLIENT_TICK;
 
     // Match the game client's cache-unit movement: four cache units per
     // 20ms client update (128 cache units per tile).
@@ -738,6 +743,7 @@ export class Player extends Unit {
   private _angle = 0;
   private rotationFromAngle = 0;
   private rotationTimestamp = 0;
+  private rotationDirection = 1;
 
 
   getPerceivedRotation(tickPercent) {
