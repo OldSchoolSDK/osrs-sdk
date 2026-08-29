@@ -32,6 +32,10 @@ import { Model } from "./rendering/Model";
 
 import { PlayerAnimationIndices } from "./rendering/GLTFAnimationConstants";
 import { GLTFModel } from "./rendering/GLTFModel";
+import { CacheRender } from "./rendering/CacheRenderBundle";
+import { CacheRenderModel } from "./rendering/CacheRenderModel";
+import { CacheRenderReferences } from "./rendering/CacheRenderReference";
+import { FallbackModel } from "./rendering/FallbackModel";
 import { Trainer } from "./Trainer";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -971,6 +975,17 @@ export class Player extends Unit {
   }
 
   create3dModel(): Model {
+    // Cache references are semantic item names, so changing a CDN path never changes the bundle contract.
+    if (CacheRender.isConfigured()) {
+      const reference = CacheRenderReferences.player(
+          Object.values(this.equipment).filter((e) => !!e).map((e) => e.itemName),
+          { idle: PlayerAnimationIndices.Idle, walk: PlayerAnimationIndices.Walk, run: PlayerAnimationIndices.Run },
+      );
+      return new FallbackModel(
+        CacheRenderModel.forRenderable(this, reference),
+        GLTFModel.forRenderableMulti(this, Object.values(this.equipment).map((e) => e?.model).filter((e) => !!e)),
+      );
+    }
     return GLTFModel.forRenderableMulti(
       this,
       Object.values(this.equipment)

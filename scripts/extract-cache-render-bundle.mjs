@@ -1,0 +1,31 @@
+#!/usr/bin/env node
+/*
+ * Node-only boundary around osrscachereader. It deliberately writes decoded payloads,
+ * never cache archives or GLTF. The adapter is kept separate because cache reader APIs
+ * are revision-sensitive; it must export decodeSample({ cachePath, revision }).
+ */
+import { createHash } from "node:crypto";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
+
+const [adapterPath, cachePath, outputDirectory] = process.argv.slice(2);
+if (!adapterPath || !cachePath || !outputDirectory) throw new Error("Usage: extract-cache-render-bundle <osrscachereader-adapter.mjs> <cache-path> <output-dir>");
+const adapter = await import(resolve(adapterPath));
+if (typeof adapter.decodeSample !== "function") throw new Error("Extractor adapter must export decodeSample; implement it with osrscachereader@1.1.3");
+const decoded = await adapter.decodeSample({ cachePath, revision: process.env.OSRS_CACHE_REVISION });
+if (!Number.isInteger(decoded.revision) || !decoded.source || !Array.isArray(decoded.assets) || !decoded.references) throw new Error("osrscachereader adapter returned an incompatible sample decode");
+await mkdir(outputDirectory, { recursive: true });
+const assets = {};
+for (const asset of decoded.assets.sort((a, b) => a.id.localeCompare(b.id))) {
+  if (!asset.id || !Array.isArray(asset.payload.positions)) throw new Error(`Missing geometry for ${asset.id}`);
+  const json = Buffer.from(JSON.stringify({ version: 1, ...asset.payload }));
+  const bytes = Buffer.concat([Buffer.from("OSRB"), Buffer.from(Uint32Array.of(json.length).buffer), json]);
+  const hash = createHash("sha256").update(bytes).digest("hex");
+  const file = `${asset.id}.${hash}.bin`;
+  await writeFile(resolve(outputDirectory, file), bytes);
+  assets[asset.id] = { file, sha256: hash, bytes: bytes.length };
+}
+const sourceHash = createHash("sha256").update(JSON.stringify({ assets, references: decoded.references })).digest("hex");
+const manifest = { schemaVersion: 1, bundleVersion: `osrs-${decoded.revision}-${sourceHash.slice(0, 12)}`, cache: { revision: decoded.revision, source: decoded.source, contentHash: sourceHash }, assets, references: decoded.references };
+await writeFile(resolve(outputDirectory, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+console.log(`Wrote ${Object.keys(assets).length} cache render payloads for revision ${decoded.revision}`);

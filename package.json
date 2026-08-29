@@ -12,6 +12,10 @@
     "prettier": "npx prettier --write .",
     "start": "npx webpack serve --config webpack.dev.js",
     "watch": "npx webpack --config webpack.production.js --watch",
+    "extract:cache-render": "node scripts/extract-cache-render-bundle.mjs",
+    "download:cache-render": "node scripts/download-openrs2-cache.mjs",
+    "assets": "node scripts/build-cache-render-assets.mjs",
+    "serve:assets": "node scripts/serve-cache-render-assets.mjs",
     "test": "npx jest"
   },
   "repository": {
@@ -33,6 +37,7 @@
     "@types/jest": "^27.5.2",
     "@types/lodash": "^4.14.171",
     "@types/three": "^0.163.0",
+    "fflate": "^0.8.2",
     "@typescript-eslint/eslint-plugin": "^5.17.0",
     "@typescript-eslint/parser": "^5.17.0",
     "copy-webpack-plugin": "^9.0.1",

@@ -109,3 +109,5 @@ typings/
 /_bundles/
 /lib/
 /lib-esm/
+/.cache-render/
+/cache-render-bundle/

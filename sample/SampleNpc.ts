@@ -1,4 +1,4 @@
-import { Assets, BasicModel, GLTFModel, MeleeWeapon, Mob } from "../src";
+import { Assets, CacheRender, CacheRenderModel, CacheRenderReferences, FallbackModel, GLTFModel, MeleeWeapon, Mob } from "../src";
 
 export class SampleNpc extends Mob {
   override mobName() {
@@ -67,6 +67,13 @@ export class SampleNpc extends Mob {
   }
 
   create3dModel() {
+    if (CacheRender.isConfigured()) {
+      // Verzik Vitur's definition is pinned by the render-bundle extractor manifest.
+      return new FallbackModel(
+        CacheRenderModel.forRenderable(this, CacheRenderReferences.npc(8250)),
+        GLTFModel.forRenderable(this, Assets.getAssetUrl("models/verzik.glb")),
+      );
+    }
     return GLTFModel.forRenderable(this, Assets.getAssetUrl("models/verzik.glb"));
   }
 }

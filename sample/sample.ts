@@ -3,10 +3,13 @@
 import "three";
 
 import { Assets, Settings, Region, World, Viewport, MapController, ImageLoader, Location, TileMarker, Trainer, Chrome, ControlPanelController } from "../src";
+import { configureSampleCacheRenderer } from "./cache-render";
 
 import { SampleRegion } from "./SampleRegion";
 
 const SpecialAttackBarBackground = Assets.getAssetUrl("assets/images/attackstyles/interface/special_attack_background.png");
+
+configureSampleCacheRenderer();
 
 
 Settings.readFromStorage();
