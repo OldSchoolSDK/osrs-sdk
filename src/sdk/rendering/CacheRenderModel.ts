@@ -116,7 +116,13 @@ export class CacheRenderModel implements Model, RenderableListener {
   }
   static forRenderable(renderable: Renderable, reference: CacheRenderReference) { return new CacheRenderModel(renderable, reference); }
   async animationChanged(id: number, _blend: boolean) {
-    if (ENABLE_CACHE_RENDER_ANIMATIONS) { this.activeAnimation = id; this.animationTime = 0; this.animationPlaying = true; }
+    if (ENABLE_CACHE_RENDER_ANIMATIONS) {
+      // SDK callers use semantic pose indices (e.g. FireBow = 6), while the
+      // bundle is keyed by the actual cache sequence ID (e.g. 426).
+      this.activeAnimation = this.poseMap[String(id)] ?? id;
+      this.animationTime = 0;
+      this.animationPlaying = true;
+    }
     return Promise.resolve();
   }
   modelChanged() {
@@ -142,6 +148,9 @@ export class CacheRenderModel implements Model, RenderableListener {
       const payload = mergePayloads(payloads);
       Object.assign(this.animations, payload.animations ?? {});
       Object.assign(this.poseMap, payload.poseMap ?? {});
+      if (this.animationPlaying && !this.animations[String(this.activeAnimation)]) {
+        this.activeAnimation = this.poseMap[String(this.activeAnimation)] ?? this.activeAnimation;
+      }
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute("position", new THREE.Float32BufferAttribute(payload.positions, 3));
       if (payload.colors && payload.colors.length * 3 === payload.positions.length) {
