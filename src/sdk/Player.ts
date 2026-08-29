@@ -754,11 +754,18 @@ export class Player extends Unit {
 
   getTargetAngle() {
     if (this.aggro) {
+      // Facing follows the same interpolated positions that are rendered. In
+      // particular, do not mix the player's visual position with the target's
+      // authoritative tile; that produces transient wrong-facing angles while
+      // either actor is moving.
+      const tickPercent = this.region?.world?.tickPercent ?? 1;
+      const perceivedLocation = this.getPerceivedLocation(tickPercent);
+      const targetLocation = this.aggro.getPerceivedLocation(tickPercent);
       const angle = Pathing.angle(
-        this.perceivedLocation.x + this.size / 2,
-        this.perceivedLocation.y - this.size / 2,
-        this.aggro.location.x + this.aggro.size / 2,
-        this.aggro.location.y - this.aggro.size / 2,
+        perceivedLocation.x + this.size / 2,
+        perceivedLocation.y - this.size / 2,
+        targetLocation.x + this.aggro.size / 2,
+        targetLocation.y - this.aggro.size / 2,
       );
       return -angle;
     }
