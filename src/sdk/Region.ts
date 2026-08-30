@@ -6,6 +6,7 @@ import type { Item } from "./Item";
 import type { Mob } from "./Mob";
 import type { Player } from "./Player";
 import type { Renderable } from "./Renderable";
+import type { Unit } from "./Unit";
 import { Settings } from "./Settings";
 import type { World } from "./World";
 import type { Projectile } from "./weapons/Projectile";
@@ -113,6 +114,15 @@ export abstract class Region {
       this.onGameOver();
     }
   }
+
+  clearAggroFor(target: Unit) {
+    [...this.players, ...this.mobs, ...this.newMobs].forEach((unit) => {
+      if (unit.aggro === target) {
+        unit.setAggro(null);
+      }
+    });
+  }
+
   addGroundItem(player: Player, item: Item, x: number, y: number) {
     if (!this.groundItems[x]) {
       this.groundItems[x] = {};

@@ -224,7 +224,7 @@ export abstract class Unit extends Renderable {
     return [];
   }
 
-  setAggro(mob: Unit) {
+  setAggro(mob: Unit | null) {
     this.aggro = mob;
     this.lastInteraction = mob;
     this.lastInteractionAge = 0;
@@ -587,7 +587,8 @@ export abstract class Unit extends Renderable {
   dead() {
     this.perceivedLocation = this.location;
     this.dying = this.deathAnimationLength;
-    this.aggro = null;
+    this.region.clearAggroFor(this);
+    this.setAggro(null);
     this.hasDiedAndAwaitingRemoval = true;
     if (this.deathAnimationId) {
       DelayedAction.registerDelayedAction(

@@ -58,4 +58,20 @@ describe("region lifecycle", () => {
 
     expect(region.mobs).not.toContain(mob);
   });
+
+  test("units de-aggro when their target dies", () => {
+    const region = new TestRegion(10, 10);
+    const target = new TestNpc(region, { x: 5, y: 5 }, {});
+    const attacker = new TestNpc(region, { x: 4, y: 5 }, {});
+    const queuedAttacker = new TestNpc(region, { x: 6, y: 5 }, {});
+    region.mobs.push(target, attacker);
+    region.newMobs.push(queuedAttacker);
+    attacker.setAggro(target);
+    queuedAttacker.setAggro(target);
+
+    target.dead();
+
+    expect(attacker.aggro).toBeNull();
+    expect(queuedAttacker.aggro).toBeNull();
+  });
 });

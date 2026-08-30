@@ -424,7 +424,7 @@ export class Player extends Unit {
     });
   }
 
-  setAggro(mob: Unit) {
+  setAggro(mob: Unit | null) {
     super.setAggro(mob);
 
     if (this.manualSpellCastSelection && mob != null) {
