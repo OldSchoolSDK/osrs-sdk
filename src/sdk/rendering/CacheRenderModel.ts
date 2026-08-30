@@ -433,10 +433,10 @@ export class CacheRenderModel implements Model, RenderableListener {
         this.root.add(effect);
         this.spotAnims.push({ mesh: effect, basePositions: new Float32Array(spotPayload.positions), vertexGroups: spotPayload.vertexGroups ?? [], sourceVertices: spotPayload.sourceVertices ?? [], baseAlphas: new Float32Array(spotPayload.alphas ?? Array(spotPayload.positions.length / 3).fill(0)), alphaGroups: spotPayload.alphaGroups ?? [], animation: metadata.animationId >= 0 ? spotPayload.animations?.[String(metadata.animationId)] : undefined, scaleX: metadata.resizeX ?? 128, scaleY: metadata.resizeY ?? 128, rotation: metadata.rotation ?? 0, height: placement?.height ?? 0, delay: placement?.delay ?? 0 });
       });
-      // Loading the bundle can take longer than a short one-shot graphic.
-      // Start the effect when its payload is ready, not when the render model
-      // was first constructed.
-      if (this.reference.kind === "spotAnim") this.animationTime = 0;
+      // A queued actor animation may have begun while its cache geometry was
+      // loading. Start it once the mesh is ready so short spawn sequences are
+      // not skipped.
+      if (this.animationPlaying || this.reference.kind === "spotAnim") this.animationTime = 0;
       previousChildren.forEach((child) => {
         if (child.parent === this.root) this.root.remove(child);
       });
