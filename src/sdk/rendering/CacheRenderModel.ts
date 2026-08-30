@@ -23,7 +23,7 @@ type SpotAnimRuntime = { mesh: THREE.Mesh; basePositions: Float32Array; vertexGr
 // evicted so a later attempt can retry.
 const decodedPayloadCache = new Map<string, Promise<Payload>>();
 
-function cachedPayload(bundle: CacheRenderBundle, assetId: string): Promise<Payload> {
+export function cachedPayload(bundle: CacheRenderBundle, assetId: string): Promise<Payload> {
   const key = `${bundle.manifest.bundleVersion}:${assetId}`;
   const existing = decodedPayloadCache.get(key);
   if (existing) return existing;
@@ -48,7 +48,7 @@ function enableVertexAlpha(material: THREE.Material) {
   };
 }
 
-function mergePayloads(payloads: Payload[]): Payload {
+export function mergePayloads(payloads: Payload[]): Payload {
   const nonEmpty = payloads.filter((payload) => (payload.indices?.length ?? 0) > 0 || payload.positions.length > 3);
   const positions: number[] = [];
   const indices: number[] = [];
