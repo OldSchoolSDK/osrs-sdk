@@ -74,7 +74,11 @@ export class CacheRenderBundle {
       if (error instanceof CacheRenderBundleError) throw error;
       throw new CacheRenderBundleError("manifest", "Cache render manifest is not JSON");
     }
-    return new CacheRenderBundle(new URL(".", manifestUrl).toString(), manifest);
+    // `fetch` accepts relative URLs, but URL resolution for the payload files
+    // requires an absolute base. Resolve site-relative manifests against the
+    // page that requested them (while preserving absolute/CDN URLs).
+    const manifestAbsoluteUrl = new URL(manifestUrl, window.location.href);
+    return new CacheRenderBundle(new URL(".", manifestAbsoluteUrl).toString(), manifest);
   }
 
   assetIds(reference: CacheRenderReference): string[] {
