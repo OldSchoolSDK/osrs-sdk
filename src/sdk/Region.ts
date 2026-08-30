@@ -225,6 +225,9 @@ export abstract class Region {
     this.world.getReadyTimer = 6;
 
     const reset = this.initialiseRegion();
+    for (const unit of [...this.players, ...this.mobs]) {
+      unit.setStats();
+    }
     Viewport.viewport.setPlayer(reset.player);
     this.world.startTicking();
     return reset;
