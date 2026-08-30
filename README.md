@@ -45,9 +45,21 @@ authoritative true-tile and client-side visual movement model.
 
 ### Developing the project from this project (with the "sample" environment):
 
+    npm run assets
+    npm run serve:assets # serves cache bundles/manifest at 127.0.0.1:8081
     npm run start
 
 Open up http://localhost:8000 in the browser.
+
+The sample uses the cache-render bundle at `http://127.0.0.1:8081/manifest.json`
+by default. To use a hosted or locally generated bundle, set the URL before
+starting the dev server:
+
+    OSRS_CACHE_RENDER_MANIFEST_URL=https://assets.example.com/osrs-cache-render/manifest.json npm run start
+
+The value is injected into the sample at build time. A browser-side
+`window.OSRS_CACHE_RENDER_MANIFEST_URL` override is also supported when a
+runtime override is more convenient.
 
 ### Developing the project from a client project:
 
