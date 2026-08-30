@@ -308,18 +308,19 @@ export abstract class Unit extends Renderable {
 
   private getTargetRotation(tickPercent: number) {
     if (this.aggro) {
-      const perceivedLocation = this.aggro.getPerceivedLocation(tickPercent);
+      const perceivedLocation = this.getPerceivedLocation(tickPercent);
+      const targetLocation = this.aggro.getPerceivedLocation(tickPercent);
       return -Pathing.angle(
-        this.location.x + this.size / 2,
-        this.location.y - this.size / 2,
-        perceivedLocation.x + this.aggro.size / 2,
-        perceivedLocation.y - this.aggro.size / 2,
+        perceivedLocation.x + this.size / 2,
+        perceivedLocation.y - this.size / 2,
+        targetLocation.x + this.aggro.size / 2,
+        targetLocation.y - this.aggro.size / 2,
       );
     }
     return this.lastRotation;
   }
 
-  // Client ticks run at 50 Hz, matching player rotation (64 JAUs per tick).
+  // Client ticks run at 50 Hz, matching the player's 64-JAU turn rate.
   clientTick(tickPercent: number, tickTimestamp = window.performance.now()) {
     this.unitTargetRotation = this.getTargetRotation(tickPercent);
     this.unitRotationFrom = this.unitRotation;
@@ -327,7 +328,7 @@ export abstract class Unit extends Renderable {
     let rotationDelta = ((this.unitTargetRotation - this.unitRotation + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
     if (Math.abs(Math.abs(rotationDelta) - Math.PI) < 1e-6) rotationDelta = this.unitRotationDirection * Math.PI;
     else if (Math.abs(rotationDelta) > 1e-6) this.unitRotationDirection = Math.sign(rotationDelta);
-    const rotationPerClientTick = Math.PI / 8;
+    const rotationPerClientTick = 64 / 512;
     if (Math.abs(rotationDelta) <= rotationPerClientTick) this.unitRotation = this.unitTargetRotation;
     else this.unitRotation += Math.sign(rotationDelta) * rotationPerClientTick;
   }

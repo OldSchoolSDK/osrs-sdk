@@ -218,6 +218,16 @@ test("does not downgrade a running step to walk during a small-angle turn", () =
   expect(new Set(poses)).toEqual(new Set([PlayerAnimationIndices.Run]));
 });
 
+test("turns mobs at the same gradual rate as players", () => {
+  const region = new TestRegion(20, 20);
+  const target = new Mob(region, { x: 0, y: 4 }, {});
+  const mob = new Mob(region, { x: 0, y: 0 }, { aggro: target });
+
+  mob.clientTick(0, 0);
+
+  expect((mob as any).unitRotation).toBeCloseTo(-64 / 512);
+});
+
 test("preserves diagonal target-facing when combat is cancelled in place", () => {
   const region = new TestRegion(20, 20);
   const target = new Mob(region, { x: 8, y: 10 }, {});
