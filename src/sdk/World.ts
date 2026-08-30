@@ -222,5 +222,8 @@ export class World {
     region.players.forEach((player: Player) => {
       player.clientTick(tickPercent, timestamp);
     });
+    region.mobs.forEach((mob) => {
+      mob.clientTick(tickPercent, timestamp);
+    });
   }
 }

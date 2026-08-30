@@ -92,6 +92,11 @@ export interface UnitTargetBonuses {
 }
 
 export abstract class Unit extends Renderable {
+  private unitTargetRotation = 0;
+  private unitRotation = 0;
+  private unitRotationFrom = 0;
+  private unitRotationTimestamp = 0;
+  private unitRotationDirection = 1;
   protected cacheRenderSpotAnims: CacheRenderSpotAnim[] = [];
 
   /** Snapshot of the spotanims currently attached to this unit. */
@@ -301,7 +306,7 @@ export abstract class Unit extends Renderable {
     return { x: perceivedX, y: perceivedY, z: 0 };
   }
 
-  getPerceivedRotation(tickPercent) {
+  private getTargetRotation(tickPercent: number) {
     if (this.aggro) {
       const perceivedLocation = this.aggro.getPerceivedLocation(tickPercent);
       return -Pathing.angle(
@@ -312,6 +317,25 @@ export abstract class Unit extends Renderable {
       );
     }
     return this.lastRotation;
+  }
+
+  // Client ticks run at 50 Hz, matching player rotation (64 JAUs per tick).
+  clientTick(tickPercent: number, tickTimestamp = window.performance.now()) {
+    this.unitTargetRotation = this.getTargetRotation(tickPercent);
+    this.unitRotationFrom = this.unitRotation;
+    this.unitRotationTimestamp = tickTimestamp;
+    let rotationDelta = ((this.unitTargetRotation - this.unitRotation + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    if (Math.abs(Math.abs(rotationDelta) - Math.PI) < 1e-6) rotationDelta = this.unitRotationDirection * Math.PI;
+    else if (Math.abs(rotationDelta) > 1e-6) this.unitRotationDirection = Math.sign(rotationDelta);
+    const rotationPerClientTick = Math.PI / 8;
+    if (Math.abs(rotationDelta) <= rotationPerClientTick) this.unitRotation = this.unitTargetRotation;
+    else this.unitRotation += Math.sign(rotationDelta) * rotationPerClientTick;
+  }
+
+  getPerceivedRotation(_tickPercent: number) {
+    const alpha = Math.min(1, Math.max(0, (window.performance.now() - this.unitRotationTimestamp) / 20));
+    const rotationDelta = ((this.unitRotation - this.unitRotationFrom + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    return this.unitRotationFrom + rotationDelta * alpha;
   }
 
   addedToWorld() {
