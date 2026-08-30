@@ -54,9 +54,6 @@ const ROTATION_RADIANS_PER_CLIENT_TICK = PLAYER_ROTATION_RATE_JAU / JAU_PER_RADI
 
 const ENABLE_POSITION_DEBUG = false;
 
-// position that is "close enough"
-const EPSILON = 0.1;
-
 export class Player extends Unit {
   manualSpellCastSelection: Weapon;
 
@@ -522,13 +519,18 @@ export class Player extends Unit {
     return this.equipment.weapon ? this.equipment.weapon.idleAnimationId : PlayerAnimationIndices.Idle;
   }
 
+  private hasPendingServerMovement() {
+    return Boolean(this.destinationLocation &&
+      (this.destinationLocation.x !== this.location.x || this.destinationLocation.y !== this.location.y));
+  }
+
   // WARNING: client ticks do NOT happen in line with render or logic ticks. Do not use this for anything other than
   // visual logic.
-  clientTick(tickPercent) {
+  clientTick(tickPercent, tickTimestamp = window.performance.now()) {
     // based on https://github.com/dennisdev/rs-map-viewer/blob/master/src/mapviewer/webgl/npc/Npc.ts#L115
     const currentAngle = this._angle;
     this.rotationFromAngle = this._angle;
-    this.rotationTimestamp = window.performance.now();
+    this.rotationTimestamp = tickTimestamp;
     let angleDelta = ((this.nextAngle - this._angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
     // Exactly opposite headings are ambiguous after normalization. Preserve
     // the previous turn direction so west/east transitions do not flip-flop
@@ -539,14 +541,29 @@ export class Player extends Unit {
     else this._angle += Math.sign(angleDelta) * ROTATION_RADIANS_PER_CLIENT_TICK;
 
     if (this.path.length === 0) {
+      // A server movement update can arrive a couple of client cycles after
+      // the visual queue is consumed. Keep the walk pose during that small
+      // buffer gap instead of flashing back to idle between steps.
+      if (this.hasPendingServerMovement()) {
+        this.currentPoseAnimation = this.running ? PlayerAnimationIndices.Run : PlayerAnimationIndices.Walk;
+      }
       return;
     }
     let { x, y } = this.perceivedLocation;
     const { x: nextX, y: nextY, run } = this.path[0];
+    if (x !== nextX || y !== nextY) {
+      // Preserve path-facing independently from nextAngle. nextAngle is also
+      // used for transient turn/target interpolation and can be overwritten
+      // during an empty-queue server boundary; it is therefore not a reliable
+      // final resting direction.
+      this.lastTravelAngle = -Pathing.angle(x, y, nextX, nextY);
+    }
 
-    // Match the game client's cache-unit movement: four cache units per
-    // 20ms client update (128 cache units per tile).
-    const baseMovementSpeed = 4 / 128;
+    // Keep one visual tile traversal aligned with a server tick. At the
+    // default 600 ms tick and 20 ms client cycle this is 1/30 tile per cycle;
+    // using 4/128 took 32 cycles (640 ms), leaving a visible idle-pose gap at
+    // every server boundary during straight-line walking.
+    const baseMovementSpeed = 1 / (Settings.tickMs / 20);
     let movementSpeed = baseMovementSpeed;
 
     this.currentPoseAnimation = PlayerAnimationIndices.Walk;
@@ -555,53 +572,71 @@ export class Player extends Unit {
     if (currentAngle !== this.nextAngle && canRotate) {
       if (ENABLE_POSITION_DEBUG) console.log("must rotate", this.path.length, run);
       movementSpeed = baseMovementSpeed / 2;
-      this.currentPoseAnimation = PlayerAnimationIndices.Rotate180;
-    }
-    if (this.path.length === 3) {
-      if (ENABLE_POSITION_DEBUG) console.log("path length medium", this.path.length, run);
-      movementSpeed = baseMovementSpeed * 1.5;
-    }
-    if (this.path.length > 3) {
-      if (ENABLE_POSITION_DEBUG) console.log("path length warp", this.path.length, run);
-      movementSpeed = baseMovementSpeed * 2;
-    }
-    if (this.path.length < 3) {
-      if (ENABLE_POSITION_DEBUG) console.log("normal speed", this.path.length, run);
+      // Match Actor.calculateActorPosition: select the movement sequence from
+      // the signed difference between the desired heading and current yaw.
+      // Previously every turn used Rotate180, which made north/south movement
+      // and one direction of east/west reversal look markedly worse.
+      if (angleDelta >= Math.PI / 4 && angleDelta < Math.PI * 3 / 4) {
+        this.currentPoseAnimation = PlayerAnimationIndices.StrafeRight;
+      } else if (angleDelta <= -Math.PI / 4 && angleDelta > -Math.PI * 3 / 4) {
+        this.currentPoseAnimation = PlayerAnimationIndices.StrafeLeft;
+      } else if (Math.abs(angleDelta) >= Math.PI * 3 / 4) {
+        this.currentPoseAnimation = PlayerAnimationIndices.Rotate180;
+      }
     }
     if (run) {
       movementSpeed *= 2;
+    }
+    // The client switches to the run pose only for forward movement at eight
+    // or more cache units/cycle. Side/back sequences remain directional even
+    // when the traversed path step is marked as running.
+    if (this.currentPoseAnimation === PlayerAnimationIndices.Walk && movementSpeed >= 2 / (Settings.tickMs / 20)) {
       this.currentPoseAnimation = PlayerAnimationIndices.Run;
     }
-    let diffX = Math.abs(x - nextX);
-    let diffY = Math.abs(y - nextY);
-    if (diffX > EPSILON || diffY > EPSILON) {
+    // The reference clients treat a waypoint more than two tiles away as a
+    // discontinuity (teleport/region correction) instead of walking through
+    // an arbitrarily stale queue.
+    if (Math.abs(x - nextX) > 2 || Math.abs(y - nextY) > 2) {
+      x = nextX;
+      y = nextY;
+    } else if (x !== nextX || y !== nextY) {
+      const arrivalEpsilon = 1e-9;
       if (x < nextX) {
-        x = Math.min(x + movementSpeed, nextX);
+        x = nextX - x <= movementSpeed + arrivalEpsilon ? nextX : x + movementSpeed;
       } else if (x > nextX) {
-        x = Math.max(x - movementSpeed, nextX);
+        x = x - nextX <= movementSpeed + arrivalEpsilon ? nextX : x - movementSpeed;
       }
       if (y < nextY) {
-        y = Math.min(y + movementSpeed, nextY);
+        y = nextY - y <= movementSpeed + arrivalEpsilon ? nextY : y + movementSpeed;
       } else if (y > nextY) {
-        y = Math.max(y - movementSpeed, nextY);
+        y = y - nextY <= movementSpeed + arrivalEpsilon ? nextY : y - movementSpeed;
       }
     }
     this.renderFromLocation = { ...this.perceivedLocation };
     this.perceivedLocation = { x, y };
-    this.renderPositionTimestamp = window.performance.now();
-    diffX = Math.abs(x - nextX);
-    diffY = Math.abs(y - nextY);
-    if (diffX < EPSILON && diffY < EPSILON) {
-      this.perceivedLocation.x = nextX;
-      this.perceivedLocation.y = nextY;
+    this.renderPositionTimestamp = tickTimestamp;
+    // Math.min/Math.max clamp each axis to the destination. Do not use a
+    // coarse "close enough" threshold here: it drops the final client steps,
+    // empties a straight path before the next server tick, and produces the
+    // characteristic jump/stall at tile boundaries.
+    if (x === nextX && y === nextY) {
       this.path.shift();
       if (ENABLE_POSITION_DEBUG) {
         const headTile = this.pathMarkers.shift();
         this.region.removeEntity(headTile);
       }
       if (this.path.length === 0) {
-        this.currentPoseAnimation = this.getIdlePoseId();
-        this.restingAngle = this.nextAngle;
+        // The visual queue can drain just before the next server step is
+        // enqueued. Keep the locomotion pose across that gap; otherwise the
+        // cache animation resets walk -> idle -> walk once per server tick.
+        this.currentPoseAnimation = this.hasPendingServerMovement()
+          ? (this.running ? PlayerAnimationIndices.Run : PlayerAnimationIndices.Walk)
+          : this.getIdlePoseId();
+        this.restingAngle = this.lastTravelAngle;
+        // Active combat targeting is allowed to keep controlling nextAngle.
+        // Otherwise finish rotating toward the direction of the last path
+        // segment, even if a transient queue gap replaced nextAngle earlier.
+        if (!this.aggro) this.nextAngle = this.restingAngle;
       } else {
         this.nextAngle = this.getTargetAngle();
       }
@@ -677,7 +712,6 @@ export class Player extends Unit {
     if (!path.length || !destination) {
       return;
     }
-    const originalLocation = this.location;
     if (path.length < speed) {
       // Step to the destination
       this.location = path[path.length - 1];
@@ -685,23 +719,18 @@ export class Player extends Unit {
       // Move one or two steps forward
       this.location = path[speed - 1];
     }
-    // postprocess the path to corners only
-    // save the next 2 steps for interpolation purposes
-    let newTiles = path.map((pos, idx) => ({
+    // Keep every tile step. The cache client's pathLength counts steps, and
+    // its 6/8-unit catch-up speeds depend on that count. Collapsing a straight
+    // two-tile run into one corner made the model fall progressively behind
+    // the authoritative true tile.
+    // Walking advances one authoritative tile per server tick; running may
+    // advance two. Do not enqueue the second look-ahead tile for a walker or
+    // the visual queue grows faster than the true tile and falls behind.
+    const visualPath = path.slice(0, this.running ? 2 : 1);
+    const newTiles = visualPath.map((pos) => ({
       ...pos,
       run: this.running && path.length >= 2,
-      direction: Pathing.angle(
-        idx === 0 ? originalLocation.x : path[idx - 1].x,
-        idx === 0 ? originalLocation.y : path[idx - 1].y,
-        pos.x,
-        pos.y,
-      ),
     }));
-    // only add corners to the path (and the last point)
-    newTiles = newTiles.filter((v, idx) => idx === path.length - 1 || v.direction !== newTiles[idx + 1].direction);
-    if (newTiles.length > 1 && newTiles[1].direction === newTiles[0].direction) {
-      newTiles.shift();
-    }
     if (ENABLE_POSITION_DEBUG) {
       newTiles.forEach((tile) => {
         const marker = new ClickMarker(this.region, tile, "#FF0000");
@@ -738,6 +767,7 @@ export class Player extends Unit {
 
   // Rotation Code
   private restingAngle = 0;
+  private lastTravelAngle = 0;
   private nextAngle = 0;
 
   private _angle = 0;

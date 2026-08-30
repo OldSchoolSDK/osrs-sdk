@@ -30,11 +30,10 @@ export class World {
   tickTimer = 0;
   nextTickTimer = 0;
   clientTickTimer = 0;
+  private clientTickAccumulator = 0;
   fps = 50; // updates to track realtime framerate
   private pausedForVisibility = false;
   private browserLoopStarted = false;
-
-  clientTickHandle: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     // Browsers heavily throttle timers and rendering for background tabs. Do
@@ -64,6 +63,7 @@ export class World {
     // Always start client-tick accounting from the current frame. This also
     // prevents the initial callback from treating epoch time as missed ticks.
     this.clientTickTimer = now;
+    this.clientTickAccumulator = 0;
     if (this.deltaTimeSincePause === -1) {
       this.tickTimer = now;
       this.then = now;
@@ -78,29 +78,28 @@ export class World {
       this.browserLoopStarted = true;
       this.browserLoop(window.performance.now());
     }
-    this.clientTickHandle = setInterval(() => this.doClientTick(), CLIENT_TICK_MS);
   }
 
   stopTicking() {
     this.deltaTimeSincePause = window.performance.now() - this.then;
     this.deltaTimeSinceLastTick = window.performance.now() - this.tickTimer;
     this.isPaused = true;
-    clearInterval(this.clientTickHandle);
-    this.clientTickHandle = null;
   }
 
-  doClientTick() {
-    const now = window.performance.now();
-    const clientTickElapsed = now - this.clientTickTimer;
-    // client tick every 20ms, doing multiple if missed
-    const tickPercent = (now - this.tickTimer) / Settings.tickMs;
-    // A delayed callback should not replay a large amount of simulation work.
-    // Visibility handling normally prevents this, while the cap protects
-    // against timer stalls caused by other browser scheduling interruptions.
-    const clientTicksElapsed = Math.min(2, Math.max(1, Math.floor(clientTickElapsed / CLIENT_TICK_MS)));
-    for (let i = 0; i < clientTicksElapsed; i++) {
-      this.tickClient(tickPercent);
-      this.clientTickTimer = now;
+  doClientTick(now = window.performance.now()) {
+    this.clientTickAccumulator += Math.max(0, now - this.clientTickTimer);
+    this.clientTickTimer = now;
+    // Keep the client simulation on a fixed 20 ms cadence instead of
+    // re-anchoring movement to an imprecise setInterval callback.
+    // Match the reference client cap: visibility handling prevents background
+    // accumulation, while a foreground hitch may catch up at most one second.
+    const maxCatchupMs = CLIENT_TICK_MS * 50;
+    if (this.clientTickAccumulator > maxCatchupMs) this.clientTickAccumulator = maxCatchupMs;
+    while (this.clientTickAccumulator >= CLIENT_TICK_MS) {
+      const tickPercent = Math.min(1, Math.max(0, (now - this.tickTimer) / Settings.tickMs));
+      const tickTimestamp = now - Math.max(0, this.clientTickAccumulator - CLIENT_TICK_MS);
+      this.tickClient(tickPercent, tickTimestamp);
+      this.clientTickAccumulator -= CLIENT_TICK_MS;
     }
   }
 
@@ -115,11 +114,16 @@ export class World {
     if (now > this.nextTickTimer) {
       this.nextTickTimer += Settings.tickMs;
       this.tickTimer = now;
+      this.tickPercent = 0;
       if (this.getReadyTimer > 0) {
         this.getReadyTimer--;
       }
       this.tickWorld();
     }
+    // Server movement must enqueue its step before the client-cycle movement
+    // consumes the path when both boundaries occur in the same render frame.
+    // A separate setInterval made that ordering dependent on browser timing.
+    this.doClientTick(now);
     this.tickPercent = Math.min(1, Math.max(0, (now - this.tickTimer) / Settings.tickMs));
     Viewport.viewport.draw(this);
     this.then = now;
@@ -137,8 +141,8 @@ export class World {
     }
   }
 
-  tickClient(tickPercent: number) {
-    this.regions.forEach((region: Region) => this.clientTick(region, tickPercent));
+  tickClient(tickPercent: number, timestamp?: number) {
+    this.regions.forEach((region: Region) => this.clientTick(region, tickPercent, timestamp));
   }
 
   tickRegion(region: Region) {
@@ -214,9 +218,9 @@ export class World {
     deadEntities.forEach((entity) => region.removeEntity(entity));
   }
 
-  clientTick(region: Region, tickPercent: number) {
+  clientTick(region: Region, tickPercent: number, timestamp?: number) {
     region.players.forEach((player: Player) => {
-      player.clientTick(tickPercent);
+      player.clientTick(tickPercent, timestamp);
     });
   }
 }

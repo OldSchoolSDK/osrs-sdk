@@ -15,7 +15,7 @@ export class Settings {
 
   static tickMs = 600;
   static renderFps = 60;
-  static smoothCacheAnimations = false;
+  static smoothCacheAnimations = true;
   static playsAudio: boolean;
   static playsAreaAudio: boolean;
   static inputDelay: number;

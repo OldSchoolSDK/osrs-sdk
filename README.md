@@ -34,6 +34,9 @@ particularly its `src/rs/model` sequence and model implementations. We are
 grateful for that project’s clear reference implementation of merged model
 animation, transform labels, pivots, and sequence masks.
 
+See [`docs/PLAYER_MOVEMENT_SYNC.md`](docs/PLAYER_MOVEMENT_SYNC.md) for the
+authoritative true-tile and client-side visual movement model.
+
 ## Development notes
 
 ### Developing the project from this project (with the "sample" environment):
