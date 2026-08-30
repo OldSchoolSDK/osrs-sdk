@@ -35,14 +35,29 @@ function cachedPayload(bundle: CacheRenderBundle, assetId: string): Promise<Payl
   return pending;
 }
 
+function enableVertexAlpha(material: THREE.Material) {
+  material.transparent = true;
+  material.alphaTest = 0.01;
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = `attribute float cacheAlpha; varying float vCacheAlpha;\n${shader.vertexShader}`
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\n\tvCacheAlpha = cacheAlpha;");
+    shader.fragmentShader = `varying float vCacheAlpha;\n${shader.fragmentShader}`
+      .replace("void main() {", "void main() {\n\tif (vCacheAlpha < 0.01) discard;")
+      .replace("#include <alphatest_fragment>", "diffuseColor.a *= vCacheAlpha;\n\t#include <alphatest_fragment>")
+      .replace("#include <output_fragment>", "#include <output_fragment>\n\tgl_FragColor.a *= vCacheAlpha;");
+  };
+}
+
 function mergePayloads(payloads: Payload[]): Payload {
   const nonEmpty = payloads.filter((payload) => (payload.indices?.length ?? 0) > 0 || payload.positions.length > 3);
   const positions: number[] = [];
   const indices: number[] = [];
   const vertexGroups: number[][] = [];
+  const alphaGroups: number[][] = [];
   const sourceVertices: number[] = [];
   const animayaGroups: number[][] = [], animayaScales: number[][] = [];
   const colors: number[] = [];
+  const alphas: number[] = [];
   const uvs: number[] = [], textureIds: number[] = [];
   const textures: Record<string, TexturePayload> = {};
   const animations: Record<string, AnimationPayload> = {};
@@ -65,12 +80,14 @@ function mergePayloads(payloads: Payload[]): Payload {
   let vertexOffset = 0;
   let sourceVertexOffset = 0;
   nonEmpty.forEach((payload) => {
+    const localVertexCount = payload.positions.length / 3;
     positions.push(...payload.positions);
     if (payload.colors) colors.push(...payload.colors);
+    if (payload.alphas) alphas.push(...payload.alphas);
+    else alphas.push(...Array(localVertexCount).fill(0));
     if (payload.uvs) uvs.push(...payload.uvs);
     if (payload.textureIds) textureIds.push(...payload.textureIds);
     Object.assign(textures, payload.textures ?? {});
-    const localVertexCount = payload.positions.length / 3;
     const localSources = payload.sourceVertices?.length === localVertexCount
       ? payload.sourceVertices
       : (() => {
@@ -98,15 +115,21 @@ function mergePayloads(payloads: Payload[]): Payload {
       vertexGroups[groupIndex] ??= [];
       vertexGroups[groupIndex].push(...group.map((index) => index + vertexOffset - payload.positions.length / 3));
     });
+    (payload.alphaGroups ?? []).forEach((group, groupIndex) => {
+      alphaGroups[groupIndex] ??= [];
+      alphaGroups[groupIndex].push(...group.map((index) => index + vertexOffset - payload.positions.length / 3));
+    });
   });
   return {
     version: 1,
     positions,
     indices,
     vertexGroups,
+    alphaGroups,
     sourceVertices,
     animayaGroups, animayaScales,
     colors: colors.length ? colors : undefined,
+    alphas: alphas.length ? alphas : undefined,
     uvs: uvs.length ? uvs : undefined, textureIds: textureIds.length ? textureIds : undefined,
     textures: Object.keys(textures).length ? textures : undefined,
     color: nonEmpty[0]?.color,
@@ -137,6 +160,7 @@ export function applyRawFrame(positions: Float32Array, groups: number[][], sourc
     if (type !== 0 && selection && selection.indices.has(transform) !== selection.include) continue;
     const dx0 = frame.x[i] ?? 0, dy0 = frame.y[i] ?? 0, dz0 = frame.z[i] ?? 0;
     if (type === 5) {
+      if (!alphas) continue;
       for (const group of map) for (const index of alphaGroups?.[group] ?? []) alphas[index] = Math.max(0, Math.min(255, alphas[index] + dx0 * 8));
       continue;
     }
@@ -171,10 +195,10 @@ export function applyRawFrame(positions: Float32Array, groups: number[][], sourc
   for (let i = 0; i < x.length; i++) { positions[i * 3] = x[i] / 128; positions[i * 3 + 1] = -y[i] / 128; positions[i * 3 + 2] = -z[i] / 128; }
 }
 
-export function applyBlendedRawFrames(positions: Float32Array, groups: number[][], sourceVertices: number[], primary: RawFrame, pose: RawFrame, interleave: number[]) {
+export function applyBlendedRawFrames(positions: Float32Array, groups: number[][], sourceVertices: number[], primary: RawFrame, pose: RawFrame, interleave: number[], alphas?: Float32Array, alphaGroups?: number[][]) {
   const selection = new Set(interleave.filter((index) => index !== 9999999));
-  applyRawFrame(positions, groups, sourceVertices, primary, { indices: selection, include: false });
-  applyRawFrame(positions, groups, sourceVertices, pose, { indices: selection, include: true });
+  applyRawFrame(positions, groups, sourceVertices, primary, { indices: selection, include: false }, alphas, alphaGroups);
+  applyRawFrame(positions, groups, sourceVertices, pose, { indices: selection, include: true }, alphas, alphaGroups);
 }
 
 export function decodeCacheRenderPayload(bytes: ArrayBuffer): Payload {
@@ -205,7 +229,9 @@ export class CacheRenderModel implements Model, RenderableListener {
   private animationPlaying = false;
   private animationCanBlend = false;
   private basePositions: Float32Array | null = null;
+  private baseAlphas: Float32Array | null = null;
   private vertexGroups: number[][] = [];
+  private alphaGroups: number[][] = [];
   private sourceVertices: number[] = [];
   private animayaGroups: number[][] = [];
   private animayaScales: number[][] = [];
@@ -271,7 +297,9 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.animationPlaying = false;
     this.animationCanBlend = false;
     this.basePositions = null;
+    this.baseAlphas = null;
     this.vertexGroups = [];
+    this.alphaGroups = [];
     this.sourceVertices = [];
     this.animayaGroups = [];
     this.animayaScales = [];
@@ -309,16 +337,22 @@ export class CacheRenderModel implements Model, RenderableListener {
         payload.colors.forEach((value) => { const color = new THREE.Color(value); colorValues.push(color.r, color.g, color.b); });
         geometry.setAttribute("color", new THREE.Float32BufferAttribute(colorValues, 3));
       }
+      const rawAlphas = payload.alphas?.length === payload.positions.length / 3
+        ? payload.alphas.map((value) => value & 255)
+        : Array(payload.positions.length / 3).fill(0);
+      const alphaValues = rawAlphas.map((value) => 1 - value / 255);
+      geometry.setAttribute("cacheAlpha", new THREE.Float32BufferAttribute(alphaValues, 1));
       geometry.setIndex(payload.indices ?? []);
       geometry.computeVertexNormals();
       geometry.computeBoundingSphere();
       const materials: THREE.Material[] = [new THREE.MeshStandardMaterial({ color: payload.color ?? 0xffffff, vertexColors: Boolean(payload.colors?.length), flatShading: true })];
+      enableVertexAlpha(materials[0]);
       const textureMaterial = new Map<number, number>();
       Object.entries(payload.textures ?? {}).forEach(([id, texture]) => {
         const rgba = new Uint8Array(texture.pixels.length * 4);
         texture.pixels.forEach((pixel, index) => { const value = pixel >>> 0; rgba[index * 4] = value >> 16 & 255; rgba[index * 4 + 1] = value >> 8 & 255; rgba[index * 4 + 2] = value & 255; rgba[index * 4 + 3] = value >> 24 & 255; });
         const image = new THREE.DataTexture(rgba, texture.width, texture.height, THREE.RGBAFormat); image.flipY = false; image.needsUpdate = true;
-        textureMaterial.set(Number(id), materials.length); materials.push(new THREE.MeshStandardMaterial({ map: image, vertexColors: false, flatShading: true, transparent: true, alphaTest: 0.01 }));
+        textureMaterial.set(Number(id), materials.length); const textureMaterialInstance = new THREE.MeshStandardMaterial({ map: image, vertexColors: false, flatShading: true }); enableVertexAlpha(textureMaterialInstance); materials.push(textureMaterialInstance);
       });
       if (payload.textureIds?.length) {
         geometry.clearGroups();
@@ -328,7 +362,9 @@ export class CacheRenderModel implements Model, RenderableListener {
       const modelScale = payload.scale ?? 1;
       this.root.scale.set(modelScale, modelScale, modelScale);
       this.basePositions = new Float32Array(payload.positions);
+      this.baseAlphas = new Float32Array(rawAlphas);
       this.vertexGroups = payload.vertexGroups ?? [];
+      this.alphaGroups = payload.alphaGroups ?? [];
       this.sourceVertices = payload.sourceVertices ?? Array.from({ length: payload.positions.length / 3 }, (_, index) => index);
       this.animayaGroups = payload.animayaGroups ?? [];
       this.animayaScales = payload.animayaScales ?? [];
@@ -467,6 +503,7 @@ export class CacheRenderModel implements Model, RenderableListener {
       const position = this.mesh?.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
       if (position && this.basePositions) {
         const transformed = new Float32Array(this.basePositions);
+        const transformedAlphas = this.baseAlphas ? new Float32Array(this.baseAlphas) : undefined;
         const applyMayaFrame = (target: Float32Array, mayaFrame: number[][]) => {
           for (let vertex = 0; vertex < target.length / 3; vertex++) {
             const bones = this.animayaGroups[vertex] ?? [];
@@ -504,26 +541,33 @@ export class CacheRenderModel implements Model, RenderableListener {
           // animate2's interleaved pose/attack sequence composition. Keeping
           // this in one function is important: smoothing must not discard the
           // lower-body pose when interpolating an attack animation.
-          const applyAnimationFrame = (target: Float32Array, rawFrame: RawFrame) => {
+          const applyAnimationFrame = (target: Float32Array, rawFrame: RawFrame, targetAlphas?: Float32Array) => {
             if (this.animationPlaying && this.animationCanBlend && interleave.length && poseAnimation?.rawFrames?.length) {
               const poseTotal = poseAnimation.lengths.reduce((sum, length) => sum + length, 0) / 50;
               const poseTime = poseTotal > 0 ? this.poseAnimationTime % poseTotal : 0;
               let poseElapsed = 0, poseFrame = 0;
               for (; poseFrame < poseAnimation.lengths.length - 1 && poseTime >= poseElapsed + poseAnimation.lengths[poseFrame] / 50; poseFrame++) poseElapsed += poseAnimation.lengths[poseFrame] / 50;
-              applyBlendedRawFrames(target, this.vertexGroups, this.sourceVertices, rawFrame, poseAnimation.rawFrames[poseFrame] ?? poseAnimation.rawFrames[0], interleave);
-            } else applyRawFrame(target, this.vertexGroups, this.sourceVertices, rawFrame);
+              applyBlendedRawFrames(target, this.vertexGroups, this.sourceVertices, rawFrame, poseAnimation.rawFrames[poseFrame] ?? poseAnimation.rawFrames[0], interleave, targetAlphas, this.alphaGroups);
+            } else applyRawFrame(target, this.vertexGroups, this.sourceVertices, rawFrame, undefined, targetAlphas, this.alphaGroups);
           };
-          applyAnimationFrame(transformed, animation.rawFrames[frame]);
+          applyAnimationFrame(transformed, animation.rawFrames[frame], transformedAlphas);
           if (Settings.smoothCacheAnimations && animation.rawFrames[next] && next !== frame) {
             const nextTransformed = new Float32Array(this.basePositions);
-            applyAnimationFrame(nextTransformed, animation.rawFrames[next]);
+            const nextAlphas = this.baseAlphas ? new Float32Array(this.baseAlphas) : undefined;
+            applyAnimationFrame(nextTransformed, animation.rawFrames[next], nextAlphas);
             for (let i = 0; i < transformed.length; i++) transformed[i] += (nextTransformed[i] - transformed[i]) * blend;
+            if (transformedAlphas && nextAlphas) for (let i = 0; i < transformedAlphas.length; i++) transformedAlphas[i] += (nextAlphas[i] - transformedAlphas[i]) * blend;
           }
           position.array.set(transformed);
         } else if (position.count * 3 === vertices.length) {
           for (let i = 0; i < vertices.length; i++) position.array[i] = vertices[i] + (nextVertices[i] - vertices[i]) * blend;
         }
         position.needsUpdate = true;
+        const cacheAlpha = this.mesh?.geometry.getAttribute("cacheAlpha") as THREE.BufferAttribute | undefined;
+        if (cacheAlpha && transformedAlphas) {
+          for (let i = 0; i < transformedAlphas.length; i++) cacheAlpha.array[i] = 1 - Math.max(0, Math.min(255, transformedAlphas[i])) / 255;
+          cacheAlpha.needsUpdate = true;
+        }
         this.mesh?.geometry.computeVertexNormals();
       }
       }

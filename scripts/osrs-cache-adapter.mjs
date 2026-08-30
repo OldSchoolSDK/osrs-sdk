@@ -149,10 +149,9 @@ export async function decodeSample({ cachePath, revision }) {
   // skeleton renderer in the SDK sample. The sequence IDs are the cache's
   // standing, walking and attack/death sequences used by the trainer.
   const solNpcId = 12821;
-  const excludedSolModelIds = new Set([52585]); // unwanted white box; see ColosseumTrainer/assets.md
   const sol = await cache.getNPC(solNpcId);
   if (!sol || !sol.models?.length) throw new Error(`Missing NPC definition ${solNpcId}`);
-  const solModelIds = sol.models.filter((id) => !excludedSolModelIds.has(id));
+  const solModelIds = sol.models;
   for (const id of solModelIds) await modelAsset(cache, id, models);
   const solGroup = new ModelGroup(solModelIds.map((id) => models.get(id)), false);
   const solPayload = await attachTextures(cache, payload(solGroup));
