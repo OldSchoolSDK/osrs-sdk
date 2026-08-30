@@ -1,4 +1,4 @@
-import { applyBlendedRawFrames, applyRawFrame, decodeCacheRenderPayload } from "../src/sdk/rendering/CacheRenderModel";
+import { applyBlendedRawFrames, applyRawFrame, decodeCacheRenderPayload, mergePayloads } from "../src/sdk/rendering/CacheRenderModel";
 import { validateCacheRenderBundleManifest } from "../src/sdk/rendering/CacheRenderBundle";
 import { TextDecoder, TextEncoder } from "util";
 import { gzipSync } from "fflate";
@@ -22,6 +22,14 @@ test("decodes gzip-compressed binary render payloads", () => {
   const compressed = gzipSync(json);
   const bytes = new Uint8Array(8 + compressed.length); bytes.set([79, 83, 82, 66]); new DataView(bytes.buffer).setUint32(4, compressed.length, true); bytes.set(compressed, 8);
   expect(decodeCacheRenderPayload(bytes.buffer).positions).toEqual([0, 0, 0]);
+});
+
+test("retains an authored geometry clickbox when composing cache payloads", () => {
+  const merged = mergePayloads([
+    { version: 1, positions: [0, 0, 0], geometryClickbox: { positions: [0, 0, 0, 1, 0, 0, 0, 1, 0], indices: [0, 1, 2] } },
+    { version: 1, positions: [1, 0, 0] },
+  ]);
+  expect(merged.geometryClickbox).toEqual({ positions: [0, 0, 0, 1, 0, 0, 0, 1, 0], indices: [0, 1, 2] });
 });
 
 test("calculates animation pivots from cache vertices rather than expanded render vertices", () => {

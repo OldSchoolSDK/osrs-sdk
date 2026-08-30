@@ -11,10 +11,11 @@ const MAGIC = "OSRB";
 // CPU-side frame-map animation is used for standard sequences. Animaya
 // sequences continue to use the extracted baked-frame fallback.
 const ENABLE_CACHE_RENDER_ANIMATIONS = true;
+const DRAW_CLICKBOX_DEBUG = false;
 type RawFrame = { baseId?: number; types: number[]; maps: number[][]; indexFrameIds: number[]; x: number[]; y: number[]; z: number[] };
 type AnimationPayload = { frames: number[][]; lengths: number[]; rawFrames?: RawFrame[]; interleaveLeave?: number[]; mayaFrames?: number[][][] };
 type TexturePayload = { width: number; height: number; pixels: number[] };
-type Payload = { version: 1; positions: number[]; indices?: number[]; vertexGroups?: number[][]; sourceVertices?: number[]; animayaGroups?: number[][]; animayaScales?: number[][]; colors?: number[]; faceColors?: number[]; alphas?: number[]; alphaGroups?: number[][]; uvs?: number[]; textureIds?: number[]; textures?: Record<string, TexturePayload>; normals?: number[]; color?: number; scale?: number; animations?: Record<string, AnimationPayload>; poseMap?: Record<string, number>; spotAnim?: { id?: number; animationId?: number; resizeX?: number; resizeY?: number; rotation?: number; height?: number; delay?: number } };
+type Payload = { version: 1; positions: number[]; indices?: number[]; vertexGroups?: number[][]; sourceVertices?: number[]; animayaGroups?: number[][]; animayaScales?: number[][]; colors?: number[]; faceColors?: number[]; alphas?: number[]; alphaGroups?: number[][]; uvs?: number[]; textureIds?: number[]; textures?: Record<string, TexturePayload>; normals?: number[]; color?: number; scale?: number; animations?: Record<string, AnimationPayload>; poseMap?: Record<string, number>; geometryClickbox?: { positions: number[]; indices?: number[] }; spotAnim?: { id?: number; animationId?: number; resizeX?: number; resizeY?: number; rotation?: number; height?: number; delay?: number } };
 type SpotAnimRuntime = { mesh: THREE.Mesh; basePositions: Float32Array; vertexGroups: number[][]; sourceVertices: number[]; baseAlphas: Float32Array; alphaGroups: number[][]; animation?: AnimationPayload; scaleX: number; scaleY: number; rotation: number; height: number; delay: number };
 
 // Decoded payloads are immutable bundle data, so retain them across model
@@ -136,6 +137,7 @@ export function mergePayloads(payloads: Payload[]): Payload {
     scale: nonEmpty[0]?.scale,
     animations,
     poseMap: Object.assign({}, ...payloads.map((payload) => payload.poseMap ?? {})),
+    geometryClickbox: payloads.find((payload) => payload.geometryClickbox)?.geometryClickbox,
   };
 }
 
@@ -383,17 +385,39 @@ export class CacheRenderModel implements Model, RenderableListener {
       mesh.userData.unit = this.renderable;
       mesh.userData.cacheAnimations = payload.animations ?? {};
       this.root.add(mesh);
-      // Keep targeting reliable even when the decoded model has sparse or
-      // unusual triangles. The viewport raycasts recursively, so this simple
-      // tile-sized volume is enough to select the NPC and trigger attacks.
-      const hitbox = new THREE.Mesh(
-        new THREE.BoxGeometry((this.renderable.clickboxRadius ?? this.renderable.size * 0.4) * 2, this.renderable.clickboxHeight ?? this.renderable.size, (this.renderable.clickboxRadius ?? this.renderable.size * 0.4) * 2),
-        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
-      );
-      hitbox.position.y = (this.renderable.clickboxHeight ?? this.renderable.size) / 2 - 0.49;
-      hitbox.userData.clickable = this.renderable.selectable;
-      hitbox.userData.unit = this.renderable;
-      this.clickbox = hitbox;
+      if (DRAW_CLICKBOX_DEBUG) {
+        // Share the animated geometry so this shows the exact model surface
+        // that Three.js tests when no custom clickbox is supplied.
+        const clickGeometryDebug = new THREE.Mesh(
+          geometry,
+          new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.7, depthTest: false, depthWrite: false, wireframe: true }),
+        );
+        clickGeometryDebug.renderOrder = 10;
+        clickGeometryDebug.raycast = () => {};
+        this.root.add(clickGeometryDebug);
+      }
+      const clickboxRadius = this.renderable.clickboxRadius;
+      if (payload.geometryClickbox) {
+        const clickGeometry = new THREE.BufferGeometry();
+        clickGeometry.setAttribute("position", new THREE.Float32BufferAttribute(payload.geometryClickbox.positions, 3));
+        clickGeometry.setIndex(payload.geometryClickbox.indices ?? []);
+        const hitbox = new THREE.Mesh(clickGeometry, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+        hitbox.userData.cacheGeometryClickbox = true;
+        hitbox.userData.clickable = this.renderable.selectable;
+        hitbox.userData.unit = this.renderable;
+        this.clickbox = hitbox;
+      } else if (clickboxRadius !== null) {
+        // Keep targeting reliable when the decoded model has sparse or unusual
+        // triangles. Models without an explicit radius use their geometry.
+        const hitbox = new THREE.Mesh(
+          new THREE.BoxGeometry(clickboxRadius * 2, this.renderable.clickboxHeight ?? this.renderable.size, clickboxRadius * 2),
+          new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: DRAW_CLICKBOX_DEBUG ? 0.35 : 0, depthWrite: false, wireframe: DRAW_CLICKBOX_DEBUG }),
+        );
+        hitbox.position.y = (this.renderable.clickboxHeight ?? this.renderable.size) / 2 - 0.49;
+        hitbox.userData.clickable = this.renderable.selectable;
+        hitbox.userData.unit = this.renderable;
+        this.clickbox = hitbox;
+      }
       if (this.renderable.drawOutline) {
         const size = this.renderable.size;
         const outlinePoints = [
@@ -468,9 +492,15 @@ export class CacheRenderModel implements Model, RenderableListener {
     }
     if (this.clickbox) {
       if (this.clickbox.parent !== scene) scene.add(this.clickbox);
-      const clickboxHeight = this.renderable.clickboxHeight ?? this.renderable.size;
-      this.clickbox.position.set(location.x + this.renderable.size / 2, clickboxHeight / 2 - 0.49, location.y - this.renderable.size / 2);
-      this.clickbox.rotation.set(0, 0, 0);
+      if (this.clickbox.userData.cacheGeometryClickbox) {
+        this.clickbox.position.copy(this.root.position);
+        this.clickbox.rotation.copy(this.root.rotation);
+        this.clickbox.scale.copy(this.root.scale);
+      } else {
+        const clickboxHeight = this.renderable.clickboxHeight ?? this.renderable.size;
+        this.clickbox.position.set(location.x + this.renderable.size / 2, clickboxHeight / 2 - 0.49, location.y - this.renderable.size / 2);
+        this.clickbox.rotation.set(0, 0, 0);
+      }
       this.clickbox.visible = this.renderable.selectable;
     }
     if (this.trueTile) {

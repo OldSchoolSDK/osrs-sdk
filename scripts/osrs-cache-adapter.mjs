@@ -5,7 +5,7 @@ const itemKey = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 const NPC_ID = 8373; // Verzik Vitur (phase 3)
 
-function payload(group) {
+function payload(group, includeFace = () => true) {
   const model = group.getMergedModel();
   if (!model || !model.vertexCount) throw new Error("Decoded model has no vertices");
   const positions = [], indices = [], colors = [], faceColors = [], uvs = [], textureIds = [], sourceVertices = [], animayaGroups = [], animayaScales = [], alphas = [], alphaGroups = (model.faceLabelsAlpha ?? []).map(() => []), vertexGroups = (model.vertexGroups ?? []).map(() => []);
@@ -18,6 +18,7 @@ function payload(group) {
     return (brighten(r) << 16) | (brighten(g) << 8) | brighten(b) || 1;
   };
   for (let face = 0; face < model.faceVertexIndices1.length; face++) {
+    if (!includeFace(model, face)) continue;
     for (const source of [model.faceVertexIndices1[face], model.faceVertexIndices2[face], model.faceVertexIndices3[face]]) {
       const corner = positions.length / 3 % 3;
       const index = positions.length / 3; positions.push(model.vertexPositionsX[source] / 128, -model.vertexPositionsY[source] / 128, -model.vertexPositionsZ[source] / 128); indices.push(index);
@@ -154,7 +155,11 @@ export async function decodeSample({ cachePath, revision }) {
   const solModelIds = sol.models;
   for (const id of solModelIds) await modelAsset(cache, id, models);
   const solGroup = new ModelGroup(solModelIds.map((id) => models.get(id)), false);
-  const solPayload = await attachTextures(cache, payload(solGroup));
+  // Sol has a 12-face, alpha-254 box in model space. It is the cache's
+  // authored click volume, but assigning it to Animaya group 0 makes it move
+  // with his body. Extract it as a static proxy instead of skinning it.
+  const solPayload = await attachTextures(cache, payload(solGroup, (model, face) => (model.faceAlphas?.[face] ?? 0) !== 254));
+  solPayload.geometryClickbox = payload(solGroup, (model, face) => (model.faceAlphas?.[face] ?? 0) === 254);
   solPayload.scale = (sol.heightScale ?? 128) / 128;
   const solSequences = [10874, 10878, 10883, 10884, 10885, 10886, 10887, 10888, 10877];
   solPayload.animations = await animations(cache, solGroup, solSequences);

@@ -17,6 +17,20 @@ preserve. It intentionally omits discarded implementation experiments.
   geometry. Animaya sequences use extracted skeleton matrices and per-vertex
   bone groups.
 
+## Authored click geometry
+
+- Cache face alpha `254` is effectively invisible. `rs-map-viewer` converts it
+  to alpha `1 / 255` and skips the face; the SDK renderer likewise discards it.
+- Invisible faces are still ordinary model vertices, so Animaya deformation
+  will move them unless they are extracted from the visual payload.
+- Sol Heredit has an isolated, axis-aligned 12-face alpha-254 box. The cache
+  adapter treats that known Sol-specific shape as `geometryClickbox`: it is
+  removed from the visual mesh and rendered as a separate root-level picking
+  proxy, which follows actor placement/yaw but not body-bone animation.
+- Do not infer click geometry from alpha alone for other models. There is no
+  documented cache-wide clickbox marker; preserve transparent faces unless a
+  model's data establishes the same intentional convention.
+
 ## Animation and timing
 
 - Cache sequence frame lengths are in 20 ms units; renderer clocks are seconds,
