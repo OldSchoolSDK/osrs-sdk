@@ -18,6 +18,10 @@ Without all of these contributors that built upon each other, the polished versi
 
 This is published at `osrs-sdk`. Please see [here](https://github.com/OldSchoolSDK/InfernoTrainer) for example implementations. Better instructions will come soon.
 
+For a local consumer example, see the [Colosseum trainer](https://github.com/supalosa/ColosseumTrainer)
+and its `npm run link:sdk` workflow. That command builds this checkout and
+links it into the trainer for rapid development.
+
 ## I found a bug!
 
 Likely. Please open a issue above. Videos, screenshots, proof of OSRS science, etc is appreciated. I want this to be a faithful re-implementation of OSRS and all bugs are appreciated.
@@ -77,4 +81,4 @@ This creates the version-bump pull request; it does not publish the package.
 3. The workflow validates the version, creates `release/<version>`, updates `package.json` and `package-lock.json`, and opens a release PR against `main`.
 4. Review and merge that release PR.
 5. Create a GitHub release with a tag matching the package version, for example `0.1.9`. This runs the `publish-npm` workflow, which tests, builds, and publishes the package to npm.
-6. After the npm publish succeeds, open a client PR (such as in the Colosseum trainer) that updates its `osrs-sdk` dependency and lockfile to the published version.
+6. After the npm publish succeeds, update each client project's `osrs-sdk` dependency and lockfile to the published version.
