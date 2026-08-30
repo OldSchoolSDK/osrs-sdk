@@ -9,6 +9,9 @@ const sha = "a".repeat(64);
 test("validates a versioned bundle manifest", () => {
   expect(validateCacheRenderBundleManifest({ schemaVersion: 1, bundleVersion: "test", cache: { revision: 1, source: "fixture", contentHash: sha }, assets: { body: { file: "body.bin", sha256: sha } }, references: { "npc:1": ["body"] } }).bundleVersion).toBe("test");
 });
+test("validates shared animation asset mappings", () => {
+  expect(validateCacheRenderBundleManifest({ schemaVersion: 1, bundleVersion: "test", cache: { revision: 1, source: "fixture", contentHash: sha }, assets: { animations: { file: "animations.bin", sha256: sha } }, references: {}, sharedAssets: { playerAnimations: "animations" } }).sharedAssets?.playerAnimations).toBe("animations");
+});
 test("decodes binary render payloads", () => {
   const json = new TextEncoder().encode(JSON.stringify({ version: 1, positions: [0, 0, 0] }));
   const bytes = new Uint8Array(8 + json.length); bytes.set([79, 83, 82, 66]); new DataView(bytes.buffer).setUint32(4, json.length, true); bytes.set(json, 8);

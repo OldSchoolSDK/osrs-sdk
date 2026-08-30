@@ -12,6 +12,8 @@ export type CacheRenderBundleManifest = {
   /** Maps semantic SDK item IDs (item:<id>) or legacy names to composable player payloads. */
   playerItems?: Record<string, string>;
   spotAnims?: Record<string, string>;
+  /** Assets shared by multiple render payloads (currently player sequences). */
+  sharedAssets?: { playerAnimations?: string };
 };
 
 export class CacheRenderBundleError extends Error {
@@ -36,6 +38,10 @@ export function validateCacheRenderBundleManifest(value: any): CacheRenderBundle
   if (value.spotAnims !== undefined && (!value.spotAnims || typeof value.spotAnims !== "object" ||
       Object.values(value.spotAnims).some((id: any) => typeof id !== "string"))) {
     throw new CacheRenderBundleError("manifest", "Invalid spot animation asset mapping");
+  }
+  if (value.sharedAssets !== undefined && (!value.sharedAssets || typeof value.sharedAssets !== "object" ||
+      (value.sharedAssets.playerAnimations !== undefined && typeof value.sharedAssets.playerAnimations !== "string"))) {
+    throw new CacheRenderBundleError("manifest", "Invalid shared asset mapping");
   }
   return value as CacheRenderBundleManifest;
 }
@@ -86,6 +92,12 @@ export class CacheRenderBundle {
   spotAnimIds(reference: CacheRenderReference): string[] {
     const spotAnims = reference.kind === "model" ? undefined : reference.spotAnims;
     return (spotAnims ?? []).map((spotAnim) => this.manifest.spotAnims?.[String(spotAnim.id)]).filter((id): id is string => Boolean(id));
+  }
+
+  sharedAssetIds(reference: CacheRenderReference): string[] {
+    if (reference.kind !== "player") return [];
+    const id = this.manifest.sharedAssets?.playerAnimations;
+    return id ? [id] : [];
   }
 
   allSpotAnimIds(): string[] {

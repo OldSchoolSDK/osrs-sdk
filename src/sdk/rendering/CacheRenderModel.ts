@@ -45,6 +45,22 @@ function mergePayloads(payloads: Payload[]): Payload {
   const uvs: number[] = [], textureIds: number[] = [];
   const textures: Record<string, TexturePayload> = {};
   const animations: Record<string, AnimationPayload> = {};
+  // Animation metadata may live in a geometry-free shared payload. Collect it
+  // independently of the geometry merge so shared player sequences compose
+  // with whatever equipment is currently selected.
+  payloads.forEach((payload) => Object.entries(payload.animations ?? {}).forEach(([id, animation]) => {
+    const existing = animations[id];
+    if (!existing) {
+      animations[id] = { frames: animation.frames.map((frame) => frame.slice()), lengths: animation.lengths.slice(), rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave };
+    } else if (animation.rawFrames?.length && !existing.rawFrames?.length) {
+      // Prefer the shared frame-map representation when it is available.
+      animations[id] = { frames: animation.frames.map((frame) => frame.slice()), lengths: animation.lengths.slice(), rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave };
+    } else if (!existing.rawFrames?.length && !animation.rawFrames?.length) {
+      // Legacy bundles stored baked frames in every item; retain their old
+      // composition behavior for those bundles.
+      animation.frames.forEach((frame, index) => { if (existing.frames[index]) existing.frames[index].push(...frame); });
+    }
+  }));
   let vertexOffset = 0;
   let sourceVertexOffset = 0;
   nonEmpty.forEach((payload) => {
@@ -78,16 +94,6 @@ function mergePayloads(payloads: Payload[]): Payload {
     (payload.vertexGroups ?? []).forEach((group, groupIndex) => {
       vertexGroups[groupIndex] ??= [];
       vertexGroups[groupIndex].push(...group.map((index) => index + vertexOffset - payload.positions.length / 3));
-    });
-    Object.entries(payload.animations ?? {}).forEach(([id, animation]) => {
-      const existing = animations[id];
-      if (!existing) {
-        animations[id] = { frames: animation.frames.map((frame) => frame.slice()), lengths: animation.lengths.slice(), rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave };
-      } else {
-        animation.frames.forEach((frame, index) => {
-          if (existing.frames[index]) existing.frames[index].push(...frame);
-        });
-      }
     });
   });
   return {
@@ -273,7 +279,9 @@ export class CacheRenderModel implements Model, RenderableListener {
       const previousOutline = this.outline;
       const previousClickbox = this.clickbox;
       const bundle = await CacheRender.bundle();
-      const payloads = await Promise.all(bundle.assetIds(this.reference).map((id) => cachedPayload(bundle, id)));
+      const assetIds = bundle.assetIds(this.reference);
+      const sharedAssetIds = bundle.sharedAssetIds(this.reference);
+      const payloads = await Promise.all([...assetIds, ...sharedAssetIds].map((id) => cachedPayload(bundle, id)));
       // Preload effect meshes independently of the active list. Gameplay can
       // attach a Spotanim later without invalidating/rebuilding the base model.
       const spotPayloads = await Promise.all(bundle.allSpotAnimIds().map((id) => cachedPayload(bundle, id)));
@@ -420,7 +428,7 @@ export class CacheRenderModel implements Model, RenderableListener {
     }
     this.animationTime += clockDelta;
     const animation = this.animations[String(this.activeAnimation)];
-    if (animation?.frames.length && this.root.children.length) {
+    if (animation && (animation.frames.length || animation.rawFrames?.length) && this.root.children.length) {
       const total = animation.lengths.reduce((sum, length) => sum + length, 0) / 50;
       let time = this.animationTime;
       if (this.animationPlaying && time >= total) {
@@ -436,9 +444,10 @@ export class CacheRenderModel implements Model, RenderableListener {
       // Looping pose animations need to blend the final frame back to the
       // first frame; holding the final frame creates a visible snap at the
       // run-cycle boundary. One-shot attack animations still clamp normally.
+      const frameCount = animation.rawFrames?.length || animation.frames.length;
       const next = !this.animationPlaying
-        ? (frame + 1) % animation.frames.length
-        : Math.min(frame + 1, animation.frames.length - 1);
+        ? (frame + 1) % frameCount
+        : Math.min(frame + 1, frameCount - 1);
       const blend = animation.lengths[frame] ? Math.min(1, (time - elapsed) / (animation.lengths[frame] / 50)) : 0;
       const vertices = animation.frames[frame];
       const nextVertices = animation.frames[next];

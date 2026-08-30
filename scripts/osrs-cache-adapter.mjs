@@ -201,6 +201,7 @@ export async function decodeSample({ cachePath, revision }) {
     13: 836,  // Dying
   };
   const playerItemAssets = {};
+  let sharedPlayerAnimations;
   for (const [itemName, itemId] of playerItems) {
     const item = findItem(itemName, itemId);
     const itemIds = await itemModels(cache, item, models);
@@ -213,14 +214,32 @@ export async function decodeSample({ cachePath, revision }) {
     } else {
       const group = new ModelGroup(itemIds.map((id) => models.get(id)), false);
       playerPayload = await attachTextures(cache, payload(group));
-      playerPayload.animations = await animations(cache, group, Object.values(playerPoseMap));
-      playerPayload.poseMap = playerPoseMap;
+      const itemAnimations = await animations(cache, group, Object.values(playerPoseMap));
+      // Standard cache sequences are model-independent: their frame maps and
+      // transform values can be applied after all equipment is composed. Keep
+      // that metadata once in a shared asset instead of copying it into every
+      // item payload. (Maya sequences have no raw frame map and are retained
+      // in the item for backwards compatibility.)
+      const shared = {};
+      const itemSpecific = {};
+      for (const [sequenceId, animation] of Object.entries(itemAnimations)) {
+        if (animation.rawFrames?.length) shared[sequenceId] = { lengths: animation.lengths, rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave ?? [], frames: [] };
+        else itemSpecific[sequenceId] = animation;
+      }
+      sharedPlayerAnimations ??= { positions: [], animations: shared, poseMap: playerPoseMap };
+      playerPayload.animations = itemSpecific;
+      playerPayload.poseMap = Object.keys(itemSpecific).length ? playerPoseMap : undefined;
     }
     assets.push({ id: assetId, payload: playerPayload });
     // Item IDs are the stable contract used by SDK equipment definitions. Keep
     // the normalized name alias for older bundles/third-party callers.
     playerItemAssets[`item:${item.id}`] = assetId;
     playerItemAssets[itemKey(itemName)] = assetId;
+  }
+  let sharedAssets;
+  if (sharedPlayerAnimations) {
+    assets.push({ id: "player-animations", payload: sharedPlayerAnimations });
+    sharedAssets = { playerAnimations: "player-animations" };
   }
   await cache.close?.();
   const rev = Number(revision || 0);
@@ -231,5 +250,6 @@ export async function decodeSample({ cachePath, revision }) {
     references: { [`npc:${NPC_ID}`]: [`npc-${NPC_ID}`], "model:33044": ["model-33044"] },
     spotAnims: spotAnimAssets,
     playerItems: playerItemAssets,
+    sharedAssets,
   };
 }
