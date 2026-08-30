@@ -5,6 +5,7 @@ export { AncientStaff } from "./AncientStaff";
 export { BlackChinchompa } from "./BlackChinchompa";
 export { BladeOfSaeldor } from "./BladeOfSaeldor";
 export { Blowpipe } from "./Blowpipe";
+export { DragonClaws } from "./DragonClaws";
 export { BowOfFaerdhinen } from "./BowOfFaerdhinen";
 export { KodaiWand } from "./KodaiWand";
 export { NoxiousHalberd } from "./NoxiousHalberd";

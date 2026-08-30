@@ -26,6 +26,7 @@ export enum ItemName {
   DEVOUT_BOOTS = "Devout Boots",
   DIAMOND_BOLTS_E = "Diamond bolts (e)",
   DRAGON_ARROWS = "Dragon arrow",
+  DRAGON_CLAWS = "Dragon claws",
   GUTHIX_ROBE_TOP = "Guthix robe top",
   HOLY_BLESSING = "Holy Blessing",
   JUSTICIAR_CHESTGUARD = "Justiciar Chestguard",

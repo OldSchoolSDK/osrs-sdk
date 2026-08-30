@@ -127,11 +127,13 @@ export abstract class Unit extends Renderable {
   /** Attach or replace a temporary cache-derived graphic without rebuilding the base model. */
   addSpotAnim(spotAnim: CacheRenderSpotAnim) {
     const channel = spotAnim.channel ?? String(spotAnim.id);
-    this.cacheRenderSpotAnims = this.cacheRenderSpotAnims.filter((existing) => (existing.channel ?? String(existing.id)) !== channel);
+    this.cacheRenderSpotAnims = this.cacheRenderSpotAnims.filter(
+      (existing) => (existing.channel ?? String(existing.id)) !== channel,
+    );
     this.cacheRenderSpotAnims.push({ ...spotAnim });
     this.notifySpotAnimChanged(this.cacheRenderSpotAnims);
   }
-  
+
   overheadText: string | null = null;
   overheadTextTimer = 0;
 
@@ -280,16 +282,16 @@ export abstract class Unit extends Renderable {
   }
 
   // called when the unit has attacked
-  didAttack() {
+  didAttack(attackAnimationId?: number | null) {
     this.attackDelay = this.attackSpeed;
-    this.playAttackAnimation();
+    this.playAttackAnimation(attackAnimationId);
   }
 
-  playAttackAnimation() {
-    if (this.attackAnimationId) {
+  playAttackAnimation(attackAnimationId = this.attackAnimationId) {
+    if (attackAnimationId) {
       // only blend if not idle
       const doBlend = this.animationIndex !== this.idlePoseId && this.canBlendAttackAnimation;
-      this.playAnimation(this.attackAnimationId, doBlend);
+      this.playAnimation(attackAnimationId, doBlend);
     }
   }
 
@@ -614,7 +616,7 @@ export abstract class Unit extends Renderable {
     if (this.deathAnimationId) {
       DelayedAction.registerDelayedAction(
         new DelayedAction(
-            () =>
+          () =>
             this.playAnimation(this.deathAnimationId, false).then(() => {
               if (this.hasDiedAndAwaitingRemoval) {
                 // The death countdown controls removal. The renderer's
@@ -704,7 +706,7 @@ export abstract class Unit extends Renderable {
   damageTaken() {
     // Override me
   }
-  
+
   setOverheadText(text: string) {
     this.overheadText = text;
     this.overheadTextTimer = 8;
@@ -719,18 +721,24 @@ export abstract class Unit extends Renderable {
     this.drawText(context, textParts, scale, alignCenter, prefix);
   }
 
-  drawText(context: OffscreenCanvasRenderingContext2D, textParts: TextSegment[], scale: number, alignCenter = true, prefix = "") {
+  drawText(
+    context: OffscreenCanvasRenderingContext2D,
+    textParts: TextSegment[],
+    scale: number,
+    alignCenter = true,
+    prefix = "",
+  ) {
     context.font = "24px OSRS";
-    const fullText = textParts.map(({text}) => text).join("");
+    const fullText = textParts.map(({ text }) => text).join("");
     const fullWidth = context.measureText(fullText);
     const startX = alignCenter ? -(fullWidth.width / 2) : 0;
     context.fillStyle = "black";
-    context.fillText(fullText, startX + 1, (-(this.size / 2) * scale) - 10 + 1);
+    context.fillText(fullText, startX + 1, -(this.size / 2) * scale - 10 + 1);
     let x = startX;
     for (let i = 0; i < textParts.length; i++) {
       const { text, color } = textParts[i];
       context.fillStyle = color ? `#${color}` : "yellow";
-      context.fillText(text, x, (-(this.size / 2) * scale) - 10);
+      context.fillText(text, x, -(this.size / 2) * scale - 10);
       x += context.measureText(text).width;
     }
   }
@@ -750,7 +758,10 @@ export abstract class Unit extends Renderable {
     context.fillStyle = "red";
     context.fillRect((-this.size / 2) * scale, -(this.size / 2) * scale, scale * this.size, 5);
 
-    const healthRatio = Math.min(1, Math.ceil((this.currentStats.hitpoint / this.stats.hitpoint) * this.healthScale) / this.healthScale);
+    const healthRatio = Math.min(
+      1,
+      Math.ceil((this.currentStats.hitpoint / this.stats.hitpoint) * this.healthScale) / this.healthScale,
+    );
     context.fillStyle = "lime";
     const w = healthRatio * (scale * this.size);
     context.fillRect((-this.size / 2) * scale, (-this.size / 2) * scale, w, 5);

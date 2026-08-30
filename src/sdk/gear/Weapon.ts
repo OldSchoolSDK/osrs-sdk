@@ -86,12 +86,16 @@ export class Weapon extends Equipment {
   hasSpecialAttack(): boolean {
     return false;
   }
+  get specialAttackAnimationId(): number | null {
+    return this.attackAnimationId;
+  }
   specialAttackDrain(): number {
     return 50;
   }
-  
-  specialAttack(from: Unit, to: Unit, bonuses: AttackBonuses = {}, options: ProjectileOptions = {}) {
+
+  specialAttack(from: Unit, to: Unit, bonuses: AttackBonuses = {}, options: ProjectileOptions = {}): boolean {
     // Override me
+    return false;
   }
 
   override inventoryLeftClick(player: Player) {
@@ -181,7 +185,9 @@ export class Weapon extends Equipment {
     }
 
     // sanitize damage output
-    this.damage = Math.floor(Math.max(Math.min(to.currentStats.hitpoint, this.damage, this.getMaxDamageCap(bonuses)), 0));
+    this.damage = Math.floor(
+      Math.max(Math.min(to.currentStats.hitpoint, this.damage, this.getMaxDamageCap(bonuses)), 0),
+    );
 
     if (to.equipment.ring && to.equipment.ring.itemName === ItemName.RING_OF_SUFFERING_I && this.damage > 0) {
       from.addProjectile(
@@ -236,7 +242,7 @@ export class Weapon extends Equipment {
     if (from.type === UnitTypes.PLAYER && this.damage > 0) {
       AttackStylesController.controller
         .getWeaponXpDrops(this.attackStyle(), this.damage, to.xpBonusMultiplier)
-        .forEach(xpDrop => from.grantXp(xpDrop));
+        .forEach((xpDrop) => from.grantXp(xpDrop));
     }
   }
 

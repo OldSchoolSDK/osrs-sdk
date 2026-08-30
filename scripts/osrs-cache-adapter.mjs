@@ -202,7 +202,7 @@ export async function decodeSample({ cachePath, revision }) {
     ["Ferocious gloves", 22981], ["Ultor ring", 25485], ["Dragon arrow", 11212],
     ["Scythe of Vitur", 22325], ["Twisted Bow", 20997], ["Toxic blowpipe", 12926],
     ["Black chinchompa", 11959], ["Bow of faerdhinen", 25865], ["Noxious halberd", 29796],
-    ["Blade of saeldor", 23995], ["Avernic defender", 22322],
+    ["Blade of saeldor", 23995], ["Dragon claws", 13652], ["Avernic defender", 22322],
     // Remaining SDK equipment/weapons (IDs will be made explicit on the
     // definitions in a follow-up; names are used only for this inventory).
     ["Ahrim's robetop", null], ["Ahrim's robeskirt", null], ["Amulet of Fury", null],
@@ -245,6 +245,7 @@ export async function decodeSample({ cachePath, revision }) {
     11: 390,  // SwordSlash
     12: 829,  // Eat / drink
     13: 836,  // Dying
+    14: 7514, // Dragon claws attack
   };
   const playerItemAssets = {};
   let sharedPlayerAnimations;

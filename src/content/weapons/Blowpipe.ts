@@ -16,7 +16,9 @@ import { PlayerAnimationIndices } from "../../sdk/rendering/GLTFAnimationConstan
 import { Assets } from "../../sdk/utils/Assets";
 
 export class Blowpipe extends RangedWeapon {
-  get cacheItemId(): number { return 12926; }
+  get cacheItemId(): number {
+    return 12926;
+  }
   constructor() {
     super({
       modelScale: 1 / 128,
@@ -92,7 +94,7 @@ export class Blowpipe extends RangedWeapon {
     super.specialAttack(from, to, bonuses, options);
     bonuses.isSpecialAttack = true;
     // BP special attack takes an extra tick to land
-    super.attack(from, to, bonuses, {
+    const didAttack = super.attack(from, to, bonuses, {
       ...options,
       reduceDelay: -1,
       visualHitEarlyTicks: 1,
@@ -103,6 +105,7 @@ export class Blowpipe extends RangedWeapon {
     const healAttackerBy = Math.floor(this.damageRoll / 2);
     from.currentStats.hitpoint += healAttackerBy;
     from.currentStats.hitpoint = Math.min(from.currentStats.hitpoint, from.stats.hitpoint);
+    return didAttack;
   }
 
   _damageMultiplier(from: Unit, to: Unit, bonuses: AttackBonuses) {

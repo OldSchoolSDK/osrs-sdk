@@ -326,7 +326,7 @@ export class Player extends Unit {
       aggregated[skill].damage += damage || 0;
     });
 
-    Object.values(aggregated).forEach(drop => {
+    Object.values(aggregated).forEach((drop) => {
       XpDropController.controller.registerXpDrop(drop);
     });
 
@@ -391,9 +391,12 @@ export class Player extends Unit {
       if (this.equipment.weapon) {
         if (this.equipment.weapon.hasSpecialAttack() && this.useSpecialAttack) {
           if (this.currentStats.specialAttack >= this.equipment.weapon.specialAttackDrain()) {
-            this.equipment.weapon.specialAttack(this, this.aggro as Unit /* hack */);
-            this.currentStats.specialAttack -= this.equipment.weapon.specialAttackDrain();
-            this.regenTimer.specUsed();
+            const didSpecialAttack = this.equipment.weapon.specialAttack(this, this.aggro as Unit /* hack */);
+            if (didSpecialAttack) {
+              this.currentStats.specialAttack -= this.equipment.weapon.specialAttackDrain();
+              this.regenTimer.specUsed();
+            }
+            return didSpecialAttack;
           }
           this.useSpecialAttack = false;
         } else {
@@ -414,9 +417,16 @@ export class Player extends Unit {
     return true;
   }
 
+  override didAttack() {
+    const weapon = this.equipment.weapon;
+    const usedSpecialAttack = this.useSpecialAttack && weapon?.hasSpecialAttack();
+    super.didAttack(usedSpecialAttack ? weapon?.specialAttackAnimationId : undefined);
+    this.useSpecialAttack = false;
+  }
+
   activatePrayers() {
     this.overhead = this.prayerController.overhead();
-    this.prayerController.prayers.forEach(prayer => {
+    this.prayerController.prayers.forEach((prayer) => {
       if (prayer.willPlayOffSound) prayer.playOffSound();
       if (prayer.willPlayOnSound) prayer.playOnSound();
       prayer.willPlayOffSound = false;
@@ -528,8 +538,10 @@ export class Player extends Unit {
   }
 
   private hasPendingServerMovement() {
-    return Boolean(this.destinationLocation &&
-      (this.destinationLocation.x !== this.location.x || this.destinationLocation.y !== this.location.y));
+    return Boolean(
+      this.destinationLocation &&
+        (this.destinationLocation.x !== this.location.x || this.destinationLocation.y !== this.location.y),
+    );
   }
 
   // WARNING: client ticks do NOT happen in line with render or logic ticks. Do not use this for anything other than
@@ -566,12 +578,12 @@ export class Player extends Unit {
     if (currentAngle !== this.nextAngle && canRotate) {
       if (ENABLE_POSITION_DEBUG) console.log("must rotate", this.path.length, run);
       movementSpeed = baseMovementSpeed / 2;
-      const lateralThreshold = Math.PI * 3 / 8;
-      if (angleDelta >= lateralThreshold && angleDelta < Math.PI * 3 / 4) {
+      const lateralThreshold = (Math.PI * 3) / 8;
+      if (angleDelta >= lateralThreshold && angleDelta < (Math.PI * 3) / 4) {
         this.currentPoseAnimation = PlayerAnimationIndices.StrafeRight;
-      } else if (angleDelta <= -lateralThreshold && angleDelta > -Math.PI * 3 / 4) {
+      } else if (angleDelta <= -lateralThreshold && angleDelta > (-Math.PI * 3) / 4) {
         this.currentPoseAnimation = PlayerAnimationIndices.StrafeLeft;
-      } else if (Math.abs(angleDelta) >= Math.PI * 3 / 4) {
+      } else if (Math.abs(angleDelta) >= (Math.PI * 3) / 4) {
         this.currentPoseAnimation = PlayerAnimationIndices.Rotate180;
       }
     }
@@ -610,7 +622,9 @@ export class Player extends Unit {
       }
       if (this.path.length === 0) {
         this.currentPoseAnimation = this.hasPendingServerMovement()
-          ? (this.running ? PlayerAnimationIndices.Run : PlayerAnimationIndices.Walk)
+          ? this.running
+            ? PlayerAnimationIndices.Run
+            : PlayerAnimationIndices.Walk
           : this.getIdlePoseId();
         this.restingAngle = this.lastTravelAngle;
         if (!this.aggro) this.nextAngle = this.restingAngle;
@@ -622,25 +636,26 @@ export class Player extends Unit {
 
   moveTowardsDestination() {
     this.nextAngle = this.getTargetAngle();
-    
+
     // Check if player will move this tick and at what speed
-    const willMoveThisTick = this.destinationLocation && 
+    const willMoveThisTick =
+      this.destinationLocation &&
       (this.location.x !== this.destinationLocation.x || this.location.y !== this.destinationLocation.y);
-    
+
     // Pre-calculate the movement to determine actual speed used
     let actualMovementSpeed = 1; // default to walk
     if (willMoveThisTick) {
       const speed = this.running ? 2 : 1;
       const { path } = Pathing.path(this.region, this.location, this.destinationLocation, speed, this.aggro);
-      
+
       // Actual movement speed is how many tiles we'll move this tick
       if (path.length >= 2) {
         actualMovementSpeed = 2; // Actually running (moving 2 tiles)
       } else if (path.length === 1) {
-        actualMovementSpeed = 1; // Actually walking (moving 1 tile)  
+        actualMovementSpeed = 1; // Actually walking (moving 1 tile)
       }
     }
-    
+
     // Energy only drains when ACTUALLY running (moving 2 tiles this tick)
     if (this.running && willMoveThisTick && actualMovementSpeed === 2) {
       // New energy drain formula: ⌊60 + 67 * clamp[0,64](weight) / 64⌋ * (1 - agility / 300)
@@ -662,13 +677,13 @@ export class Player extends Unit {
       const recovery = Math.floor(this.currentStats.agility / 10) + 15;
       this.currentStats.run += recovery;
     }
-    
+
     this.currentStats.run = Math.min(Math.max(this.currentStats.run, 0), 10000);
-    
+
     if (this.currentStats.run === 0) {
       this.running = false;
     }
-    
+
     // Tick down stamina
     this.effects.stamina--;
     this.effects.stamina = Math.min(Math.max(this.effects.stamina, 0), 200);
@@ -751,7 +766,6 @@ export class Player extends Unit {
   private rotationFromAngle = 0;
   private rotationTimestamp = 0;
   private rotationDirection = 1;
-
 
   getPerceivedRotation(tickPercent) {
     // https://gist.github.com/shaunlebron/8832585
@@ -1009,16 +1023,31 @@ export class Player extends Unit {
     // Cache references use explicit OSRS item IDs where available; names remain a legacy fallback.
     if (CacheRender.isConfigured()) {
       const reference = CacheRenderReferences.player(
-          [this.equipment.helmet, this.equipment.necklace, this.equipment.cape,
-            this.equipment.chest, this.equipment.legs, this.equipment.feet,
-            this.equipment.gloves, this.equipment.ring, this.equipment.ammo,
-            this.equipment.weapon, this.equipment.offhand]
-          .filter((e) => !!e).map((e) => e.cacheItemId ?? e.itemName),
-          { idle: PlayerAnimationIndices.Idle, walk: PlayerAnimationIndices.Walk, run: PlayerAnimationIndices.Run },
-        );
+        [
+          this.equipment.helmet,
+          this.equipment.necklace,
+          this.equipment.cape,
+          this.equipment.chest,
+          this.equipment.legs,
+          this.equipment.feet,
+          this.equipment.gloves,
+          this.equipment.ring,
+          this.equipment.ammo,
+          this.equipment.weapon,
+          this.equipment.offhand,
+        ]
+          .filter((e) => !!e)
+          .map((e) => e.cacheItemId ?? e.itemName),
+        { idle: PlayerAnimationIndices.Idle, walk: PlayerAnimationIndices.Walk, run: PlayerAnimationIndices.Run },
+      );
       return new FallbackModel(
         CacheRenderModel.forRenderable(this, reference),
-        GLTFModel.forRenderableMulti(this, Object.values(this.equipment).map((e) => e?.model).filter((e) => !!e)),
+        GLTFModel.forRenderableMulti(
+          this,
+          Object.values(this.equipment)
+            .map((e) => e?.model)
+            .filter((e) => !!e),
+        ),
       );
     }
     return GLTFModel.forRenderableMulti(
