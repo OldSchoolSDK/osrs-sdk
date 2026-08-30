@@ -59,6 +59,18 @@ export class PrayerControls extends BaseControls {
     }
   }
 
+  override hoverAction(x: number, y: number) {
+    const scale = Settings.controlPanelScale;
+    const gridX = x / scale - 14;
+    const gridY = y / scale - 22;
+    const prayer = Trainer.player.prayerController.prayers[Math.floor(gridY / 35) * 5 + Math.floor(gridX / 35)];
+    if (!prayer) return null;
+    return [
+      { text: prayer.isLit ? "Deactivate " : "Activate ", fillStyle: "white" },
+      { text: prayer.name, fillStyle: "yellow" },
+    ];
+  }
+
   get isAvailable(): boolean {
     return true;
   }

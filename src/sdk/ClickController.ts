@@ -83,6 +83,7 @@ export class ClickController {
   }
 
   private recentlySelectedMobs: Mob[] = [];
+  private hoverTooltip: { text: MenuOption["text"]; x: number; y: number } | null = null;
 
   hasSelectedMob() {
     return this.recentlySelectedMobs.length > 0;
@@ -91,6 +92,16 @@ export class ClickController {
   mouseMoved(e: MouseEvent) {
     const scale = Settings.maxUiScale;
     if (this.viewport.components.some((component) => component.onMouseMove(e.offsetX / scale, e.offsetY / scale))) {
+      this.hoverTooltip = null;
+      return;
+    }
+    const panelHoverAction = ControlPanelController.controller.hoverAction(e);
+    if (panelHoverAction) {
+      this.recentlySelectedMobs.forEach((mob) => {
+        mob.selected = false;
+      });
+      this.recentlySelectedMobs = [];
+      this.hoverTooltip = { text: panelHoverAction, x: e.offsetX, y: e.offsetY + 10 };
       return;
     }
     const world = Trainer.player.region.world;
@@ -105,7 +116,67 @@ export class ClickController {
         firstMob.selected = true;
         this.recentlySelectedMobs.push(firstMob);
       }
+      const firstAction = this.contextActionsFor(
+        Trainer.player.region,
+        hoveredOn.mobs,
+        hoveredOn.players,
+        hoveredOn.groundItems,
+        hoveredOn.location.x,
+        hoveredOn.location.y,
+      )[0];
+      this.hoverTooltip = firstAction
+        ? { text: firstAction.text, x: e.offsetX, y: e.offsetY + 10 }
+        : null;
+    } else {
+      this.hoverTooltip = null;
     }
+  }
+
+  drawHoverTooltip(context: CanvasRenderingContext2D) {
+    if (!this.hoverTooltip || Viewport.viewport.contextMenu.isActive) return;
+    const { text, x, y } = this.hoverTooltip;
+    context.save();
+    context.font = "16px Stats_11";
+    context.textAlign = "left";
+    context.textBaseline = "top";
+    let textX = x + 12;
+    const textY = y + 12;
+    const textWidth = text.reduce((width, block) => width + context.measureText(block.text).width, 0);
+    context.fillStyle = "rgba(64, 64, 64, 0.5)";
+    context.fillRect(textX - 4, textY - 3, textWidth + 8, 21);
+    context.lineWidth = 1;
+    context.strokeStyle = "rgba(64, 64, 64, 0.75)";
+    context.strokeRect(textX - 3.5, textY - 2.5, textWidth + 7, 20);
+    text.forEach((block) => {
+      context.fillStyle = "black";
+      context.fillText(block.text, textX + 1, textY + 1);
+      context.fillStyle = block.fillStyle || "white";
+      context.fillText(block.text, textX, textY);
+      textX += context.measureText(block.text).width;
+    });
+    context.restore();
+  }
+
+  private contextActionsFor(region: Region, mobs: Mob[], players: Player[], groundItems: Item[], x: number, y: number) {
+    let menuOptions: MenuOption[] = [];
+    mobs.forEach((mob) => {
+      menuOptions = menuOptions.concat(mob.contextActions(region, x, y));
+    });
+    players.forEach((player) => {
+      if (player !== Trainer.player) {
+        menuOptions = menuOptions.concat(player.contextActions(region, x, y));
+      }
+    });
+    groundItems.forEach((item: Item) => {
+      menuOptions.push({
+        text: [
+          { text: "Take ", fillStyle: "white" },
+          { text: item.itemName, fillStyle: "#FF911F" },
+        ],
+        action: () => InputController.controller.queueAction(() => Trainer.player.setSeekingItem(item)),
+      });
+    });
+    return menuOptions;
   }
 
   private getClickedOn(e: MouseEvent, world: World, region: Region) {
@@ -227,26 +298,7 @@ export class ClickController {
       y: Math.floor(y),
     };
 
-    /* gather options */
-    let menuOptions: MenuOption[] = [];
-
-    mobs.forEach((mob) => {
-      menuOptions = menuOptions.concat(mob.contextActions(region, x, y));
-    });
-    players.forEach((player) => {
-      if (player !== Trainer.player) {
-        menuOptions = menuOptions.concat(player.contextActions(region, x, y));
-      }
-    });
-    groundItems.forEach((item: Item) => {
-      menuOptions.push({
-        text: [
-          { text: "Take ", fillStyle: "white" },
-          { text: item.itemName, fillStyle: "#FF911F" },
-        ],
-        action: () => InputController.controller.queueAction(() => Trainer.player.setSeekingItem(item)),
-      });
-    });
+    let menuOptions = this.contextActionsFor(region, mobs, players, groundItems, x, y);
 
     menuOptions.push(
       {

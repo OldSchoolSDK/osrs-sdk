@@ -205,6 +205,7 @@ export class Viewport {
       world.tickPercent,
     );
     MapController.controller.draw(this.context);
+    this.clickController.drawHoverTooltip(this.context);
     this.contextMenu.draw(this.context);
 
     this.components.forEach((component) => component.draw(this.context, Settings.maxUiScale, 0, 0));

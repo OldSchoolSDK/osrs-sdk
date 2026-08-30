@@ -1,6 +1,7 @@
 import { ControlPanelController } from "../ControlPanelController";
 import { ImageLoader } from "../utils/ImageLoader";
 import { Settings } from "../Settings";
+import type { MultiColorTextBlock } from "../ContextMenu";
 
 export class BaseControls {
   panelImage: HTMLImageElement = ImageLoader.createImage(this.panelImageReference);
@@ -29,6 +30,10 @@ export class BaseControls {
 
   cursorMovedto(x: number, y: number) {
     // Override me
+  }
+
+  hoverAction(x: number, y: number): MultiColorTextBlock[] | null {
+    return null;
   }
 
   panelRightClick(x: number, y: number) {

@@ -46,7 +46,21 @@ export class InventoryControls extends BaseControls {
 
   cursorMovedto(x: number, y: number) {
     this.cursorLocation = { x, y };
+    if (!this.clickedDownLocation) return;
     this.draggedItem ||= Pathing.dist(this.cursorLocation.x, this.cursorLocation.y, this.clickedDownLocation.x, this.clickedDownLocation.y) > DRAG_RADIUS && this.canDrag();
+  }
+
+  override hoverAction(x: number, y: number) {
+    const scale = Settings.controlPanelScale;
+    const hoveredItem = first(
+      filter(this.inventoryCache, (inventoryItem: Item, index: number) => {
+        if (!inventoryItem) return false;
+        const x2 = index % 4;
+        const y2 = Math.floor(index / 4);
+        return Collision.collisionMath(x, y, 1, (20 + x2 * 43) * scale, (17 + (y2 + 1) * 35) * scale, 32 * scale);
+      }),
+    ) as Item;
+    return hoveredItem?.contextActions(Trainer.player)[0]?.text ?? null;
   }
 
   get isAvailable(): boolean {

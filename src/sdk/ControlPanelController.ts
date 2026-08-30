@@ -19,6 +19,7 @@ import { Location } from "./Location";
 import { Chrome } from "./Chrome";
 import { MapController } from "./MapController";
 import { BoostPanel } from "./BoostPanel";
+import type { MultiColorTextBlock } from "./ContextMenu";
 
 interface TabPosition {
   x: number;
@@ -195,6 +196,23 @@ export class ControlPanelController {
         }
       }
     }
+  }
+
+  hoverAction(e: MouseEvent): MultiColorTextBlock[] | null {
+    if (!this.selectedControl) return null;
+    const scale = Settings.controlPanelScale;
+    const panelPosition = this.controlPosition(this.selectedControl);
+    const panelWidth = 204 * scale;
+    const panelHeight = 275 * scale;
+    if (
+      e.offsetX < panelPosition.x ||
+      e.offsetX >= panelPosition.x + panelWidth ||
+      e.offsetY < panelPosition.y ||
+      e.offsetY >= panelPosition.y + panelHeight
+    ) {
+      return null;
+    }
+    return this.selectedControl.hoverAction(e.offsetX - panelPosition.x, e.offsetY - panelPosition.y);
   }
   controlPanelRightClick(e: MouseEvent): boolean {
     let intercepted = false;
