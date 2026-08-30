@@ -229,13 +229,7 @@ export class CacheRenderModel implements Model, RenderableListener {
     if (ENABLE_CACHE_RENDER_ANIMATIONS) {
       // SDK callers use semantic pose indices (e.g. FireBow = 6), while the
       // bundle is keyed by the actual cache sequence ID (e.g. 426).
-      const nextAnimation = this.poseMap[String(id)] ?? id;
-      // Combat code can re-issue the same attack animation while the actor is
-      // still on that server tick (notably while closing on a target). Do not
-      // rewind the sequence clock for an identical active animation: that
-      // presents as a one-frame restart every tick.
-      if (this.animationPlaying && this.activeAnimation === nextAnimation) return Promise.resolve();
-      this.activeAnimation = nextAnimation;
+      this.activeAnimation = this.poseMap[String(id)] ?? id;
       this.animationTime = 0;
       this.animationPlaying = true;
       this.animationCanBlend = blend;
