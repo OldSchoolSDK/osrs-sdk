@@ -271,13 +271,17 @@ export class Projectile extends Renderable {
     if (this.options.hitSound) {
       SoundCache.play(this.options.hitSound);
     }
-    if (!targetIsLocation(this.to) && this.options.checkPrayerAtHit && this.weapon?.isBlockable(this.from, this.to, { attackStyle: this.attackStyle })) {
+    if (
+      !targetIsLocation(this.to) &&
+      this.options.checkPrayerAtHit &&
+      this.weapon?.isBlockable(this.from, this.to, { attackStyle: this.attackStyle })
+    ) {
       this.damage = 0;
     }
   }
 
   shouldDestroy() {
-    return this.age >= this.totalDelay + Math.max(0, -this.options.visualHitEarlyTicks);
+    return this.age >= this.totalDelay + Math.max(0, -this.options.visualHitEarlyTicks) + 1;
   }
 
   visible(tickPercent) {
