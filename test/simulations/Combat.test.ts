@@ -10,6 +10,7 @@ import { Settings } from "../../src";
 import { MeleeWeapon } from "../../src/sdk/weapons/MeleeWeapon";
 import { DelayedAction } from "../../src/sdk/DelayedAction";
 import { ScytheOfVitur } from "../../src/content/weapons/ScytheOfVitur";
+import { DragonClaws } from "../../src/content/weapons/DragonClaws";
 
 describe("basic combat scenario", () => {
   test("when player tries to kill a fake jalxil...", () => {
@@ -57,7 +58,7 @@ describe("basic combat scenario", () => {
     expect(world.globalTickCounter).toEqual(145);
     expect(Random.callCount).toEqual(78);
   });
-  
+
   test("red-x prevents random walk", () => {
     Settings.inputDelay = 0;
     const region = new TestRegion(60, 60);
@@ -75,9 +76,6 @@ describe("basic combat scenario", () => {
     region.addMob(jalxil);
 
     world.tickWorld();
-
-
-
   });
 
   test("a max-damage-roll buff applies to the next successful attack", () => {
@@ -114,6 +112,26 @@ describe("basic combat scenario", () => {
     expect(target.incomingProjectiles.every((projectile) => projectile.damage > 0)).toBe(true);
     DelayedAction.tick();
     expect(attacker.forceMaxDamageRollsOnNextAttack).toBe(false);
+    Random.setRandom(originalRandom);
+  });
+
+  test("Dragon Claws special attack creates four linked hitsplats after its first successful accuracy roll", () => {
+    const region = new TestRegion(10, 10);
+    const attacker = new TestNpc(region, { x: 4, y: 5 }, {});
+    const target = new TestNpc(region, { x: 5, y: 5 }, {});
+    const claws = new DragonClaws();
+    const originalRandom = Random.randomFn;
+    Random.setRandom(() => 0);
+
+    claws.specialAttack(attacker, target);
+
+    const hits = target.incomingProjectiles.map((projectile) => projectile.damage);
+    expect(hits).toHaveLength(4);
+    expect(target.incomingProjectiles.map((projectile) => projectile.remainingDelay)).toEqual([1, 1, 2, 2]);
+    expect(hits[0]).toBeGreaterThan(0);
+    expect(hits[1]).toBe(Math.floor(hits[0] / 2));
+    expect(hits[2]).toBe(Math.floor(hits[1] / 2));
+    expect(hits[3]).toBe(hits[2] + 1);
     Random.setRandom(originalRandom);
   });
 });
