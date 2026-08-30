@@ -487,7 +487,7 @@ export class CacheRenderModel implements Model, RenderableListener {
     if (pose !== this.lastPose) this.poseAnimationTime = 0;
     else this.poseAnimationTime += clockDelta;
     if (!this.animationPlaying && pose !== this.lastPose) {
-      this.activeAnimation = this.poseMap[String(pose)] ?? -1;
+      this.activeAnimation = this.poseMap[String(pose)] ?? pose;
       this.animationTime = 0;
     }
     this.animationTime += clockDelta;
@@ -498,7 +498,7 @@ export class CacheRenderModel implements Model, RenderableListener {
       if (this.animationPlaying && time >= total) {
         this.animationPlaying = false;
         this.animationCanBlend = false;
-        this.activeAnimation = this.poseMap[String(pose)] ?? -1;
+        this.activeAnimation = this.poseMap[String(pose)] ?? pose;
         this.animationTime = 0;
         time = 0;
       } else if (total > 0) time %= total;
@@ -549,7 +549,7 @@ export class CacheRenderModel implements Model, RenderableListener {
           }
           position.array.set(transformed);
         } else if (animation.rawFrames?.[frame]) {
-          const poseSequence = this.poseMap[String(pose)];
+          const poseSequence = this.poseMap[String(pose)] ?? pose;
           const poseAnimation = this.animations[String(poseSequence)];
           const interleave = animation.interleaveLeave?.filter((index) => index !== 9999999) ?? [];
           // Evaluate a frame in the same way as the game client, including
