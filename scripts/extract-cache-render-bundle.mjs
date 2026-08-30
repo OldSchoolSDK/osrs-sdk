@@ -5,7 +5,7 @@
  * are revision-sensitive; it must export decodeSample({ cachePath, revision }).
  */
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, unlink, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const [adapterPath, cachePath, outputDirectory] = process.argv.slice(2);
@@ -15,6 +15,16 @@ if (typeof adapter.decodeSample !== "function") throw new Error("Extractor adapt
 const decoded = await adapter.decodeSample({ cachePath, revision: process.env.OSRS_CACHE_REVISION });
 if (!Number.isInteger(decoded.revision) || !decoded.source || !Array.isArray(decoded.assets) || !decoded.references) throw new Error("osrscachereader adapter returned an incompatible sample decode");
 await mkdir(outputDirectory, { recursive: true });
+// Remove payloads from prior extractions so stale content-hashed files do not
+// accumulate or remain discoverable alongside the current manifest. Only
+// delete files produced by this extractor; leave unrelated files/directories
+// in the output directory untouched.
+const generatedFile = /^[a-z0-9][a-z0-9-]*\.(?:[a-f0-9]{64})\.bin$/i;
+for (const entry of await readdir(outputDirectory, { withFileTypes: true })) {
+  if (entry.isFile() && (entry.name === "manifest.json" || generatedFile.test(entry.name))) {
+    await unlink(resolve(outputDirectory, entry.name));
+  }
+}
 const assets = {};
 for (const asset of decoded.assets.sort((a, b) => a.id.localeCompare(b.id))) {
   if (!asset.id || !Array.isArray(asset.payload.positions)) throw new Error(`Missing geometry for ${asset.id}`);
