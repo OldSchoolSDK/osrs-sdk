@@ -191,6 +191,9 @@ export class Weapon extends Equipment {
 
     this.grantXp(from, to);
     this.registerProjectile(from, to, bonuses, options);
+    if (this.lastHitHit) {
+      from.consumeMaxDamageRollsOnNextAttack();
+    }
     return true;
   }
 
@@ -201,6 +204,9 @@ export class Weapon extends Equipment {
 
   _calculateHitDamage(from: Unit, to: Unit, bonuses: AttackBonuses) {
     this.lastHitHit = true;
+    if (from.forceMaxDamageRollsOnNextAttack) {
+      return this._maxHit(from, to, bonuses);
+    }
     return Math.floor(Random.get() * (this._maxHit(from, to, bonuses) + 1));
   }
 

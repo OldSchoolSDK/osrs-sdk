@@ -120,6 +120,9 @@ export abstract class Unit extends Renderable {
   lastRotation = 0;
   hasDiedAndAwaitingRemoval = false;
   nulledTicks = 0;
+  // Perhaps this should be implemented as a min-damage roll, but will do for now (plenty of "punish" mechanics have made it into the game lately)
+  forceMaxDamageRollsOnNextAttack = false;
+  private maxDamageRollsConsumptionQueued = false;
 
   /** Attach or replace a temporary cache-derived graphic without rebuilding the base model. */
   addSpotAnim(spotAnim: CacheRenderSpotAnim) {
@@ -228,6 +231,23 @@ export abstract class Unit extends Renderable {
     this.aggro = mob;
     this.lastInteraction = mob;
     this.lastInteractionAge = 0;
+  }
+
+  grantMaxDamageRollsOnNextAttack() {
+    this.forceMaxDamageRollsOnNextAttack = true;
+  }
+
+  consumeMaxDamageRollsOnNextAttack() {
+    if (this.maxDamageRollsConsumptionQueued) {
+      return;
+    }
+    this.maxDamageRollsConsumptionQueued = true;
+    DelayedAction.registerDelayedAction(
+      new DelayedAction(() => {
+        this.forceMaxDamageRollsOnNextAttack = false;
+        this.maxDamageRollsConsumptionQueued = false;
+      }, 0),
+    );
   }
 
   grantXp(xpDrop: XpDrop) {

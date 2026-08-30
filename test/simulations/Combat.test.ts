@@ -7,6 +7,9 @@ import { Viewport } from "../../src/sdk/Viewport";
 import { TestRegion } from "../../src/sdk/testing/TestRegion";
 import { TestNpc } from "../../src/sdk/testing/TestNpc";
 import { Settings } from "../../src";
+import { MeleeWeapon } from "../../src/sdk/weapons/MeleeWeapon";
+import { DelayedAction } from "../../src/sdk/DelayedAction";
+import { ScytheOfVitur } from "../../src/content/weapons/ScytheOfVitur";
 
 describe("basic combat scenario", () => {
   test("when player tries to kill a fake jalxil...", () => {
@@ -75,5 +78,42 @@ describe("basic combat scenario", () => {
 
 
 
+  });
+
+  test("a max-damage-roll buff applies to the next successful attack", () => {
+    const region = new TestRegion(10, 10);
+    const attacker = new TestNpc(region, { x: 4, y: 5 }, {});
+    const target = new TestNpc(region, { x: 5, y: 5 }, {});
+    const weapon = new MeleeWeapon();
+    const bonuses = {};
+    const originalRandom = Random.randomFn;
+    Random.setRandom(() => 0);
+    attacker.grantMaxDamageRollsOnNextAttack();
+
+    weapon.attack(attacker, target, bonuses);
+
+    expect(weapon.damageRoll).toBe(weapon._maxHit(attacker, target, bonuses));
+    expect(attacker.forceMaxDamageRollsOnNextAttack).toBe(true);
+    DelayedAction.tick();
+    expect(attacker.forceMaxDamageRollsOnNextAttack).toBe(false);
+    Random.setRandom(originalRandom);
+  });
+
+  test("a max-damage-roll buff applies to every Scythe hitsplat in its attack tick", () => {
+    const region = new TestRegion(10, 10);
+    const attacker = new TestNpc(region, { x: 4, y: 4 }, {});
+    const target = new TestNpc(region, { x: 5, y: 5 }, {});
+    const scythe = new ScytheOfVitur();
+    const originalRandom = Random.randomFn;
+    Random.setRandom(() => 0);
+    attacker.grantMaxDamageRollsOnNextAttack();
+
+    scythe.attack(attacker, target, {});
+
+    expect(target.incomingProjectiles).toHaveLength(3);
+    expect(target.incomingProjectiles.every((projectile) => projectile.damage > 0)).toBe(true);
+    DelayedAction.tick();
+    expect(attacker.forceMaxDamageRollsOnNextAttack).toBe(false);
+    Random.setRandom(originalRandom);
   });
 });
