@@ -61,6 +61,12 @@ The value is injected into the sample at build time. A browser-side
 `window.OSRS_CACHE_RENDER_MANIFEST_URL` override is also supported when a
 runtime override is more convenient.
 
+The legacy GLTF/static assets use `https://oldschool-cdn.com` by default. SDK
+builds can bake a different asset host into the bundle with
+`OSRS_ASSET_BASE_URL`, for example:
+
+    OSRS_ASSET_BASE_URL=https://assets-soltrainer.netlify.app npm run build
+
 ### Developing the project from a client project:
 
 Modify `package.json`:

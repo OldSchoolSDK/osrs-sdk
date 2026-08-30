@@ -8,6 +8,11 @@ module.exports = {
   optimization: {
     minimize: false
   },
+  plugins: [
+    new webpack.DefinePlugin({
+      __OSRS_ASSET_BASE_URL__: JSON.stringify(process.env.OSRS_ASSET_BASE_URL || ""),
+    }),
+  ],
   module: {
     rules: [
       {
