@@ -219,7 +219,7 @@ export abstract class Region {
     this.projectiles = [];
     this.groundItems = {};
     TileMarker.loadAll(this);
-    Viewport.viewport.reset();
+    Viewport.viewport.reset(this);
 
     // Set countdown timer like on page load
     this.world.getReadyTimer = 6;

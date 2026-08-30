@@ -116,8 +116,9 @@ export class Viewport {
     return;
   }
 
-  reset() {
+  reset(region: Region) {
     this.delegate.reset();
+    this.delegate.setMapRotation(region.initialFacing);
     this.components = [];
   }
 
