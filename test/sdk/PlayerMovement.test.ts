@@ -3,6 +3,7 @@ import { Viewport } from "../../src/sdk/Viewport";
 import { World } from "../../src/sdk/World";
 import { TestRegion } from "../../src/sdk/testing/TestRegion";
 import { PlayerAnimationIndices } from "../../src/sdk/rendering/GLTFAnimationConstants";
+import { Mob } from "../../src/sdk/Mob";
 
 test("walking consumes a tile after one 600 ms server tick (30 client steps)", () => {
   const region = new TestRegion(10, 10);
@@ -112,15 +113,13 @@ test.each([
   expect(new Set(poses)).toEqual(new Set([PlayerAnimationIndices.Walk]));
 });
 
-test("keeps walking displacement constant as the visual path buffer changes", () => {
+test("keeps walking displacement constant in a normal visual path buffer", () => {
   const region = new TestRegion(20, 20);
   const player = new Player(region, { x: 2, y: 2 });
   player.destinationLocation = { x: 8, y: 2 };
   player.path = [
     { x: 3, y: 2, run: false },
     { x: 4, y: 2, run: false },
-    { x: 5, y: 2, run: false },
-    { x: 6, y: 2, run: false },
   ];
   (player as any)._angle = 0;
   (player as any).nextAngle = 0;
@@ -136,6 +135,108 @@ test("keeps walking displacement constant as the visual path buffer changes", ()
 
   expect(deltas.length).toBeGreaterThan(20);
   expect(Math.max(...deltas)).toBeCloseTo(Math.min(...deltas));
+});
+
+test("uses bounded catch-up speed when the visual queue grows", () => {
+  const region = new TestRegion(30, 30);
+  const player = new Player(region, { x: 2, y: 2 });
+  player.destinationLocation = { x: 20, y: 2 };
+  player.path = [
+    { x: 3, y: 2, run: false },
+    { x: 4, y: 2, run: false },
+    { x: 5, y: 2, run: false },
+    { x: 6, y: 2, run: false },
+  ];
+  (player as any)._angle = 0;
+  (player as any).nextAngle = 0;
+
+  const before = player.perceivedLocation.x;
+  player.clientTick(0, 20);
+  // A queue longer than three tiles uses the 2x catch-up rate.
+  expect(player.perceivedLocation.x - before).toBeCloseTo(2 / 30);
+});
+
+test("keeps diagonal running continuous across visual waypoints", () => {
+  const region = new TestRegion(20, 20);
+  const player = new Player(region, { x: 2, y: 2 });
+  player.running = true;
+  player.destinationLocation = { x: 8, y: 8 };
+  player.path = [{ x: 3, y: 3, run: true }, { x: 4, y: 4, run: true }];
+  const heading = -Math.PI / 4;
+  (player as any)._angle = heading;
+  (player as any).nextAngle = heading;
+
+  const poses: number[] = [];
+  const distances: number[] = [];
+  let previous = { ...player.perceivedLocation };
+  for (let cycle = 1; cycle <= 20; cycle++) {
+    player.clientTick(0, cycle * 20);
+    poses.push(player.animationIndex);
+    distances.push(Math.hypot(player.perceivedLocation.x - previous.x, player.perceivedLocation.y - previous.y));
+    previous = { ...player.perceivedLocation };
+  }
+
+  expect(new Set(poses)).toEqual(new Set([PlayerAnimationIndices.Run]));
+  const movingDistances = distances.filter((distance) => distance > 0);
+  expect(Math.max(...movingDistances)).toBeCloseTo(Math.min(...movingDistances));
+});
+
+test("keeps the run pose stable while diagonally approaching an aggro target", () => {
+  const region = new TestRegion(30, 30);
+  const target = new Mob(region, { x: 9, y: 10 }, {});
+  const player = new Player(region, { x: 2, y: 2 }, { aggro: target });
+  player.running = true;
+  player.destinationLocation = { x: 9, y: 10 };
+
+  const poses: number[] = [];
+  for (let serverTick = 0; serverTick < 3; serverTick++) {
+    player.moveTowardsDestination();
+    for (let clientTick = 1; clientTick <= 20; clientTick++) {
+      player.clientTick(0, (serverTick * 20 + clientTick) * 20);
+      poses.push(player.animationIndex);
+    }
+  }
+
+
+  expect(poses.filter((pose) => pose === PlayerAnimationIndices.Run).length).toBeGreaterThan(poses.length / 2);
+  expect(poses).not.toContain(PlayerAnimationIndices.Idle);
+});
+
+test("does not downgrade a running step to walk during a small-angle turn", () => {
+  const region = new TestRegion(20, 20);
+  const player = new Player(region, { x: 2, y: 2 });
+  player.running = true;
+  player.path = [{ x: 3, y: 3, run: true }];
+  // Small enough to remain a forward movement pose, but large enough to
+  // trigger the reference turn slowdown.
+  (player as any)._angle = 0;
+  (player as any).nextAngle = 0.2;
+
+  const poses: number[] = [];
+  for (let cycle = 1; cycle <= 8; cycle++) {
+    player.clientTick(0, cycle * 20);
+    poses.push(player.animationIndex);
+  }
+  expect(new Set(poses)).toEqual(new Set([PlayerAnimationIndices.Run]));
+});
+
+test("keeps diagonal running visually aligned with successive true tiles", () => {
+  const region = new TestRegion(30, 30);
+  const player = new Player(region, { x: 2, y: 2 });
+  player.running = true;
+  player.destinationLocation = { x: 14, y: 14 };
+  for (let serverTick = 0; serverTick < 4; serverTick++) {
+    player.moveTowardsDestination();
+    for (let clientTick = 1; clientTick <= 30; clientTick++) {
+      player.clientTick(0, (serverTick * 30 + clientTick) * 20);
+    }
+    // Turning may intentionally leave the visual actor slightly behind the
+    // true tile, but it must never run ahead or accumulate an unbounded lag.
+    expect(player.perceivedLocation.x).toBeLessThanOrEqual(player.location.x + 1e-9);
+    expect(player.perceivedLocation.y).toBeLessThanOrEqual(player.location.y + 1e-9);
+    expect(player.location.x - player.perceivedLocation.x).toBeLessThan(0.5);
+    expect(player.location.y - player.perceivedLocation.y).toBeLessThan(0.5);
+  }
 });
 
 test.each([
@@ -170,7 +271,9 @@ test("uses the final path segment rather than a transient turn target for restin
   for (let cycle = 1; cycle <= 80; cycle++) player.clientTick(0, cycle * 20);
 
   expect((player as any).restingAngle).toBeCloseTo(-Math.PI);
-  expect((player as any)._angle).toBeCloseTo(-Math.PI);
+  // +π and -π are the same heading; rotation may legitimately settle on
+  // either representation after shortest-path normalisation.
+  expect(Math.abs(Math.abs((player as any)._angle) - Math.PI)).toBeLessThan(0.02);
 });
 
 test("a coincident server and client boundary processes the server first", () => {

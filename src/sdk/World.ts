@@ -91,8 +91,8 @@ export class World {
     this.clientTickTimer = now;
     // Keep the client simulation on a fixed 20 ms cadence instead of
     // re-anchoring movement to an imprecise setInterval callback.
-    // Match the reference client cap: visibility handling prevents background
-    // accumulation, while a foreground hitch may catch up at most one second.
+    // Avoid unbounded catch-up after a timer stall; visibility handling also
+    // prevents background accumulation.
     const maxCatchupMs = CLIENT_TICK_MS * 50;
     if (this.clientTickAccumulator > maxCatchupMs) this.clientTickAccumulator = maxCatchupMs;
     while (this.clientTickAccumulator >= CLIENT_TICK_MS) {

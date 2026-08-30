@@ -16,8 +16,10 @@ ms apart:
 
 1. The server tick updates `location` by one tile when walking, or two tiles
    when running, and appends the corresponding visual steps to `path`.
-2. Client ticks consume that queue at a constant rate: one tile per 30 client
-   ticks while walking, and two tiles per 30 client ticks while running.
+2. Client ticks consume that queue at one tile per 30 client ticks while
+   walking, and two tiles per 30 client ticks while running. If the visual
+   queue grows beyond two or three tiles, bounded 1.5x/2x catch-up rates drain
+   the backlog.
 3. Rendering interpolates from the previous client position to the latest
    `perceivedLocation` using the time since the last client step. This removes
    dependence on the display refresh rate while retaining smooth motion between
@@ -32,6 +34,13 @@ When a path queue drains at a server boundary, the player retains the walking
 pose if another authoritative step is pending. This prevents a transient
 walk → idle → walk transition, which would reset the cache animation clock and
 appear as a hitch.
+
+While turning, translation is intentionally slowed to half speed and the
+player rotates at 64 orientation units per client tick. This reproduces the
+short visual lag seen when changing direction: the model can briefly continue
+its previous travel before completing the turn. Running pose selection remains
+based on the path's movement type, so this slowdown does not cause Run/Walk
+animation resets.
 
 ## Rotation and animation
 
