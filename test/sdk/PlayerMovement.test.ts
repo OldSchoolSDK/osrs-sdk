@@ -220,6 +220,19 @@ test("does not downgrade a running step to walk during a small-angle turn", () =
   expect(new Set(poses)).toEqual(new Set([PlayerAnimationIndices.Run]));
 });
 
+test("preserves diagonal target-facing when combat is cancelled in place", () => {
+  const region = new TestRegion(20, 20);
+  const target = new Mob(region, { x: 8, y: 10 }, {});
+  const player = new Player(region, { x: 5, y: 5 }, { aggro: target });
+  const expected = -Math.atan2(10 - 5, 8 - 5);
+
+  player.interruptCombat();
+
+  expect(player.aggro).toBeNull();
+  expect((player as any).restingAngle).toBeCloseTo(expected);
+  expect((player as any).nextAngle).toBeCloseTo(expected);
+});
+
 test("keeps diagonal running visually aligned with successive true tiles", () => {
   const region = new TestRegion(30, 30);
   const player = new Player(region, { x: 2, y: 2 });

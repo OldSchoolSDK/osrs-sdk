@@ -134,6 +134,13 @@ export class Player extends Unit {
   }
 
   interruptCombat() {
+    // Cancelling an attack while stationary should not reset facing to the
+    // travel/resting heading. Preserve the last target-facing angle first.
+    if (this.aggro) {
+      const targetAngle = this.getTargetAngle();
+      this.restingAngle = targetAngle;
+      this.nextAngle = targetAngle;
+    }
     this.setAggro(null);
   }
 
