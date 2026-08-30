@@ -338,6 +338,14 @@ export abstract class Unit extends Renderable {
     return this.unitRotationFrom + rotationDelta * alpha;
   }
 
+  setRotationImmediate(rotation: number) {
+    this.unitRotationTimestamp = window.performance.now();
+    this.unitRotation = rotation;
+    this.unitTargetRotation = rotation;
+    this.unitRotationFrom = rotation;
+    this.lastRotation = rotation;
+  }
+
   addedToWorld() {
     // override me
   }

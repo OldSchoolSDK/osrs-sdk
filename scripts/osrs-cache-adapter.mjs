@@ -156,9 +156,9 @@ export async function decodeSample({ cachePath, revision }) {
   const solGroup = new ModelGroup(solModelIds.map((id) => models.get(id)), false);
   const solPayload = await attachTextures(cache, payload(solGroup));
   solPayload.scale = (sol.heightScale ?? 128) / 128;
-  const solSequences = [10874, 10878, 10883, 10884, 10885, 10886, 10887, 10888];
+  const solSequences = [10874, 10878, 10883, 10884, 10885, 10886, 10887, 10888, 10877];
   solPayload.animations = await animations(cache, solGroup, solSequences);
-  solPayload.poseMap = { 0: 10874, 1: 10878, 2: 10883, 3: 10884, 4: 10885, 5: 10886, 6: 10887, 7: 10888 };
+  solPayload.poseMap = { 0: 10874, 1: 10878, 2: 10883, 3: 10884, 4: 10885, 5: 10886, 6: 10887, 7: 10888, 8: 10877 };
   assets.push({ id: `npc-${solNpcId}`, payload: solPayload });
 
   // Static cache models are useful for scenery and props that do not have an
