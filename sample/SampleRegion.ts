@@ -34,6 +34,7 @@ import {
   UltorRing,
 } from "../src";
 import { SampleNpc } from "./SampleNpc";
+import { SampleDummy } from "./SampleDummy";
 import { SampleScene } from "./SampleScene";
 
 export class SampleRegion extends Region {
@@ -106,6 +107,7 @@ export class SampleRegion extends Region {
     player.setUnitOptions(loadout);
 
     this.addMob(new SampleNpc(this, { x: 25, y: 20 }, {}));
+    this.addMob(new SampleDummy(this, { x: 34, y: 28 }, {}));
 
     this.addEntity(new SampleScene(this, { x: 0, y: 48 }));
 

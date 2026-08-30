@@ -128,6 +128,13 @@ export async function decodeSample({ cachePath, revision }) {
   npcPayload.poseMap = { 0: npc.standingAnimation, 1: npc.walkingAnimation };
   assets.push({ id: `npc-${NPC_ID}`, payload: npcPayload });
 
+  // Static cache models are useful for scenery and props that do not have an
+  // NPC definition. Keep this model reference explicit and versioned.
+  const pillarModelId = 33044;
+  await modelAsset(cache, pillarModelId, models);
+  const pillarPayload = await attachTextures(cache, payload({ getMergedModel: () => models.get(pillarModelId) }));
+  assets.push({ id: `model-${pillarModelId}`, payload: pillarPayload });
+
   const spotAnimIds = [478, 506, 1172, 1231];
   const spotAnimAssets = {};
   for (const id of spotAnimIds) {
@@ -221,7 +228,7 @@ export async function decodeSample({ cachePath, revision }) {
     revision: rev,
     source: `openrs2:${rev}`,
     assets,
-    references: { [`npc:${NPC_ID}`]: [`npc-${NPC_ID}`] },
+    references: { [`npc:${NPC_ID}`]: [`npc-${NPC_ID}`], "model:33044": ["model-33044"] },
     spotAnims: spotAnimAssets,
     playerItems: playerItemAssets,
   };

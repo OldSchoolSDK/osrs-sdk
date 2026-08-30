@@ -200,7 +200,7 @@ export class CacheRenderModel implements Model, RenderableListener {
   private meshGeneration = -1;
 
   constructor(private renderable: Renderable, private reference: CacheRenderReference) {
-    this.activeSpotAnims = this.currentSpotAnims(reference.spotAnims);
+    this.activeSpotAnims = this.currentSpotAnims(reference.kind === "model" ? undefined : reference.spotAnims);
     // Viewport3d filters scene roots before recursively raycasting children.
     // Mark this group as belonging to the renderable so its box hitbox is
     // considered as a click target.
@@ -262,7 +262,7 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.vertexGroups = [];
     this.sourceVertices = [];
     this.spotAnims = [];
-    this.activeSpotAnims = this.currentSpotAnims(this.reference.spotAnims);
+    this.activeSpotAnims = this.currentSpotAnims(this.reference.kind === "model" ? undefined : this.reference.spotAnims);
   }
   async preload() { await this.ensureLoaded(); }
 

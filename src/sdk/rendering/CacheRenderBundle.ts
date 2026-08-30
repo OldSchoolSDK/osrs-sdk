@@ -40,10 +40,10 @@ export function validateCacheRenderBundleManifest(value: any): CacheRenderBundle
   return value as CacheRenderBundleManifest;
 }
 
-function referenceKey(reference: CacheRenderReference): string {
-  return reference.kind === "npc"
-    ? `npc:${reference.definitionId}`
-    : `player:${reference.loadout.map(cacheRenderItemKey).join(",")}`;
+  function referenceKey(reference: CacheRenderReference): string {
+  if (reference.kind === "npc") return `npc:${reference.definitionId}`;
+  if (reference.kind === "model") return `model:${reference.modelId}`;
+  return `player:${reference.loadout.map(cacheRenderItemKey).join(",")}`;
 }
 
 async function sha256(bytes: ArrayBuffer): Promise<string> {
@@ -84,7 +84,8 @@ export class CacheRenderBundle {
   }
 
   spotAnimIds(reference: CacheRenderReference): string[] {
-    return (reference.spotAnims ?? []).map((spotAnim) => this.manifest.spotAnims?.[String(spotAnim.id)]).filter((id): id is string => Boolean(id));
+    const spotAnims = reference.kind === "model" ? undefined : reference.spotAnims;
+    return (spotAnims ?? []).map((spotAnim) => this.manifest.spotAnims?.[String(spotAnim.id)]).filter((id): id is string => Boolean(id));
   }
 
   allSpotAnimIds(): string[] {
