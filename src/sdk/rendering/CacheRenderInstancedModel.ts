@@ -10,17 +10,27 @@ import { Model } from "./Model";
 // drawn with a single instanced draw call. Synchronized CPU animation updates
 // are applied once per pool, while placement transforms remain per instance.
 const MAX_INSTANCES = 128;
-type Pool = { mesh: THREE.InstancedMesh; ready: Promise<void>; next: number; scale: number; positions: Float32Array; groups: number[][]; sources: number[]; frames: any[]; lengths: number[]; elapsed: number };
+type Pool = {
+  mesh: THREE.InstancedMesh; ready: Promise<void>; next: number; free: number[]; active: Set<number>;
+  scaleX: number; scaleY: number; positions: Float32Array; groups: number[][]; sources: number[];
+  baseAlphas: Float32Array; alphaGroups: number[][]; frames: any[]; lengths: number[]; elapsed: number; delay: number;
+};
 const pools = new Map<string, Pool>();
+const hiddenMatrix = () => new THREE.Matrix4().makeScale(0, 0, 0);
 
-function poolKey(reference: CacheRenderReference, ids: string[]) {
-  return `${reference.kind}:${ids.join(",")}`;
+function poolKey(reference: CacheRenderReference, ids: string[], bundleVersion: string) {
+  const spot = reference.kind === "spotAnim" ? reference.spotAnims[0] : undefined;
+  // Delay changes animation phase, while placement/rotation can remain an
+  // instance matrix. Recolouring changes shared vertex data and needs a pool.
+  return `${bundleVersion}:${reference.kind}:${ids.join(",")}:${spot?.delay ?? 0}:${JSON.stringify(spot?.recolor ?? {})}`;
 }
 
 export class CacheRenderInstancedModel implements Model {
   private pool: Pool | null = null;
   private slot = -1;
   private worldPosition = new THREE.Vector3();
+  private transform = new THREE.Object3D();
+  private destroyed = false;
 
   constructor(private renderable: Renderable, private reference: CacheRenderReference) {}
 
@@ -31,26 +41,39 @@ export class CacheRenderInstancedModel implements Model {
   private async ensurePool() {
     if (this.pool) return this.pool;
     const bundle = await CacheRender.bundle();
-    const ids = [...bundle.assetIds(this.reference), ...bundle.sharedAssetIds(this.reference)];
-    const key = poolKey(this.reference, ids);
+    const ids = this.reference.kind === "spotAnim"
+      ? bundle.spotAnimIds(this.reference)
+      : [...bundle.assetIds(this.reference), ...bundle.sharedAssetIds(this.reference)];
+    const key = poolKey(this.reference, ids, bundle.manifest.bundleVersion);
     let pool = pools.get(key);
     if (!pool) {
-      pool = { next: 0, mesh: null as any, ready: Promise.resolve(), scale: 1, positions: new Float32Array(), groups: [], sources: [], frames: [], lengths: [], elapsed: 0 };
+      const placement = this.reference.kind === "spotAnim" ? this.reference.spotAnims[0] : undefined;
+      pool = { next: 0, free: [], active: new Set(), mesh: null as any, ready: Promise.resolve(), scaleX: 1, scaleY: 1, positions: new Float32Array(), groups: [], sources: [], baseAlphas: new Float32Array(), alphaGroups: [], frames: [], lengths: [], elapsed: 0, delay: (placement?.delay ?? 0) / 50 };
       pool.ready = Promise.all(ids.map((id) => cachedPayload(bundle, id))).then((payloads) => {
         const payload = mergePayloads(payloads);
-        pool!.scale = payload.scale ?? 1;
+        const spotPayload = payloads[0];
+        const metadata = spotPayload?.spotAnim ?? payload.spotAnim ?? {};
+        pool!.scaleX = (payload.scale ?? 1) * (metadata.resizeX ?? 128) / 128;
+        pool!.scaleY = (payload.scale ?? 1) * (metadata.resizeY ?? 128) / 128;
         pool!.positions = new Float32Array(payload.positions);
         pool!.groups = payload.vertexGroups ?? [];
         pool!.sources = payload.sourceVertices ?? [];
-        const animation = payload.animations?.[String(payload.poseMap?.["0"] ?? 7508)];
+        pool!.baseAlphas = new Float32Array(payload.alphas ?? Array(payload.positions.length / 3).fill(0));
+        pool!.alphaGroups = payload.alphaGroups ?? [];
+        const animationId = this.reference.kind === "spotAnim" ? metadata.animationId : payload.poseMap?.["0"] ?? 7508;
+        const animation = payload.animations?.[String(animationId)];
         pool!.frames = animation?.rawFrames ?? [];
         pool!.lengths = animation?.lengths ?? [];
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute("position", new THREE.Float32BufferAttribute(payload.positions, 3));
         if (payload.colors && payload.colors.length * 3 === payload.positions.length) {
           const colors: number[] = [];
-          payload.colors.forEach((value) => { const c = new THREE.Color(value); colors.push(c.r, c.g, c.b); });
-          geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+          const recolor = placement?.recolor ?? {};
+          payload.colors.forEach((value, index) => {
+            const c = new THREE.Color(recolor[String(spotPayload?.faceColors?.[index])] ?? value);
+            colors.push(c.r, c.g, c.b, 1 - (pool!.baseAlphas[index] & 255) / 255);
+          });
+          geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 4));
         }
         geometry.setIndex(payload.indices ?? []);
         geometry.computeVertexNormals();
@@ -58,60 +81,91 @@ export class CacheRenderInstancedModel implements Model {
           color: payload.color ?? 0xffffff,
           vertexColors: Boolean(payload.colors?.length),
           flatShading: true,
+          transparent: Boolean(payload.alphas?.length),
+          alphaTest: 0.01,
         });
         pool!.mesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCES);
         pool!.mesh.frustumCulled = false;
         // Hide unclaimed instances until their first transform is written.
-        const hidden = new THREE.Matrix4().makeScale(0, 0, 0);
+        const hidden = hiddenMatrix();
         for (let i = 0; i < MAX_INSTANCES; i++) pool!.mesh.setMatrixAt(i, hidden);
         pool!.mesh.instanceMatrix.needsUpdate = true;
       });
       pools.set(key, pool);
     }
     await pool.ready;
+    if (this.destroyed) return pool;
     this.pool = pool;
     if (this.slot < 0) {
-      if (pool.next >= MAX_INSTANCES) throw new Error("Cache render instance capacity exceeded");
-      this.slot = pool.next++;
+      if (!pool.active.size) pool.elapsed = 0;
+      const reused = pool.free.pop();
+      if (reused == null && pool.next >= MAX_INSTANCES) throw new Error("Cache render instance capacity exceeded");
+      this.slot = reused ?? pool.next++;
+      pool.active.add(this.slot);
     }
     return pool;
   }
 
   draw(scene: THREE.Scene, _clockDelta: number, _tickPercent: number, location: Location3, rotation: number, pitch: number, visible: boolean, modelOffsets: Location3[]) {
     this.ensurePool().then((pool) => {
+      if (this.destroyed || this.slot < 0) return;
       if (pool.mesh.parent !== scene) scene.add(pool.mesh);
       // Wall men all use the same idle sequence. Apply the CPU deformation
       // once, on the first instance, then all placements share the result.
-      if (this.slot === 0 && pool.frames.length) {
+      let leader = MAX_INSTANCES;
+      pool.active.forEach((slot) => { leader = Math.min(leader, slot); });
+      // Do not consume a short spotanim timeline while its entity is still
+      // waiting for its delayed visual reveal (or while the payload loads).
+      if (this.slot === leader && visible) {
         pool.elapsed += _clockDelta;
+      }
+      const effectTime = pool.elapsed - pool.delay;
+      if (this.slot === leader && pool.frames.length && effectTime >= 0) {
         const total = pool.lengths.reduce((sum, n) => sum + n, 0) / 50;
-        if (total > 0) pool.elapsed %= total;
+        const oneShot = this.reference.kind === "spotAnim";
+        // Spotanims are one-shot effects; actor model animations (WallMen)
+        // continue looping as normal.
+        const animationTime = total > 0
+          ? (oneShot ? Math.min(effectTime, Math.max(0, total - 1e-6)) : effectTime % total)
+          : 0;
         let elapsed = 0, frame = 0;
-        while (frame < pool.lengths.length - 1 && pool.elapsed >= elapsed + pool.lengths[frame] / 50) { elapsed += pool.lengths[frame] / 50; frame++; }
+        while (frame < pool.lengths.length - 1 && animationTime >= elapsed + pool.lengths[frame] / 50) { elapsed += pool.lengths[frame] / 50; frame++; }
         const transformed = new Float32Array(pool.positions);
-        applyRawFrame(transformed, pool.groups, pool.sources, pool.frames[frame]);
+        const alphas = new Float32Array(pool.baseAlphas);
+        applyRawFrame(transformed, pool.groups, pool.sources, pool.frames[frame], undefined, alphas, pool.alphaGroups);
         pool.mesh.geometry.getAttribute("position").array.set(transformed);
         (pool.mesh.geometry.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
-        pool.mesh.geometry.computeBoundingSphere();
+        const colors = pool.mesh.geometry.getAttribute("color") as THREE.BufferAttribute | undefined;
+        if (colors?.itemSize === 4) {
+          for (let i = 0; i < alphas.length; i++) colors.array[i * 4 + 3] = 1 - Math.max(0, Math.min(255, alphas[i])) / 255;
+          colors.needsUpdate = true;
+        }
       }
       const offset = modelOffsets[0];
       const size = this.renderable.size;
       this.worldPosition.set(location.x + size / 2 + (offset?.x ?? 0), location.z - 0.49 + (offset?.z ?? 0), location.y - size / 2 + (offset?.y ?? 0));
-      const matrix = new THREE.Object3D();
-      matrix.position.copy(this.worldPosition);
-      matrix.rotation.order = "YXZ";
-      matrix.rotation.set(pitch, rotation + Math.PI / 2, 0);
-      matrix.scale.set(pool.scale, pool.scale, pool.scale);
-      matrix.updateMatrix();
-      pool.mesh.setMatrixAt(this.slot, visible ? matrix.matrix : new THREE.Matrix4().makeScale(0, 0, 0));
+      const placement = this.reference.kind === "spotAnim" ? this.reference.spotAnims[0] : undefined;
+      this.transform.position.copy(this.worldPosition);
+      this.transform.position.y += placement?.height ?? 0;
+      this.transform.rotation.order = "YXZ";
+      this.transform.rotation.set(pitch, rotation + Math.PI / 2 + (placement?.rotation ?? 0) * Math.PI / 1024, 0);
+      this.transform.scale.set(pool.scaleX, pool.scaleY, pool.scaleX);
+      this.transform.updateMatrix();
+      const animationTotal = pool.lengths.reduce((sum, n) => sum + n, 0) / 50;
+      const oneShot = this.reference.kind === "spotAnim";
+      pool.mesh.setMatrixAt(this.slot, visible && effectTime >= 0 && (!oneShot || animationTotal <= 0 || effectTime < animationTotal) ? this.transform.matrix : hiddenMatrix());
       pool.mesh.instanceMatrix.needsUpdate = true;
     }).catch((error) => console.error("[osrs-sdk] Cache render instance preload failed", error));
   }
 
   destroy(_scene: THREE.Scene) {
+    this.destroyed = true;
     if (this.pool && this.slot >= 0) {
-      this.pool.mesh.setMatrixAt(this.slot, new THREE.Matrix4().makeScale(0, 0, 0));
+      this.pool.mesh.setMatrixAt(this.slot, hiddenMatrix());
       this.pool.mesh.instanceMatrix.needsUpdate = true;
+      this.pool.active.delete(this.slot);
+      this.pool.free.push(this.slot);
+      this.slot = -1;
     }
   }
 

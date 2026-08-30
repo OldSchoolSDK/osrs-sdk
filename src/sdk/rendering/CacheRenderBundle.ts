@@ -49,6 +49,7 @@ export function validateCacheRenderBundleManifest(value: any): CacheRenderBundle
   function referenceKey(reference: CacheRenderReference): string {
   if (reference.kind === "npc") return `npc:${reference.definitionId}`;
   if (reference.kind === "model") return `model:${reference.modelId}`;
+  if (reference.kind === "spotAnim") return "spotAnim";
   return `player:${reference.loadout.map(cacheRenderItemKey).join(",")}`;
 }
 
@@ -82,6 +83,7 @@ export class CacheRenderBundle {
   }
 
   assetIds(reference: CacheRenderReference): string[] {
+    if (reference.kind === "spotAnim") return [];
     if (reference.kind === "player" && this.manifest.playerItems) {
       const itemIds = reference.loadout.map((item) => this.manifest.playerItems[cacheRenderItemKey(item)] || this.manifest.playerItems[item]);
       const missing = reference.loadout.filter((item, index) => !itemIds[index]);

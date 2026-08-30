@@ -180,7 +180,8 @@ export async function decodeSample({ cachePath, revision }) {
     assets.push({ id: `model-${wallModelId}`, payload: wallPayload });
   }
 
-  const spotAnimIds = [478, 506, 1172, 1231];
+  // Sol Heredit's dust impact graphic (the other variants are 2670-2672).
+  const spotAnimIds = [478, 506, 1172, 1231, 2669];
   const spotAnimAssets = {};
   for (const id of spotAnimIds) {
     const assetId = `spotanim-${id}`;

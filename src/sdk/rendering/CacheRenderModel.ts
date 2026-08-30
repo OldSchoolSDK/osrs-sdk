@@ -245,6 +245,12 @@ export class CacheRenderModel implements Model, RenderableListener {
 
   constructor(private renderable: Renderable, private reference: CacheRenderReference) {
     this.activeSpotAnims = this.currentSpotAnims(reference.kind === "model" ? undefined : reference.spotAnims);
+    // A spotanim-only renderable has no actor animation transition to start
+    // playback. Its own graphic timeline begins as soon as it is created.
+    if (reference.kind === "spotAnim") this.animationPlaying = true;
+    // A spotanim-only renderable has no base actor animation to trigger its
+    // effect. Start its local animation clock immediately when it is created.
+    if (reference.kind === "spotAnim") this.animationPlaying = true;
     // Viewport3d filters scene roots before recursively raycasting children.
     // Mark this group as belonging to the renderable so its box hitbox is
     // considered as a click target.
@@ -321,7 +327,12 @@ export class CacheRenderModel implements Model, RenderableListener {
       const payloads = await Promise.all([...assetIds, ...sharedAssetIds].map((id) => cachedPayload(bundle, id)));
       // Preload effect meshes independently of the active list. Gameplay can
       // attach a Spotanim later without invalidating/rebuilding the base model.
-      const spotPayloads = await Promise.all(bundle.allSpotAnimIds().map((id) => cachedPayload(bundle, id)));
+      // Spotanim-only effects should load only the requested graphic. Actor
+      // models retain the eager path because gameplay may attach effects later.
+      const spotIds = this.reference.kind === "spotAnim"
+        ? bundle.spotAnimIds(this.reference)
+        : bundle.allSpotAnimIds();
+      const spotPayloads = await Promise.all(spotIds.map((id) => cachedPayload(bundle, id)));
       if (generation !== this.modelGeneration) return;
       const payload = mergePayloads(payloads);
       Object.assign(this.animations, payload.animations ?? {});
@@ -422,6 +433,10 @@ export class CacheRenderModel implements Model, RenderableListener {
         this.root.add(effect);
         this.spotAnims.push({ mesh: effect, basePositions: new Float32Array(spotPayload.positions), vertexGroups: spotPayload.vertexGroups ?? [], sourceVertices: spotPayload.sourceVertices ?? [], baseAlphas: new Float32Array(spotPayload.alphas ?? Array(spotPayload.positions.length / 3).fill(0)), alphaGroups: spotPayload.alphaGroups ?? [], animation: metadata.animationId >= 0 ? spotPayload.animations?.[String(metadata.animationId)] : undefined, scaleX: metadata.resizeX ?? 128, scaleY: metadata.resizeY ?? 128, rotation: metadata.rotation ?? 0, height: placement?.height ?? 0, delay: placement?.delay ?? 0 });
       });
+      // Loading the bundle can take longer than a short one-shot graphic.
+      // Start the effect when its payload is ready, not when the render model
+      // was first constructed.
+      if (this.reference.kind === "spotAnim") this.animationTime = 0;
       previousChildren.forEach((child) => {
         if (child.parent === this.root) this.root.remove(child);
       });
@@ -441,7 +456,7 @@ export class CacheRenderModel implements Model, RenderableListener {
       this.renderable.setAnimationListener(this);
     }
     const size = this.renderable.size;
-    this.root.visible = visible && this.mesh !== null;
+    this.root.visible = visible && (this.mesh !== null || this.spotAnims.length > 0);
     if (this.outline) this.outline.visible = visible && this.renderable.drawOutline;
     this.root.position.set(location.x + size / 2, location.z - 0.49, location.y - size / 2);
     this.root.rotation.order = "YXZ";
@@ -577,10 +592,14 @@ export class CacheRenderModel implements Model, RenderableListener {
         const delay = placement?.delay ?? spot.delay;
         const effectTime = this.animationTime - delay / 50;
         const activationAnimation = placement?.animation == null ? true : (this.poseMap[String(placement.animation)] ?? placement.animation) === this.activeAnimation;
-        spot.mesh.visible = this.animationPlaying && activationAnimation && Boolean(placement) && effectTime >= 0 && Boolean(animation?.frames.length);
+        // Attached spotanims are one-shot graphics. Ground effects often live
+        // for several ticks, so wrapping with `% total` would replay the
+        // graphic before the entity is destroyed.
+        const total = animation?.lengths.reduce((sum, length) => sum + length, 0) / 50 || 0;
+        const hasFrames = Boolean(animation?.frames.length || animation?.rawFrames?.length || animation?.mayaFrames?.length);
+        spot.mesh.visible = this.animationPlaying && activationAnimation && Boolean(placement) && effectTime >= 0 && effectTime < total && hasFrames;
         if (!spot.mesh.visible || !animation) continue;
-        const total = animation.lengths.reduce((sum, length) => sum + length, 0) / 50;
-        const time = total > 0 ? effectTime % total : 0;
+        const time = Math.max(0, Math.min(effectTime, Math.max(0, total - 1e-6)));
         let elapsed = 0, frame = 0;
         for (; frame < animation.lengths.length - 1 && time >= elapsed + animation.lengths[frame] / 50; frame++) elapsed += animation.lengths[frame] / 50;
         const next = Math.min(frame + 1, animation.frames.length - 1);

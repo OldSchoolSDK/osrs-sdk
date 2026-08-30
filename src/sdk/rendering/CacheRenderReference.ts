@@ -2,6 +2,7 @@
 export type CacheRenderReference =
   | { kind: "npc"; definitionId: number; spotAnims?: CacheRenderSpotAnim[]; bundleId?: string }
   | { kind: "model"; modelId: number; bundleId?: string }
+  | { kind: "spotAnim"; spotAnims: CacheRenderSpotAnim[]; bundleId?: string }
   | { kind: "player"; loadout: Array<string | number>; poses?: Record<string, number>; spotAnims?: CacheRenderSpotAnim[]; bundleId?: string };
 
 /** Runtime placement/timing for a cache-derived effect. The cache stores the
@@ -35,6 +36,9 @@ export const CacheRenderReferences = {
   },
   model(modelId: number, bundleId?: string): CacheRenderReference {
     return { kind: "model", modelId, bundleId };
+  },
+  spotAnim(spotAnims: CacheRenderSpotAnim[], bundleId?: string): CacheRenderReference {
+    return { kind: "spotAnim", spotAnims: spotAnims.slice(), bundleId };
   },
   player(loadout: Array<string | number>, poses?: Record<string, number>, spotAnimsOrBundleId?: CacheRenderSpotAnim[] | string, bundleId?: string): CacheRenderReference {
     // Preserve equipment-slot order. The cache animation groups are merged in
