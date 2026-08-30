@@ -35,6 +35,7 @@ import {
 } from "../src";
 import { SampleNpc } from "./SampleNpc";
 import { SampleDummy } from "./SampleDummy";
+import { SampleAnimayaNpc } from "./SampleAnimayaNpc";
 import { SampleScene } from "./SampleScene";
 
 export class SampleRegion extends Region {
@@ -108,6 +109,7 @@ export class SampleRegion extends Region {
 
     this.addMob(new SampleNpc(this, { x: 25, y: 20 }, {}));
     this.addMob(new SampleDummy(this, { x: 34, y: 28 }, {}));
+    this.addMob(new SampleAnimayaNpc(this, { x: 15, y: 25 }, {}));
 
     this.addEntity(new SampleScene(this, { x: 0, y: 48 }));
 

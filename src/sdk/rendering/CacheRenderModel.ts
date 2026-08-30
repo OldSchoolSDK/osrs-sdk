@@ -12,9 +12,9 @@ const MAGIC = "OSRB";
 // sequences continue to use the extracted baked-frame fallback.
 const ENABLE_CACHE_RENDER_ANIMATIONS = true;
 type RawFrame = { baseId?: number; types: number[]; maps: number[][]; indexFrameIds: number[]; x: number[]; y: number[]; z: number[] };
-type AnimationPayload = { frames: number[][]; lengths: number[]; rawFrames?: RawFrame[]; interleaveLeave?: number[] };
+type AnimationPayload = { frames: number[][]; lengths: number[]; rawFrames?: RawFrame[]; interleaveLeave?: number[]; mayaFrames?: number[][][] };
 type TexturePayload = { width: number; height: number; pixels: number[] };
-type Payload = { version: 1; positions: number[]; indices?: number[]; vertexGroups?: number[][]; sourceVertices?: number[]; colors?: number[]; faceColors?: number[]; alphas?: number[]; alphaGroups?: number[][]; uvs?: number[]; textureIds?: number[]; textures?: Record<string, TexturePayload>; normals?: number[]; color?: number; animations?: Record<string, AnimationPayload>; poseMap?: Record<string, number>; spotAnim?: { id?: number; animationId?: number; resizeX?: number; resizeY?: number; rotation?: number; height?: number; delay?: number } };
+type Payload = { version: 1; positions: number[]; indices?: number[]; vertexGroups?: number[][]; sourceVertices?: number[]; animayaGroups?: number[][]; animayaScales?: number[][]; colors?: number[]; faceColors?: number[]; alphas?: number[]; alphaGroups?: number[][]; uvs?: number[]; textureIds?: number[]; textures?: Record<string, TexturePayload>; normals?: number[]; color?: number; scale?: number; animations?: Record<string, AnimationPayload>; poseMap?: Record<string, number>; spotAnim?: { id?: number; animationId?: number; resizeX?: number; resizeY?: number; rotation?: number; height?: number; delay?: number } };
 type SpotAnimRuntime = { mesh: THREE.Mesh; basePositions: Float32Array; vertexGroups: number[][]; sourceVertices: number[]; baseAlphas: Float32Array; alphaGroups: number[][]; animation?: AnimationPayload; scaleX: number; scaleY: number; rotation: number; height: number; delay: number };
 
 // Decoded payloads are immutable bundle data, so retain them across model
@@ -41,6 +41,7 @@ function mergePayloads(payloads: Payload[]): Payload {
   const indices: number[] = [];
   const vertexGroups: number[][] = [];
   const sourceVertices: number[] = [];
+  const animayaGroups: number[][] = [], animayaScales: number[][] = [];
   const colors: number[] = [];
   const uvs: number[] = [], textureIds: number[] = [];
   const textures: Record<string, TexturePayload> = {};
@@ -51,10 +52,10 @@ function mergePayloads(payloads: Payload[]): Payload {
   payloads.forEach((payload) => Object.entries(payload.animations ?? {}).forEach(([id, animation]) => {
     const existing = animations[id];
     if (!existing) {
-      animations[id] = { frames: animation.frames.map((frame) => frame.slice()), lengths: animation.lengths.slice(), rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave };
+      animations[id] = { frames: animation.frames.map((frame) => frame.slice()), lengths: animation.lengths.slice(), rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave, mayaFrames: animation.mayaFrames };
     } else if (animation.rawFrames?.length && !existing.rawFrames?.length) {
       // Prefer the shared frame-map representation when it is available.
-      animations[id] = { frames: animation.frames.map((frame) => frame.slice()), lengths: animation.lengths.slice(), rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave };
+      animations[id] = { frames: animation.frames.map((frame) => frame.slice()), lengths: animation.lengths.slice(), rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave, mayaFrames: animation.mayaFrames };
     } else if (!existing.rawFrames?.length && !animation.rawFrames?.length) {
       // Legacy bundles stored baked frames in every item; retain their old
       // composition behavior for those bundles.
@@ -87,6 +88,8 @@ function mergePayloads(payloads: Payload[]): Payload {
         return ids;
       })();
     sourceVertices.push(...localSources.map((index) => index + sourceVertexOffset));
+    animayaGroups.push(...Array.from({ length: localVertexCount }, (_, index) => payload.animayaGroups?.[index] ?? []));
+    animayaScales.push(...Array.from({ length: localVertexCount }, (_, index) => payload.animayaScales?.[index] ?? []));
     sourceVertexOffset += Math.max(localVertexCount, localSources.reduce((max, index) => Math.max(max, index + 1), 0));
     const localIndices = payload.indices ?? Array.from({ length: payload.positions.length / 3 }, (_, index) => index);
     indices.push(...localIndices.map((index) => index + vertexOffset));
@@ -102,10 +105,12 @@ function mergePayloads(payloads: Payload[]): Payload {
     indices,
     vertexGroups,
     sourceVertices,
+    animayaGroups, animayaScales,
     colors: colors.length ? colors : undefined,
     uvs: uvs.length ? uvs : undefined, textureIds: textureIds.length ? textureIds : undefined,
     textures: Object.keys(textures).length ? textures : undefined,
     color: nonEmpty[0]?.color,
+    scale: nonEmpty[0]?.scale,
     animations,
     poseMap: Object.assign({}, ...payloads.map((payload) => payload.poseMap ?? {})),
   };
@@ -202,6 +207,8 @@ export class CacheRenderModel implements Model, RenderableListener {
   private basePositions: Float32Array | null = null;
   private vertexGroups: number[][] = [];
   private sourceVertices: number[] = [];
+  private animayaGroups: number[][] = [];
+  private animayaScales: number[][] = [];
   private spotAnims: SpotAnimRuntime[] = [];
   private activeSpotAnims: CacheRenderSpotAnim[] = [];
   private outline: THREE.LineSegments | null = null;
@@ -266,6 +273,8 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.basePositions = null;
     this.vertexGroups = [];
     this.sourceVertices = [];
+    this.animayaGroups = [];
+    this.animayaScales = [];
     this.spotAnims = [];
     this.activeSpotAnims = this.currentSpotAnims(this.reference.kind === "model" ? undefined : this.reference.spotAnims);
   }
@@ -316,9 +325,13 @@ export class CacheRenderModel implements Model, RenderableListener {
         for (let vertex = 0; vertex < payload.textureIds.length; vertex += 3) geometry.addGroup(vertex, 3, textureMaterial.get(payload.textureIds[vertex]) ?? 0);
       }
       const mesh = new THREE.Mesh(geometry, materials.length > 1 ? materials : materials[0]);
+      const modelScale = payload.scale ?? 1;
+      this.root.scale.set(modelScale, modelScale, modelScale);
       this.basePositions = new Float32Array(payload.positions);
       this.vertexGroups = payload.vertexGroups ?? [];
       this.sourceVertices = payload.sourceVertices ?? Array.from({ length: payload.positions.length / 3 }, (_, index) => index);
+      this.animayaGroups = payload.animayaGroups ?? [];
+      this.animayaScales = payload.animayaScales ?? [];
       mesh.userData.clickable = this.renderable.selectable;
       mesh.userData.unit = this.renderable;
       mesh.userData.cacheAnimations = payload.animations ?? {};
@@ -428,7 +441,7 @@ export class CacheRenderModel implements Model, RenderableListener {
     }
     this.animationTime += clockDelta;
     const animation = this.animations[String(this.activeAnimation)];
-    if (animation && (animation.frames.length || animation.rawFrames?.length) && this.root.children.length) {
+    if (animation && (animation.frames.length || animation.rawFrames?.length || animation.mayaFrames?.length) && this.root.children.length) {
       const total = animation.lengths.reduce((sum, length) => sum + length, 0) / 50;
       let time = this.animationTime;
       if (this.animationPlaying && time >= total) {
@@ -444,7 +457,7 @@ export class CacheRenderModel implements Model, RenderableListener {
       // Looping pose animations need to blend the final frame back to the
       // first frame; holding the final frame creates a visible snap at the
       // run-cycle boundary. One-shot attack animations still clamp normally.
-      const frameCount = animation.rawFrames?.length || animation.frames.length;
+      const frameCount = animation.mayaFrames?.length || animation.rawFrames?.length || animation.frames.length;
       const next = !this.animationPlaying
         ? (frame + 1) % frameCount
         : Math.min(frame + 1, frameCount - 1);
@@ -453,7 +466,37 @@ export class CacheRenderModel implements Model, RenderableListener {
       const nextVertices = animation.frames[next];
       const position = this.mesh?.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
       if (position && this.basePositions) {
-        if (animation.rawFrames?.[frame]) {
+        const transformed = new Float32Array(this.basePositions);
+        const applyMayaFrame = (target: Float32Array, mayaFrame: number[][]) => {
+          for (let vertex = 0; vertex < target.length / 3; vertex++) {
+            const bones = this.animayaGroups[vertex] ?? [];
+            const scales = this.animayaScales[vertex] ?? [];
+            if (!bones.length) continue;
+            const x = target[vertex * 3], y = target[vertex * 3 + 1], z = target[vertex * 3 + 2];
+            let ox = 0, oy = 0, oz = 0, hasWeight = false;
+            bones.forEach((bone, index) => {
+              const matrix = mayaFrame[bone]; if (!matrix) return;
+              const scale = (scales[index] ?? 255) / 255; hasWeight = true;
+              ox += (matrix[0] * x + matrix[4] * y + matrix[8] * z + matrix[12] / 128) * scale;
+              oy += (matrix[1] * x + matrix[5] * y + matrix[9] * z + matrix[13] / 128) * scale;
+              oz += (matrix[2] * x + matrix[6] * y + matrix[10] * z + matrix[14] / 128) * scale;
+            });
+            // Animaya weights are byte contributions to an accumulated skin
+            // matrix. Match the client/reader and do not renormalise them;
+            // doing so changes vertices whose authored weights do not sum to
+            // exactly 255.
+            if (hasWeight) { target[vertex * 3] = ox; target[vertex * 3 + 1] = oy; target[vertex * 3 + 2] = oz; }
+          }
+        };
+        if (animation.mayaFrames?.[frame]) {
+          applyMayaFrame(transformed, animation.mayaFrames[frame]);
+          if (Settings.smoothCacheAnimations && animation.mayaFrames[next] && next !== frame) {
+            const nextTransformed = new Float32Array(this.basePositions);
+            applyMayaFrame(nextTransformed, animation.mayaFrames[next]);
+            for (let i = 0; i < transformed.length; i++) transformed[i] += (nextTransformed[i] - transformed[i]) * blend;
+          }
+          position.array.set(transformed);
+        } else if (animation.rawFrames?.[frame]) {
           const poseSequence = this.poseMap[String(pose)];
           const poseAnimation = this.animations[String(poseSequence)];
           const interleave = animation.interleaveLeave?.filter((index) => index !== 9999999) ?? [];
@@ -470,7 +513,6 @@ export class CacheRenderModel implements Model, RenderableListener {
               applyBlendedRawFrames(target, this.vertexGroups, this.sourceVertices, rawFrame, poseAnimation.rawFrames[poseFrame] ?? poseAnimation.rawFrames[0], interleave);
             } else applyRawFrame(target, this.vertexGroups, this.sourceVertices, rawFrame);
           };
-          const transformed = new Float32Array(this.basePositions);
           applyAnimationFrame(transformed, animation.rawFrames[frame]);
           if (Settings.smoothCacheAnimations && animation.rawFrames[next] && next !== frame) {
             const nextTransformed = new Float32Array(this.basePositions);

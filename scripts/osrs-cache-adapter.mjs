@@ -8,7 +8,7 @@ const NPC_ID = 8373; // Verzik Vitur (phase 3)
 function payload(group) {
   const model = group.getMergedModel();
   if (!model || !model.vertexCount) throw new Error("Decoded model has no vertices");
-  const positions = [], indices = [], colors = [], faceColors = [], uvs = [], textureIds = [], sourceVertices = [], alphas = [], alphaGroups = (model.faceLabelsAlpha ?? []).map(() => []), vertexGroups = (model.vertexGroups ?? []).map(() => []);
+  const positions = [], indices = [], colors = [], faceColors = [], uvs = [], textureIds = [], sourceVertices = [], animayaGroups = [], animayaScales = [], alphas = [], alphaGroups = (model.faceLabelsAlpha ?? []).map(() => []), vertexGroups = (model.vertexGroups ?? []).map(() => []);
   const rgb = (hsl) => {
     const hue = ((hsl >> 10) & 63) / 64 + 0.5 / 64, saturation = ((hsl >> 7) & 7) / 8 + 0.5 / 8, luminance = (hsl & 127) / 128;
     const chroma = (1 - Math.abs(2 * luminance - 1)) * saturation, x = chroma * (1 - Math.abs(((hue * 6) % 2) - 1)), lightness = luminance - chroma / 2;
@@ -22,6 +22,8 @@ function payload(group) {
       const corner = positions.length / 3 % 3;
       const index = positions.length / 3; positions.push(model.vertexPositionsX[source] / 128, -model.vertexPositionsY[source] / 128, -model.vertexPositionsZ[source] / 128); indices.push(index);
       sourceVertices.push(source);
+      animayaGroups.push(model.animayaGroups?.[source] ?? []);
+      animayaScales.push(model.animayaScales?.[source] ?? []);
       colors.push(rgb(model.faceColors?.[face] ?? 0));
       faceColors.push(model.faceColors?.[face] ?? 0);
       alphas.push(model.faceAlphas?.[face] ?? 0);
@@ -32,7 +34,7 @@ function payload(group) {
     }
   }
   return {
-    positions, indices, vertexGroups, sourceVertices, colors, faceColors, alphas, alphaGroups, uvs, textureIds,
+    positions, indices, vertexGroups, sourceVertices, animayaGroups, animayaScales, colors, faceColors, alphas, alphaGroups, uvs, textureIds,
     color: 0xffffff,
     animations: {},
   };
@@ -81,6 +83,20 @@ async function animations(cache, group, sequenceIds) {
       ...(rawFrames.length ? { rawFrames } : {}),
       interleaveLeave: sequence.interleaveLeave ?? [],
     };
+    if (sequence.animMayaID != null && sequence.animMayaID !== -1) {
+      const index = group.getMergedModel().rev229 ? IndexType.KEYFRAMES : IndexType.FRAMES;
+      const files = await cache.getAllFiles(index.id, sequence.animMayaID >> 16, { isAnimaya: true });
+      const frameDef = files[0]?.def;
+      if (!frameDef?.framemap?.animayaSkeleton) throw new Error(`Missing Animaya skeleton for sequence ${id}`);
+      const matrices = [];
+      for (let frame = 0; frame < sequence.animMayaEnd; frame++) {
+        frameDef.framemap.animayaSkeleton.getAllBones().forEach((bone, index) => frameDef.method727(frame, bone, index, frameDef.field1257));
+        matrices.push(frameDef.framemap.animayaSkeleton.getAllBones().map((bone) => Array.from(bone.method687(frameDef.field1257).matrixVals)));
+      }
+      result[id].mayaFrames = matrices;
+      result[id].frames = [];
+      result[id].lengths = new Array(matrices.length).fill(1);
+    }
   }
   return result;
 }
@@ -124,9 +140,27 @@ export async function decodeSample({ cachePath, revision }) {
   for (const id of npc.models) await modelAsset(cache, id, models);
   const npcGroup = new ModelGroup([...models.values()], false);
   const npcPayload = await attachTextures(cache, payload(npcGroup));
+  npcPayload.scale = (npc.heightScale ?? 128) / 128;
   npcPayload.animations = await animations(cache, npcGroup, [npc.standingAnimation, npc.walkingAnimation]);
   npcPayload.poseMap = { 0: npc.standingAnimation, 1: npc.walkingAnimation };
   assets.push({ id: `npc-${NPC_ID}`, payload: npcPayload });
+
+  // Sol Heredit is kept as a small Animaya fixture for exercising the
+  // skeleton renderer in the SDK sample. The sequence IDs are the cache's
+  // standing, walking and attack/death sequences used by the trainer.
+  const solNpcId = 12821;
+  const excludedSolModelIds = new Set([52585]); // unwanted white box; see ColosseumTrainer/assets.md
+  const sol = await cache.getNPC(solNpcId);
+  if (!sol || !sol.models?.length) throw new Error(`Missing NPC definition ${solNpcId}`);
+  const solModelIds = sol.models.filter((id) => !excludedSolModelIds.has(id));
+  for (const id of solModelIds) await modelAsset(cache, id, models);
+  const solGroup = new ModelGroup(solModelIds.map((id) => models.get(id)), false);
+  const solPayload = await attachTextures(cache, payload(solGroup));
+  solPayload.scale = (sol.heightScale ?? 128) / 128;
+  const solSequences = [10874, 10878, 10883, 10884, 10885, 10886, 10887, 10888];
+  solPayload.animations = await animations(cache, solGroup, solSequences);
+  solPayload.poseMap = { 0: 10874, 1: 10878, 2: 10883, 3: 10884, 4: 10885, 5: 10886, 6: 10887, 7: 10888 };
+  assets.push({ id: `npc-${solNpcId}`, payload: solPayload });
 
   // Static cache models are useful for scenery and props that do not have an
   // NPC definition. Keep this model reference explicit and versioned.
@@ -223,7 +257,7 @@ export async function decodeSample({ cachePath, revision }) {
       const shared = {};
       const itemSpecific = {};
       for (const [sequenceId, animation] of Object.entries(itemAnimations)) {
-        if (animation.rawFrames?.length) shared[sequenceId] = { lengths: animation.lengths, rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave ?? [], frames: [] };
+        if (animation.rawFrames?.length || animation.mayaFrames?.length) shared[sequenceId] = { lengths: animation.lengths, ...(animation.rawFrames?.length ? { rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave ?? [] } : { mayaFrames: animation.mayaFrames }), frames: [] };
         else itemSpecific[sequenceId] = animation;
       }
       sharedPlayerAnimations ??= { positions: [], animations: shared, poseMap: playerPoseMap };
@@ -247,7 +281,7 @@ export async function decodeSample({ cachePath, revision }) {
     revision: rev,
     source: `openrs2:${rev}`,
     assets,
-    references: { [`npc:${NPC_ID}`]: [`npc-${NPC_ID}`], "model:33044": ["model-33044"] },
+    references: { [`npc:${NPC_ID}`]: [`npc-${NPC_ID}`], [`npc:${solNpcId}`]: [`npc-${solNpcId}`], "model:33044": ["model-33044"] },
     spotAnims: spotAnimAssets,
     playerItems: playerItemAssets,
     sharedAssets,
