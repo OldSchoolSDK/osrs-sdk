@@ -537,13 +537,6 @@ export class Player extends Unit {
     return this.equipment.weapon ? this.equipment.weapon.idleAnimationId : PlayerAnimationIndices.Idle;
   }
 
-  private hasPendingServerMovement() {
-    return Boolean(
-      this.destinationLocation &&
-        (this.destinationLocation.x !== this.location.x || this.destinationLocation.y !== this.location.y),
-    );
-  }
-
   // WARNING: client ticks do NOT happen in line with render or logic ticks. Do not use this for anything other than
   // visual logic.
   // Movement synchronisation details: docs/PLAYER_MOVEMENT_SYNC.md
@@ -558,9 +551,7 @@ export class Player extends Unit {
     else this._angle += Math.sign(angleDelta) * ROTATION_RADIANS_PER_CLIENT_TICK;
 
     if (this.path.length === 0) {
-      if (this.hasPendingServerMovement()) {
-        this.currentPoseAnimation = this.running ? PlayerAnimationIndices.Run : PlayerAnimationIndices.Walk;
-      }
+      this.currentPoseAnimation = this.getIdlePoseId();
       return;
     }
     let { x, y } = this.perceivedLocation;
@@ -621,11 +612,7 @@ export class Player extends Unit {
         this.region.removeEntity(headTile);
       }
       if (this.path.length === 0) {
-        this.currentPoseAnimation = this.hasPendingServerMovement()
-          ? this.running
-            ? PlayerAnimationIndices.Run
-            : PlayerAnimationIndices.Walk
-          : this.getIdlePoseId();
+        this.currentPoseAnimation = this.getIdlePoseId();
         this.restingAngle = this.lastTravelAngle;
         if (!this.aggro) this.nextAngle = this.restingAngle;
       } else {

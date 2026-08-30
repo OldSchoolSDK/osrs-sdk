@@ -69,7 +69,7 @@ test.each([
   expect(player.currentPoseAnimation).toBe(expectedPose);
 });
 
-test("does not flash idle when the visual queue drains before the server journey", () => {
+test("returns to idle when the visual path is empty", () => {
   const region = new TestRegion(20, 20);
   const player = new Player(region, { x: 2, y: 2 });
   player.running = false;
@@ -80,13 +80,13 @@ test("does not flash idle when the visual queue drains before the server journey
   for (let cycle = 1; cycle <= 32; cycle++) player.clientTick(0, cycle * 20);
 
   expect(player.path).toHaveLength(0);
-  expect(player.currentPoseAnimation).toBe(PlayerAnimationIndices.Walk);
+  expect(player.currentPoseAnimation).toBe(PlayerAnimationIndices.Idle);
 });
 
 test.each([
   ["east", 0],
   ["west", -Math.PI],
-])("keeps the locomotion pose continuous while walking %s", (_direction, heading) => {
+])("uses the locomotion pose only while walking %s", (_direction, heading) => {
   const region = new TestRegion(20, 20);
   const player = new Player(region, { x: 2, y: 2 });
   player.running = false;
@@ -107,10 +107,8 @@ test.each([
     poses.push(player.animationIndex);
   }
 
-  // A walking actor must not briefly fall back to idle (or another pose),
-  // since that resets the cache animation clock and presents as a visible
-  // hitch at every server-tick boundary.
-  expect(new Set(poses)).toEqual(new Set([PlayerAnimationIndices.Walk]));
+  expect(poses).toContain(PlayerAnimationIndices.Walk);
+  expect(poses[poses.length - 1]).toBe(PlayerAnimationIndices.Idle);
 });
 
 test("keeps walking displacement constant in a normal visual path buffer", () => {
