@@ -168,6 +168,18 @@ export async function decodeSample({ cachePath, revision }) {
   const pillarPayload = await attachTextures(cache, payload({ getMergedModel: () => models.get(pillarModelId) }));
   assets.push({ id: `model-${pillarModelId}`, payload: pillarPayload });
 
+  // Sol arena wall men. These are complete cache models (rather than NPC
+  // definitions), so keep both visual variants as direct model references.
+  // Sequence 7508 is the Dinhs Bulwark idle pose used by these models.
+  for (const wallModelId of [50963, 50964]) {
+    await modelAsset(cache, wallModelId, models);
+    const wallGroup = new ModelGroup([models.get(wallModelId)], false);
+    const wallPayload = await attachTextures(cache, payload(wallGroup));
+    wallPayload.animations = await animations(cache, wallGroup, [7508]);
+    wallPayload.poseMap = { 0: 7508 };
+    assets.push({ id: `model-${wallModelId}`, payload: wallPayload });
+  }
+
   const spotAnimIds = [478, 506, 1172, 1231];
   const spotAnimAssets = {};
   for (const id of spotAnimIds) {
@@ -280,7 +292,13 @@ export async function decodeSample({ cachePath, revision }) {
     revision: rev,
     source: `openrs2:${rev}`,
     assets,
-    references: { [`npc:${NPC_ID}`]: [`npc-${NPC_ID}`], [`npc:${solNpcId}`]: [`npc-${solNpcId}`], "model:33044": ["model-33044"] },
+    references: {
+      [`npc:${NPC_ID}`]: [`npc-${NPC_ID}`],
+      [`npc:${solNpcId}`]: [`npc-${solNpcId}`],
+      "model:33044": ["model-33044"],
+      "model:50963": ["model-50963"],
+      "model:50964": ["model-50964"],
+    },
     spotAnims: spotAnimAssets,
     playerItems: playerItemAssets,
     sharedAssets,
