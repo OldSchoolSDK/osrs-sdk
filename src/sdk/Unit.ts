@@ -587,6 +587,7 @@ export abstract class Unit extends Renderable {
   dead() {
     this.perceivedLocation = this.location;
     this.dying = this.deathAnimationLength;
+    this.region.onUnitDeath(this);
     this.region.clearAggroFor(this);
     this.setAggro(null);
     this.hasDiedAndAwaitingRemoval = true;

@@ -10,6 +10,7 @@ import type { Unit } from "./Unit";
 import { Settings } from "./Settings";
 import type { World } from "./World";
 import type { Projectile } from "./weapons/Projectile";
+import { DelayedAction } from "./DelayedAction";
 import { TileMarker } from "../content";
 import { Viewport } from "./Viewport";
 import { Trainer } from "./Trainer";
@@ -123,6 +124,10 @@ export abstract class Region {
     });
   }
 
+  onUnitDeath(unit: Unit) {
+    // Override in encounter regions that need to react to a unit dying.
+  }
+
   addGroundItem(player: Player, item: Item, x: number, y: number) {
     if (!this.groundItems[x]) {
       this.groundItems[x] = {};
@@ -204,6 +209,8 @@ export abstract class Region {
     if (!this.world.isPaused) {
       this.world.stopTicking();
     }
+
+    DelayedAction.reset();
 
     this.players = [];
     this.mobs = [];
