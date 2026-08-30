@@ -18,7 +18,7 @@ export class Settings {
   static smoothCacheAnimations = true;
   static playsAudio: boolean;
   static playsAreaAudio: boolean;
-  static inputDelay: number;
+  static inputDelay = 0;
   static rotated: string;
   static region: string;
   static displayXpDrops: boolean;
@@ -142,7 +142,7 @@ export class Settings {
     }
     // Settings.tileSize = parseInt(window.localStorage.getItem('tileSize')) || 23;
     // Settings.framesPerTick = parseInt(window.localStorage.getItem('framesPerTick')) || 30;
-    Settings.inputDelay = parseInt(window.localStorage.getItem("inputDelay") ?? "100");
+    Settings.inputDelay = parseInt(window.localStorage.getItem("inputDelay") ?? "0");
     Settings.rotated = window.localStorage.getItem("rotated") || "south";
     Settings.loadout = window.localStorage.getItem("loadout") || "max_tbow_speed";
     Settings.onTask = window.localStorage.getItem("onTask") === "true" || false;

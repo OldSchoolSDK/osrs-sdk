@@ -516,5 +516,16 @@ export class MapController {
     ctx.fillText(String(this.currentStats.specialAttack), offset + 47 * scale, 166 * scale);
     ctx.fillStyle = this.colorScale.getColor(this.currentStats.specialAttack / 100).toHexString();
     ctx.fillText(String(this.currentStats.specialAttack), offset + 46 * scale, 165 * scale);
+
+    // Keep the simulated input latency visible without requiring the settings panel.
+    const pingLabel = `${Settings.inputDelay}ms`;
+    ctx.save();
+    ctx.font = `${12 * scale}px Stats_11`;
+    ctx.textAlign = "right";
+    ctx.fillStyle = "black";
+    ctx.fillText(pingLabel, offset + this.width - 3 * scale, 13 * scale);
+    ctx.fillStyle = "white";
+    ctx.fillText(pingLabel, offset + this.width - 4 * scale, 12 * scale);
+    ctx.restore();
   }
 }
