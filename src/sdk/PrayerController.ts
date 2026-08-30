@@ -64,6 +64,12 @@ export class PrayerController {
     this.player.currentStats.prayer = 0;
   }
 
+  disableProtectionPrayersForTicks(ticks: number) {
+    ["Protect from Magic", "Protect from Range", "Protect from Melee"].forEach((name) => {
+      this.findPrayerByName(name).disableForTicks(ticks);
+    });
+  }
+
   checkRedemption(player: Player) {
     if (
       this.isPrayerActiveByName("Redemption") &&

@@ -20,6 +20,7 @@ export class BasePrayer {
   nextActiveState: boolean | null = null; // enqueued server-side
   willPlayOnSound = false;
   willPlayOffSound = false;
+  disabledTicks = 0;
   cachedImage: HTMLImageElement;
 
   constructor() {
@@ -31,6 +32,13 @@ export class BasePrayer {
   }
 
   tick() {
+    if (this.disabledTicks > 0) {
+      this.disabledTicks--;
+      this.isActive = false;
+      this.isLit = false;
+      this.nextActiveState = null;
+      return;
+    }
     if (this.nextActiveState !== null) {
       this.isActive = this.nextActiveState;
       this.isLit = this.isActive;
@@ -59,6 +67,10 @@ export class BasePrayer {
    * Currently only used by Quick-Prayers. UI clicks always go through `toggle`.
    */
   activate(player: Player) {
+    if (this.disabledTicks > 0) {
+      this.playOffSound();
+      return;
+    }
     if (player.stats.prayer < this.levelRequirement()) {
       return;
     }
@@ -68,6 +80,10 @@ export class BasePrayer {
   }
 
   toggle(player: Player) {
+    if (this.disabledTicks > 0) {
+      this.playOffSound();
+      return;
+    }
     if (player.stats.prayer < this.levelRequirement()) {
       return;
     }
@@ -94,6 +110,14 @@ export class BasePrayer {
   deactivate() {
     if (this.isActive || this.nextActiveState) this.willPlayOffSound = true;
     this.nextActiveState = false;
+  }
+
+  disableForTicks(ticks: number) {
+    this.disabledTicks = Math.max(this.disabledTicks, ticks);
+    this.isActive = false;
+    this.isLit = false;
+    this.nextActiveState = null;
+    this.willPlayOffSound = true;
   }
 
   isOverhead() {
