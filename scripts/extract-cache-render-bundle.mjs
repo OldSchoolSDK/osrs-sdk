@@ -7,6 +7,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readdir, unlink, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { gzipSync } from "fflate";
 
 const [adapterPath, cachePath, outputDirectory] = process.argv.slice(2);
 if (!adapterPath || !cachePath || !outputDirectory) throw new Error("Usage: extract-cache-render-bundle <osrscachereader-adapter.mjs> <cache-path> <output-dir>");
@@ -29,7 +30,8 @@ const assets = {};
 for (const asset of decoded.assets.sort((a, b) => a.id.localeCompare(b.id))) {
   if (!asset.id || !Array.isArray(asset.payload.positions)) throw new Error(`Missing geometry for ${asset.id}`);
   const json = Buffer.from(JSON.stringify({ version: 1, ...asset.payload }));
-  const bytes = Buffer.concat([Buffer.from("OSRB"), Buffer.from(Uint32Array.of(json.length).buffer), json]);
+  const compressed = Buffer.from(gzipSync(json, { level: 6 }));
+  const bytes = Buffer.concat([Buffer.from("OSRB"), Buffer.from(Uint32Array.of(compressed.length).buffer), compressed]);
   const hash = createHash("sha256").update(bytes).digest("hex");
   const file = `${asset.id}.${hash}.bin`;
   await writeFile(resolve(outputDirectory, file), bytes);

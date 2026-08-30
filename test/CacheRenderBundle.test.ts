@@ -1,6 +1,7 @@
 import { applyBlendedRawFrames, applyRawFrame, decodeCacheRenderPayload } from "../src/sdk/rendering/CacheRenderModel";
 import { validateCacheRenderBundleManifest } from "../src/sdk/rendering/CacheRenderBundle";
 import { TextDecoder, TextEncoder } from "util";
+import { gzipSync } from "fflate";
 
 (global as any).TextDecoder = TextDecoder;
 
@@ -11,6 +12,12 @@ test("validates a versioned bundle manifest", () => {
 test("decodes binary render payloads", () => {
   const json = new TextEncoder().encode(JSON.stringify({ version: 1, positions: [0, 0, 0] }));
   const bytes = new Uint8Array(8 + json.length); bytes.set([79, 83, 82, 66]); new DataView(bytes.buffer).setUint32(4, json.length, true); bytes.set(json, 8);
+  expect(decodeCacheRenderPayload(bytes.buffer).positions).toEqual([0, 0, 0]);
+});
+test("decodes gzip-compressed binary render payloads", () => {
+  const json = new TextEncoder().encode(JSON.stringify({ version: 1, positions: [0, 0, 0] }));
+  const compressed = gzipSync(json);
+  const bytes = new Uint8Array(8 + compressed.length); bytes.set([79, 83, 82, 66]); new DataView(bytes.buffer).setUint32(4, compressed.length, true); bytes.set(compressed, 8);
   expect(decodeCacheRenderPayload(bytes.buffer).positions).toEqual([0, 0, 0]);
 });
 

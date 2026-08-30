@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { decompressSync } from "fflate";
 import { Location3 } from "../Location";
 import { Renderable, RenderableListener } from "../Renderable";
 import { CacheRender, CacheRenderBundle, CacheRenderBundleError } from "./CacheRenderBundle";
@@ -170,7 +171,11 @@ export function decodeCacheRenderPayload(bytes: ArrayBuffer): Payload {
   if (input.length < 8 || String.fromCharCode(input[0], input[1], input[2], input[3]) !== MAGIC) throw new CacheRenderBundleError("manifest", "Invalid cache render binary payload");
   const length = new DataView(bytes).getUint32(4, true);
   if (length !== input.length - 8) throw new CacheRenderBundleError("manifest", "Truncated cache render binary payload");
-  const payload = JSON.parse(new TextDecoder().decode(input.slice(8)));
+  let encoded = input.slice(8);
+  // Extracted bundles use gzip for transfer efficiency. Keep accepting raw
+  // JSON payloads so existing bundles remain valid.
+  if (encoded[0] === 0x1f && encoded[1] === 0x8b) encoded = decompressSync(encoded);
+  const payload = JSON.parse(new TextDecoder().decode(encoded));
   if (payload.version !== 1 || !Array.isArray(payload.positions) || payload.positions.length % 3) throw new CacheRenderBundleError("manifest", "Unsupported cache render payload schema");
   return payload;
 }
