@@ -48,6 +48,7 @@ export class ControlPanelController {
 
   public width: number;
   public height: number;
+  public isCursorInside = false;
 
   private boostPanel = new BoostPanel();
 
@@ -187,12 +188,14 @@ export class ControlPanelController {
       const panelPosition = this.controlPosition(this.selectedControl);
       const panelX = panelPosition.x;
       const panelY = panelPosition.y;
-      if (panelX < x && x < panelX + panelWidth) {
-        if (panelY < y && y < panelY + panelHeight) {
-          const relativeX = x - panelX;
-          const relativeY = y - panelY;
-          this.selectedControl.cursorMovedto(relativeX, relativeY);
-        }
+      const isInside = (panelX < x && x < panelX + panelWidth) && (panelY < y && y < panelY + panelHeight);
+      if (isInside) {
+        const relativeX = x - panelX;
+        const relativeY = y - panelY;
+        this.isCursorInside = true;
+        this.selectedControl.cursorMovedto(relativeX, relativeY);
+      } else {
+        this.isCursorInside = false;
       }
     }
   }

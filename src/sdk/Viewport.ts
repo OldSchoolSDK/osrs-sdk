@@ -71,6 +71,7 @@ export class Viewport {
 
   activeButtonImage: HTMLImageElement = ImageLoader.createImage(ButtonActiveIcon);
   contextMenu: ContextMenu = new ContextMenu();
+  holdingShift = false;
 
   private clickController: ClickController;
   canvas: HTMLCanvasElement;

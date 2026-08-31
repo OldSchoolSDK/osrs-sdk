@@ -1,4 +1,6 @@
+import { ControlPanelController } from "./ControlPanelController";
 import { Location } from "./Location";
+import { Settings } from "./Settings";
 import { Trainer } from "./Trainer";
 import { Viewport } from "./Viewport";
 
@@ -23,6 +25,7 @@ export class ContextMenu {
   menuOptions: MenuOption[] = [];
   linesOfText: MenuOption[] = [];
   destinationLocation: Location;
+  tooltip?: { text: { text: string, fillStyle: string }[], x: number, y: number };
 
   setPosition(position: Location) {
     this.location = position;
@@ -103,6 +106,20 @@ export class ContextMenu {
       for (let i = 0; i < this.linesOfText.length; i++) {
         this.drawLineOfText(context, this.linesOfText[i].text, this.width, i * 20);
       }
+    } else if (this.tooltip && !Viewport.viewport.holdingShift && !ControlPanelController.controller.isCursorInside) {
+      context.save();
+      const scale = Settings.maxUiScale;
+      context.font = `${Math.round(16 * scale)}px Stats_11`;
+      context.textAlign = "left";
+      context.textBaseline = "middle";
+      const { text, x, y } = this.tooltip;
+      const width = this.fillMixedTextWidth(context, text) + 10 * scale;
+      context.fillStyle = "#372f27";
+      context.fillRect(x, y + 25 * scale, width, 20 * scale);
+      context.fillStyle = "#4f4438";
+      context.fillRect(x + scale, y + 26 * scale, width - 2 * scale, 18 * scale);
+      this.fillMixedText(context, text, x + 5 * scale, y + 35 * scale, "white");
+      context.restore();
     }
     context.restore();
   }
