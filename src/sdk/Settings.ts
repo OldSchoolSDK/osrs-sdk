@@ -54,8 +54,6 @@ export class Settings {
 
   static _isMobileResult = null;
 
-  static use3dView = true;
-
   static isUsingWasdKeybind = Settings.checkWasd();
 
   private static checkWasd() {
@@ -105,7 +103,6 @@ export class Settings {
     window.localStorage.setItem("tileMarkerColor", Settings.tileMarkerColor);
     window.localStorage.setItem("lockPOV", JSON.stringify(Settings.lockPOV));
     window.localStorage.setItem("menuVisible", String(Settings.menuVisible));
-    window.localStorage.setItem("use3dView", String(Settings.use3dView));
     window.localStorage.setItem("maxUiScale", String(Settings.maxUiScale));
     window.localStorage.setItem("antiDrag", String(Settings.antiDrag));
 
@@ -170,10 +167,6 @@ export class Settings {
     }
     if (!Settings.menuVisible) {
       document.getElementById("right_panel").classList.add("hidden");
-    }
-    Settings.use3dView = window.localStorage.getItem("use3dView") !== "false" || false;
-    if (Settings.use3dView) {
-      Settings.rotated = "north";
     }
     Settings.maxUiScale = parseFloat(window.localStorage.getItem("maxUiScale")) || 1.0;
 
