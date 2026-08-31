@@ -61,47 +61,153 @@ function hslRgb(hsl) {
   return (brighten(r) << 16) | (brighten(g) << 8) | brighten(b) || 1;
 }
 
+function packHsl(hue, saturation, lightness) {
+  let adjustedSaturation = saturation;
+  if (lightness > 179) adjustedSaturation /= 2;
+  if (lightness > 192) adjustedSaturation /= 2;
+  if (lightness > 217) adjustedSaturation /= 2;
+  if (lightness > 243) adjustedSaturation /= 2;
+  return ((adjustedSaturation / 32 | 0) << 7) + ((hue / 4 | 0) << 10) + (lightness / 2 | 0);
+}
+
+// RuneScape's scene tile mesh tables (the same tables used by the original
+// Kotlin exporter). Values 1..16 identify corner, midpoint, and quarter-point
+// vertices; path entries are [colour-layer, a, b, c] triangles.
+const TILE_ROTATION_SHAPES = [
+  [1, 3, 5, 7], [1, 3, 5, 7], [1, 3, 5, 7], [1, 3, 5, 7, 6],
+  [1, 3, 5, 7, 6], [1, 3, 5, 7, 6], [1, 3, 5, 7, 6], [1, 3, 5, 7, 2, 6],
+  [1, 3, 5, 7, 2, 8], [1, 3, 5, 7, 2, 8], [1, 3, 5, 7, 11, 12],
+  [1, 3, 5, 7, 11, 12], [1, 3, 5, 7, 13, 14],
+];
+const TILE_PATH_SHAPES = [
+  [0,1,2,3, 0,0,1,3], [1,1,2,3, 1,0,1,3], [0,1,2,3, 1,0,1,3],
+  [0,0,1,2, 0,0,2,4, 1,0,4,3], [0,0,1,4, 0,0,4,3, 1,1,2,4],
+  [0,0,4,3, 1,0,1,2, 1,0,2,4], [0,1,2,4, 1,0,1,4, 1,0,4,3],
+  [0,4,1,2, 0,4,2,5, 1,0,4,5, 1,0,5,3],
+  [0,4,1,2, 0,4,2,3, 0,4,3,5, 1,0,4,5],
+  [0,0,4,5, 1,4,1,2, 1,4,2,3, 1,4,3,5],
+  [0,0,1,5, 0,1,4,5, 0,1,2,4, 1,0,5,3, 1,5,4,3, 1,4,2,3],
+  [1,0,1,5, 1,1,4,5, 1,1,2,4, 0,0,5,3, 0,5,4,3, 0,4,2,3],
+  [1,0,5,4, 1,0,1,5, 0,0,4,3, 0,4,5,3, 0,5,2,3, 0,1,2,5],
+];
+
 async function terrainAsset(cache, regionId) {
   const regionX = regionId >> 8;
   const regionY = regionId & 255;
   const map = await cache.getMap(regionX, regionY);
   const tiles = map?.tiles?.[0] ?? [];
+  const tileHeights = map?.getHeights?.()?.[0] ?? [];
+  const baseHeight = tileHeights[0]?.[0] ?? 0;
   const positions = [], indices = [], colors = [], faceColors = [], alphas = [];
-  const colorForTile = async (tile) => {
+  const underlays = new Map();
+  const overlays = new Map();
+  const underlayDefinition = async (id) => {
+    if (!underlays.has(id)) underlays.set(id, await cache.getDef(IndexType.CONFIGS.id, ConfigType.UNDERLAY.id, id));
+    return underlays.get(id);
+  };
+  const overlayDefinition = async (id) => {
+    if (!overlays.has(id)) {
+      const file = await cache.getFile(IndexType.CONFIGS.id, ConfigType.OVERLAY.id, id);
+      const content = file?.content ?? [];
+      let rgb = null;
+      for (let offset = 0; offset < content.length;) {
+        const opcode = content[offset++];
+        if (opcode === 0) break;
+        if (opcode === 1) { rgb = (content[offset] << 16) | (content[offset + 1] << 8) | content[offset + 2]; offset += 3; }
+        else if (opcode === 2) offset += 1;
+        else if (opcode === 7) offset += 3;
+      }
+      overlays.set(id, { definition: file?.def, transparent: rgb === 0xff00ff });
+    }
+    return overlays.get(id);
+  };
+  // Match the scene builder's 11x11 underlay smoothing. The cache reader
+  // exposes hue/saturation/lightness but not hueMultiplier, so reconstruct it
+  // from the same HSL formula used by the loader.
+  const blendedUnderlays = Array.from({ length: 64 }, () => Array(64).fill(null));
+  for (let x = 0; x < 64; x++) for (let y = 0; y < 64; y++) {
+    let hue = 0, saturation = 0, lightness = 0, multiplier = 0, count = 0;
+    for (let sampleX = Math.max(0, x - 5); sampleX <= Math.min(63, x + 5); sampleX++) for (let sampleY = Math.max(0, y - 5); sampleY <= Math.min(63, y + 5); sampleY++) {
+      const id = tiles[sampleX]?.[sampleY]?.underlayId;
+      if (!id) continue;
+      const definition = await underlayDefinition(id - 1);
+      if (!definition) continue;
+      const hueMultiplier = Math.max(1, Math.floor(512 * (definition.saturation / 256) * Math.min(definition.lightness / 256, 1 - definition.lightness / 256)));
+      hue += definition.hue; saturation += definition.saturation; lightness += definition.lightness; multiplier += hueMultiplier; count++;
+    }
+    if (count && multiplier) blendedUnderlays[x][y] = packHsl(hue * 256 / multiplier, saturation / count, lightness / count);
+  }
+  const colorsForTile = async (tile) => {
+    let underlay = null;
+    let overlay = null;
+    let transparentOverlay = false;
     if (tile?.overlayId > 0) {
-      const overlay = await cache.getDef(IndexType.CONFIGS.id, ConfigType.OVERLAY.id, tile.overlayId - 1);
-      if (overlay?.color >= 0) return overlay.color;
+      const info = await overlayDefinition(tile.overlayId - 1);
+      transparentOverlay = info?.transparent === true;
+      if (info?.definition?.color >= 0 && !transparentOverlay) overlay = info.definition.color;
     }
-    if (tile?.underlayId > 0) {
-      const underlay = await cache.getDef(IndexType.CONFIGS.id, ConfigType.UNDERLAY.id, tile.underlayId - 1);
-      if (underlay?.color >= 0) return underlay.color;
-    }
-    return null;
+    return { underlay, overlay, transparentOverlay };
   };
   for (let x = 0; x < 64; x++) for (let y = 0; y < 64; y++) {
     const tile = tiles[x]?.[y];
-    const hsl = await colorForTile(tile);
+    const tileColors = await colorsForTile(tile);
+    // Smoothing changes an existing underlay's colour; it must not invent
+    // terrain for cache tiles that have neither an underlay nor an overlay.
+    tileColors.underlay = tile?.underlayId > 0 ? blendedUnderlays[x][y] : null;
+    const hsl = tileColors.overlay ?? tileColors.underlay;
     // A 0/0 tile has neither terrain layer in the cache. It is intentional
     // void, not a black material, so leave the viewport's base floor visible.
     if (hsl === null) continue;
-    const color = hslRgb(hsl);
-    // Region 9043's plane is flat. Place authored terrain just above the
-    // viewport's -0.5 floor plane instead of coplanar with it.
-    const height = 0.01;
-    // Counter-clockwise from above: BufferGeometry then computes an upward
-    // normal, and FrontSide terrain is visible to the top-down viewport.
-    // CacheRenderInstancedModel centers a placement at x + 0.5, y - 0.5.
-    // Express tile corners around that same centre rather than assuming the
-    // scene entity itself is aligned to a cache tile corner.
-    // CacheRenderInstancedModel applies its normal +90° actor rotation. Map
-    // terrain is already expressed in world tile axes, so pre-rotate it -90°
-    // (x, z) -> (-z, x) to keep it in the same region square as objects.
-    const vertex = (worldX, worldZ) => [-(worldZ + 0.5), height, worldX - 0.5];
-    const sw = vertex(x, y - 1), se = vertex(x + 1, y - 1), ne = vertex(x + 1, y), nw = vertex(x, y);
-    const vertices = [sw, nw, se, se, nw, ne];
-    for (const vertex of vertices) {
-      const index = positions.length / 3;
-      positions.push(...vertex); indices.push(index); colors.push(color); faceColors.push(color); alphas.push(0);
+    const underlayColor = tileColors.underlay == null ? 0xffffff : hslRgb(tileColors.underlay);
+    const overlayColor = tileColors.overlay == null ? underlayColor : hslRgb(tileColors.overlay);
+    // Map heights are absolute cache elevations, but individual scene objects
+    // are currently positioned in region-local space. Normalize against the
+    // region base until object terrain-height placement is compiled too.
+    // CacheRenderInstancedModel already supplies the scene's floor origin;
+    // retain only the terrain height relative to this region's base elevation.
+    const heightAt = (cornerX, cornerY) => ((tileHeights[cornerX]?.[cornerY] ?? baseHeight) - baseHeight) / 128;
+    const shape = Math.max(1, Math.min(13, Math.floor(tile.overlayPath ?? 0) + 1));
+    // Object locations are mirrored onto trainer Y. Mirror the tile geometry
+    // too; reflection reverses overlay-path rotation.
+    const rotation = (-(tile.overlayRotation ?? 0)) & 3;
+    const rotationShape = TILE_ROTATION_SHAPES[shape - 1];
+    const pathShape = TILE_PATH_SHAPES[shape - 1];
+    const cornerHeight = [
+      heightAt(x, y - 1), heightAt(x + 1, y - 1),
+      heightAt(x + 1, y), heightAt(x, y),
+    ];
+    const vertexForShape = (value) => {
+      let v = value;
+      if ((v & 1) === 0 && v <= 8) v = ((v - rotation * 2 - 1) & 7) + 1;
+      if (v >= 9 && v <= 12) v = ((v - 9 - rotation) & 3) + 9;
+      if (v >= 13 && v <= 16) v = ((v - 13 - rotation) & 3) + 13;
+      const points = {
+        1: [0, 0, cornerHeight[0]], 2: [0.5, 0, (cornerHeight[1] + cornerHeight[0]) / 2],
+        3: [1, 0, cornerHeight[1]], 4: [1, 0.5, (cornerHeight[1] + cornerHeight[2]) / 2],
+        5: [1, 1, cornerHeight[2]], 6: [0.5, 1, (cornerHeight[2] + cornerHeight[3]) / 2],
+        7: [0, 1, cornerHeight[3]], 8: [0, 0.5, (cornerHeight[3] + cornerHeight[0]) / 2],
+        9: [0.5, 0.25, (cornerHeight[1] + cornerHeight[0]) / 2], 10: [0.75, 0.5, (cornerHeight[2] + cornerHeight[1]) / 2],
+        11: [0.5, 0.75, (cornerHeight[2] + cornerHeight[3]) / 2], 12: [0.25, 0.5, (cornerHeight[3] + cornerHeight[0]) / 2],
+        13: [0.25, 0.25, cornerHeight[0]], 14: [0.75, 0.25, cornerHeight[1]],
+        15: [0.75, 0.75, cornerHeight[2]], 16: [0.25, 0.75, cornerHeight[3]],
+      }[v];
+      // CacheRenderInstancedModel applies its normal +90° actor rotation.
+      return [-(63 - y - points[1] + 0.5), points[2], x + points[0] - 0.5];
+    };
+    const vertices = rotationShape.map(vertexForShape);
+    // Counter-clockwise triangles keep the terrain visible from above.
+    for (let i = 0; i < pathShape.length; i += 4) {
+      // 0xFF00FF is the cache's transparent terrain sentinel. The original
+      // exporter omits these overlay faces instead of treating its converted
+      // HSL value as white.
+      if (pathShape[i] === 1 && tileColors.transparentOverlay) continue;
+      const rotateIndex = (index) => index < 4 ? (index - rotation) & 3 : index;
+      const a = vertices[rotateIndex(pathShape[i + 1])], b = vertices[rotateIndex(pathShape[i + 2])], c = vertices[rotateIndex(pathShape[i + 3])];
+      for (const point of [a, b, c]) {
+        const index = positions.length / 3;
+        const color = pathShape[i] === 0 ? underlayColor : overlayColor;
+        positions.push(...point); indices.push(index); colors.push(color); faceColors.push(color); alphas.push(0);
+      }
     }
   }
   return { id: `scene-${regionId}-terrain`, payload: { positions, indices, colors, faceColors, alphas, color: 0xffffff, animations: {} } };
@@ -152,9 +258,7 @@ async function sceneAssets(cache, regionId, assets) {
     height: 64,
     // Tiles remain unrendered in this first individual-object pass. Heights
     // are retained for a future terrain/contoured-ground pass.
-    // Terrain is compiled and retained in the bundle for the upcoming
-    // authored-floor pass, but hidden while validating object placement.
-    placements: placements.filter((placement) => available.has(placement.assetId)),
+    placements: [{ assetId: `scene-${regionId}-terrain`, x: 0, y: 0, plane: 0 }, ...placements.filter((placement) => available.has(placement.assetId))],
   };
 }
 

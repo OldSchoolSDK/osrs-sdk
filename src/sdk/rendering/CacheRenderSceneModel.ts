@@ -30,6 +30,11 @@ export class CacheRenderSceneModel implements Model {
   private worldPosition = new THREE.Vector3();
   private destroyed = false;
 
+  // Depth bias handles opaque coplanar faces. Keep a microscopic physical gap
+  // as well for transparent shadow geometry, whose blend/depth ordering is
+  // not fully resolved by polygon offset under logarithmic depth buffering.
+  private static readonly TERRAIN_HEIGHT_OFFSET = -0.002;
+
   constructor(private readonly sceneId: string) {}
 
   private async ensureLoaded() {
@@ -75,22 +80,25 @@ export class CacheRenderSceneModel implements Model {
     this.ensureLoaded().then(() => {
       if (this.destroyed) return;
       this.worldPosition.set(location.x, location.z, location.y);
-      this.models.forEach(({ placement, model }) => model.draw(scene, clockDelta, tickPercent, {
-        // Cache locations are the south-west tile of an object footprint;
-        // cache models are centred on that footprint. The instancer adds the
-        // normal half-tile centre for a 1x1 model, so add only the extra
-        // footprint extent here. Mirrored scene Y is already applied above.
-        x: location.x + placement.x + ((placement.width ?? 1) - 1) / 2,
-        y: location.y + placement.y - ((placement.height ?? 1) - 1) / 2,
-        z: location.z + placement.plane,
-      // ObjectDefinition.getModel has already baked each location's cache
-      // orientation. The recipe transform changes only its tile placement;
-      // rotating the mesh again reverses walls/decorations in-place.
-      // CacheRenderInstancedModel adds +PI/2 for actor-facing models. Scene
-      // object orientations are already baked by ObjectDefinition.getModel,
-      // so cancel that actor offset for objects. Terrain was pre-rotated for
-      // the generic instancer and must retain the zero rotation path.
-      }, placement.assetId.endsWith("-terrain") ? 0 : -Math.PI / 2, 0, visible, [{ x: 0, y: 0, z: 0 }]));
+      this.models.forEach(({ placement, model }) => {
+        const terrain = placement.assetId.endsWith("-terrain");
+        model.draw(scene, clockDelta, tickPercent, {
+          // Cache locations are the south-west tile of an object footprint;
+          // cache models are centred on that footprint. The instancer adds the
+          // normal half-tile centre for a 1x1 model, so add only the extra
+          // footprint extent here. Mirrored scene Y is already applied above.
+          x: location.x + placement.x + ((placement.width ?? 1) - 1) / 2,
+          y: location.y + placement.y - ((placement.height ?? 1) - 1) / 2,
+          z: location.z + placement.plane + (terrain ? CacheRenderSceneModel.TERRAIN_HEIGHT_OFFSET : 0),
+          // ObjectDefinition.getModel has already baked each location's cache
+          // orientation. The recipe transform changes only its tile placement;
+          // rotating the mesh again reverses walls/decorations in-place.
+          // CacheRenderInstancedModel adds +PI/2 for actor-facing models. Scene
+          // object orientations are already baked by ObjectDefinition.getModel,
+          // so cancel that actor offset for objects. Terrain was pre-rotated for
+          // the generic instancer and must retain the zero rotation path.
+        }, terrain ? 0 : -Math.PI / 2, 0, visible, [{ x: 0, y: 0, z: 0 }]);
+      });
     }).catch((error) => console.error("[osrs-sdk] Cache scene preload failed", error));
   }
 

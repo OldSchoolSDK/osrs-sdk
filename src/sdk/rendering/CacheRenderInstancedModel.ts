@@ -80,12 +80,22 @@ export class CacheRenderInstancedModel implements Model {
         }
         geometry.setIndex(payload.indices ?? []);
         geometry.computeVertexNormals();
+        const terrain = this.reference.kind === "asset" && this.reference.assetId.endsWith("-terrain");
         const material = new THREE.MeshStandardMaterial({
           color: payload.color ?? 0xffffff,
           vertexColors: Boolean(payload.colors?.length),
           flatShading: true,
-          transparent: Boolean(payload.alphas?.length),
+          // A zero-filled alpha channel is normal for opaque cache geometry.
+          // Marking it transparent disables the normal depth-write path and
+          // causes terrain to fight with props and transparent shadows.
+          transparent: Boolean(payload.alphas?.some((alpha) => alpha !== 0)),
           alphaTest: 0.01,
+          // Keep a coplanar terrain face infinitesimally behind props without
+          // changing its world-space height. This is the standard depth-bias
+          // solution for floor/decoration z-fighting.
+          polygonOffset: terrain,
+          polygonOffsetFactor: terrain ? 1 : 0,
+          polygonOffsetUnits: terrain ? 1 : 0,
         });
         pool!.mesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCES);
         pool!.mesh.frustumCulled = false;
