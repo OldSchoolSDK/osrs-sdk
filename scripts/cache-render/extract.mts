@@ -8,6 +8,8 @@ import { createHash } from "node:crypto";
 import { mkdir, readdir, unlink, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { gzipSync } from "fflate";
+import { CACHE_RENDER_BUNDLE_SCHEMA_VERSION, CACHE_RENDER_PAYLOAD_MAGIC, CACHE_RENDER_PAYLOAD_VERSION } from "../../src/cache-render-format/index.ts";
+import type { CacheRenderAsset, CacheRenderBundleManifest, CacheRenderPayload } from "../../src/cache-render-format/index.ts";
 
 const [adapterPath, cachePath, outputDirectory] = process.argv.slice(2);
 if (!adapterPath || !cachePath || !outputDirectory) throw new Error("Usage: extract-cache-render-bundle <osrscachereader-adapter.mjs> <cache-path> <output-dir>");
@@ -30,18 +32,19 @@ for (const entry of await readdir(outputDirectory, { withFileTypes: true })) {
     await unlink(resolve(outputDirectory, entry.name));
   }
 }
-const assets = {};
+const assets: Record<string, CacheRenderAsset> = {};
 for (const asset of decoded.assets.sort((a, b) => a.id.localeCompare(b.id))) {
   if (!asset.id || !Array.isArray(asset.payload.positions)) throw new Error(`Missing geometry for ${asset.id}`);
-  const json = Buffer.from(JSON.stringify({ version: 1, ...asset.payload }));
+  const payload: CacheRenderPayload = { version: CACHE_RENDER_PAYLOAD_VERSION, ...asset.payload };
+  const json = Buffer.from(JSON.stringify(payload));
   const compressed = Buffer.from(gzipSync(json, { level: 6 }));
-  const bytes = Buffer.concat([Buffer.from("OSRB"), Buffer.from(Uint32Array.of(compressed.length).buffer), compressed]);
+  const bytes = Buffer.concat([Buffer.from(CACHE_RENDER_PAYLOAD_MAGIC), Buffer.from(Uint32Array.of(compressed.length).buffer), compressed]);
   const hash = createHash("sha256").update(bytes).digest("hex");
   const file = `${hash}.bin`;
   await writeFile(resolve(outputDirectory, file), bytes);
   assets[asset.id] = { file, sha256: hash, bytes: bytes.length };
 }
 const sourceHash = createHash("sha256").update(JSON.stringify({ assets, references: decoded.references, scenes: decoded.scenes, playerItems: decoded.playerItems, spotAnims: decoded.spotAnims, sharedAssets: decoded.sharedAssets })).digest("hex");
-const manifest = { schemaVersion: 1, bundleVersion: `osrs-${decoded.revision}-${sourceHash.slice(0, 12)}`, cache: { revision: decoded.revision, source: decoded.source, contentHash: sourceHash }, assets, references: decoded.references, ...(decoded.scenes ? { scenes: decoded.scenes } : {}), ...(decoded.playerItems ? { playerItems: decoded.playerItems } : {}), ...(decoded.spotAnims ? { spotAnims: decoded.spotAnims } : {}), ...(decoded.sharedAssets ? { sharedAssets: decoded.sharedAssets } : {}) };
+const manifest: CacheRenderBundleManifest = { schemaVersion: CACHE_RENDER_BUNDLE_SCHEMA_VERSION, bundleVersion: `osrs-${decoded.revision}-${sourceHash.slice(0, 12)}`, cache: { revision: decoded.revision, source: decoded.source, contentHash: sourceHash }, assets, references: decoded.references, ...(decoded.scenes ? { scenes: decoded.scenes } : {}), ...(decoded.playerItems ? { playerItems: decoded.playerItems } : {}), ...(decoded.spotAnims ? { spotAnims: decoded.spotAnims } : {}), ...(decoded.sharedAssets ? { sharedAssets: decoded.sharedAssets } : {}) };
 await writeFile(resolve(outputDirectory, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 console.log(`Wrote ${Object.keys(assets).length} cache render payloads for revision ${decoded.revision}`);

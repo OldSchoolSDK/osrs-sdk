@@ -1,24 +1,10 @@
 import { CacheRenderReference, cacheRenderItemKey } from "./CacheRenderReference";
+import { CACHE_RENDER_BUNDLE_SCHEMA_VERSION, isCacheRenderBundleManifest } from "../../cache-render-format";
+import type { CacheRenderAsset, CacheRenderBundleManifest, CacheRenderScene, CacheRenderScenePlacement } from "../../cache-render-format";
 
-export const CACHE_RENDER_BUNDLE_SCHEMA_VERSION = 1;
+export { CACHE_RENDER_BUNDLE_SCHEMA_VERSION } from "../../cache-render-format";
+export type { CacheRenderAsset, CacheRenderBundleManifest, CacheRenderScene, CacheRenderScenePlacement } from "../../cache-render-format";
 
-export type CacheRenderAsset = { file: string; sha256: string; bytes?: number };
-export type CacheRenderScenePlacement = { assetId: string; x: number; y: number; plane: number; width?: number; height?: number };
-export type CacheRenderScene = { regionId: number; placements: CacheRenderScenePlacement[]; mirrorY?: boolean; width?: number; height?: number };
-export type CacheRenderBundleManifest = {
-  schemaVersion: number;
-  bundleVersion: string;
-  cache: { revision: number; source: string; contentHash: string };
-  assets: Record<string, CacheRenderAsset>;
-  references: Record<string, string[]>;
-  /** Cache-derived static scene recipes. Geometry is stored in assets and reused by placement. */
-  scenes?: Record<string, CacheRenderScene>;
-  /** Maps semantic SDK item IDs (item:<id>) or legacy names to composable player payloads. */
-  playerItems?: Record<string, string>;
-  spotAnims?: Record<string, string>;
-  /** Assets shared by multiple render payloads (currently player sequences). */
-  sharedAssets?: { playerAnimations?: string };
-};
 
 export class CacheRenderBundleError extends Error {
   constructor(public readonly code: "manifest" | "integrity" | "missing-asset" | "network", message: string) {
@@ -27,38 +13,8 @@ export class CacheRenderBundleError extends Error {
 }
 
 export function validateCacheRenderBundleManifest(value: any): CacheRenderBundleManifest {
-  if (!value || value.schemaVersion !== CACHE_RENDER_BUNDLE_SCHEMA_VERSION ||
-      typeof value.bundleVersion !== "string" || !value.cache || typeof value.cache.revision !== "number" ||
-      typeof value.cache.source !== "string" || typeof value.cache.contentHash !== "string" ||
-      !value.assets || !value.references) {
-    throw new CacheRenderBundleError("manifest", "Invalid cache render bundle manifest or unsupported schema version");
-  }
-  Object.keys(value.assets).forEach((key) => {
-    const asset = value.assets[key];
-    if (!asset || typeof asset.file !== "string" || !/^[a-f0-9]{64}$/i.test(asset.sha256)) {
-      throw new CacheRenderBundleError("manifest", `Invalid asset entry: ${key}`);
-    }
-  });
-  if (value.spotAnims !== undefined && (!value.spotAnims || typeof value.spotAnims !== "object" ||
-      Object.values(value.spotAnims).some((id: any) => typeof id !== "string"))) {
-    throw new CacheRenderBundleError("manifest", "Invalid spot animation asset mapping");
-  }
-  if (value.scenes !== undefined && (!value.scenes || typeof value.scenes !== "object" ||
-      Object.values(value.scenes).some((scene: any) => !scene || !Number.isInteger(scene.regionId) || !Array.isArray(scene.placements) ||
-        (scene.mirrorY !== undefined && typeof scene.mirrorY !== "boolean") ||
-        (scene.width !== undefined && (!Number.isInteger(scene.width) || scene.width <= 0)) ||
-        (scene.height !== undefined && (!Number.isInteger(scene.height) || scene.height <= 0)) ||
-        scene.placements.some((placement: any) => !placement || typeof placement.assetId !== "string" ||
-          !Number.isFinite(placement.x) || !Number.isFinite(placement.y) || !Number.isFinite(placement.plane) ||
-          (placement.width !== undefined && (!Number.isFinite(placement.width) || placement.width <= 0)) ||
-          (placement.height !== undefined && (!Number.isFinite(placement.height) || placement.height <= 0)))))) {
-    throw new CacheRenderBundleError("manifest", "Invalid scene recipe");
-  }
-  if (value.sharedAssets !== undefined && (!value.sharedAssets || typeof value.sharedAssets !== "object" ||
-      (value.sharedAssets.playerAnimations !== undefined && typeof value.sharedAssets.playerAnimations !== "string"))) {
-    throw new CacheRenderBundleError("manifest", "Invalid shared asset mapping");
-  }
-  return value as CacheRenderBundleManifest;
+  if (!isCacheRenderBundleManifest(value)) throw new CacheRenderBundleError("manifest", "Invalid cache render bundle manifest or unsupported schema version");
+  return value;
 }
 
   function referenceKey(reference: CacheRenderReference): string {

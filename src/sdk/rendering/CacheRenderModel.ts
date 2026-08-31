@@ -6,16 +6,17 @@ import { CacheRender, CacheRenderBundle, CacheRenderBundleError } from "./CacheR
 import { CacheRenderReference, CacheRenderSpotAnim } from "./CacheRenderReference";
 import { Model } from "./Model";
 import { Settings } from "../Settings";
+import { CACHE_RENDER_PAYLOAD_MAGIC, CACHE_RENDER_PAYLOAD_VERSION } from "../../cache-render-format";
+import type { CacheRenderAnimation, CacheRenderPayload, CacheRenderRawFrame, CacheRenderTexture } from "../../cache-render-format";
 
-const MAGIC = "OSRB";
 // CPU-side frame-map animation is used for standard sequences. Animaya
 // sequences continue to use the extracted baked-frame fallback.
 const ENABLE_CACHE_RENDER_ANIMATIONS = true;
 const DRAW_CLICKBOX_DEBUG = false;
-type RawFrame = { baseId?: number; types: number[]; maps: number[][]; indexFrameIds: number[]; x: number[]; y: number[]; z: number[] };
-type AnimationPayload = { frames: number[][]; lengths: number[]; rawFrames?: RawFrame[]; interleaveLeave?: number[]; mayaFrames?: number[][][] };
-type TexturePayload = { width: number; height: number; pixels: number[] };
-type Payload = { version: 1; positions: number[]; indices?: number[]; vertexGroups?: number[][]; sourceVertices?: number[]; animayaGroups?: number[][]; animayaScales?: number[][]; colors?: number[]; faceColors?: number[]; alphas?: number[]; alphaGroups?: number[][]; uvs?: number[]; textureIds?: number[]; textures?: Record<string, TexturePayload>; normals?: number[]; color?: number; scale?: number; animations?: Record<string, AnimationPayload>; poseMap?: Record<string, number>; geometryClickbox?: { positions: number[]; indices?: number[] }; spotAnim?: { id?: number; animationId?: number; resizeX?: number; resizeY?: number; rotation?: number; height?: number; delay?: number } };
+type RawFrame = CacheRenderRawFrame;
+type AnimationPayload = CacheRenderAnimation;
+type TexturePayload = CacheRenderTexture;
+type Payload = CacheRenderPayload;
 type SpotAnimRuntime = { mesh: THREE.Mesh; basePositions: Float32Array; vertexGroups: number[][]; sourceVertices: number[]; baseAlphas: Float32Array; alphaGroups: number[][]; animation?: AnimationPayload; scaleX: number; scaleY: number; rotation: number; height: number; delay: number };
 
 // Decoded payloads are immutable bundle data, so retain them across model
@@ -219,7 +220,7 @@ export function applyBlendedRawFrames(positions: Float32Array, groups: number[][
 
 export function decodeCacheRenderPayload(bytes: ArrayBuffer): Payload {
   const input = new Uint8Array(bytes);
-  if (input.length < 8 || String.fromCharCode(input[0], input[1], input[2], input[3]) !== MAGIC) throw new CacheRenderBundleError("manifest", "Invalid cache render binary payload");
+  if (input.length < 8 || String.fromCharCode(input[0], input[1], input[2], input[3]) !== CACHE_RENDER_PAYLOAD_MAGIC) throw new CacheRenderBundleError("manifest", "Invalid cache render binary payload");
   const length = new DataView(bytes).getUint32(4, true);
   if (length !== input.length - 8) throw new CacheRenderBundleError("manifest", "Truncated cache render binary payload");
   let encoded = input.slice(8);
@@ -227,7 +228,7 @@ export function decodeCacheRenderPayload(bytes: ArrayBuffer): Payload {
   // JSON payloads so existing bundles remain valid.
   if (encoded[0] === 0x1f && encoded[1] === 0x8b) encoded = decompressSync(encoded);
   const payload = JSON.parse(new TextDecoder().decode(encoded));
-  if (payload.version !== 1 || !Array.isArray(payload.positions) || payload.positions.length % 3) throw new CacheRenderBundleError("manifest", "Unsupported cache render payload schema");
+  if (payload.version !== CACHE_RENDER_PAYLOAD_VERSION || !Array.isArray(payload.positions) || payload.positions.length % 3) throw new CacheRenderBundleError("manifest", "Unsupported cache render payload schema");
   return payload;
 }
 
