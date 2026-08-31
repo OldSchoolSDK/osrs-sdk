@@ -28,4 +28,6 @@ if (!id) {
   if (!selected) throw new Error("Downloader completed but no cache metadata was found");
   id = String(selected.id);
 }
-await run(process.execPath, [resolve(root, "scripts/extract-cache-render-bundle.mjs"), adapterPath, resolve(metadataRoot, String(id), "cache"), resolve(root, "cache-render-bundle")], { cwd: root, stdio: "inherit", env: { ...process.env, OSRS_CACHE_REVISION: String(id) } });
+const metadata = JSON.parse(await readFile(resolve(metadataRoot, String(id), "openrs2.json"), "utf8"));
+const revision = metadata.builds?.[0]?.major ?? id;
+await run(process.execPath, [resolve(root, "scripts/extract-cache-render-bundle.mjs"), adapterPath, resolve(metadataRoot, String(id), "cache"), resolve(root, "cache-render-bundle")], { cwd: root, stdio: "inherit", env: { ...process.env, OSRS_CACHE_REVISION: String(revision), OSRS_CACHE_SOURCE: `openrs2:${id}` } });

@@ -9,7 +9,10 @@ import { Model } from "./Model";
 // Repeated cache models (such as the wall men) share one GPU geometry and are
 // drawn with a single instanced draw call. Synchronized CPU animation updates
 // are applied once per pool, while placement transforms remain per instance.
-const MAX_INSTANCES = 128;
+// Static arena recipes commonly contain more than 128 repeated floor or wall
+// objects. Pools are shared per cache asset, so retain a conservative but
+// scene-capable ceiling without duplicating their geometry.
+const MAX_INSTANCES = 4096;
 type Pool = {
   mesh: THREE.InstancedMesh; ready: Promise<void>; next: number; free: number[]; active: Set<number>;
   scaleX: number; scaleY: number; positions: Float32Array; groups: number[][]; sources: number[];

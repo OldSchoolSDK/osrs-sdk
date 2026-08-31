@@ -4,19 +4,164 @@ import { RSCache, IndexType, ConfigType, ModelGroup } from "../../osrscachereade
 const itemKey = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 const NPC_ID = 8373; // Verzik Vitur (phase 3)
+const INFERNO_REGION_ID = 9043;
+
+// Presentation adjustments belong to the scene recipe, not the renderer.
+// These reproduce InfernoSceneOverrider from OSRS-Environment-Exporter while
+// keeping future scene-editor changes small, reviewable data edits.
+const SCENE_TOUCHUPS = {
+  [INFERNO_REGION_ID]: {
+    replacements: [
+      { x: 27, y: 52, objectId: 30340, orientation: 1 },
+      { x: 27, y: 55, objectId: 30327, orientation: 2 },
+      { x: 27, y: 54, objectId: 30342, orientation: 1 },
+      // The cache has a separate plane-1 location at this tile; replace only
+      // the ground-plane wall to avoid stacking two copies of the corner.
+      { x: 27, y: 56, z: 0, objectId: 30328, orientation: 2 },
+      { x: 35, y: 52, objectId: 30339, orientation: 3 },
+      { x: 35, y: 54, objectId: 30341, orientation: 3 },
+      { x: 28, y: 52, objectId: 30345, orientation: 3 },
+      { x: 33, y: 52, objectId: 30345, orientation: 3 },
+    ],
+    rectangleReplacements: [
+      { xMin: 26, xMax: 33, yMin: 50, yMax: 54, objectId: 30291 }, // Zuk-side lava
+    ],
+    removals: [
+      { xMin: 17, xMax: 45, yMin: 17, yMax: 45 }, // exporter clutter removal
+    ],
+  },
+};
+
+function applySceneTouchups(regionId, location) {
+  const touchups = SCENE_TOUCHUPS[regionId];
+  if (!touchups) return location;
+  const { localX: x, localY: y } = location.position;
+  let result = location;
+  for (const replacement of touchups.replacements) {
+    // Kotlin's SceneOverrider returns immediately. In particular, these
+    // hand-authored corner walls must win over the broader lava rectangle.
+    if (replacement.x === x && replacement.y === y && (replacement.z === undefined || replacement.z === location.position.height)) {
+      return { ...result, id: replacement.objectId, orientation: replacement.orientation ?? result.orientation };
+    }
+  }
+  for (const replacement of touchups.rectangleReplacements) {
+    if (x >= replacement.xMin && x <= replacement.xMax && y >= replacement.yMin && y <= replacement.yMax) {
+      return { ...result, id: replacement.objectId, orientation: replacement.orientation ?? result.orientation };
+    }
+  }
+  return touchups.removals.some((removal) => x >= removal.xMin && x <= removal.xMax && y >= removal.yMin && y <= removal.yMax) ? null : result;
+}
+
+function hslRgb(hsl) {
+  const hue = ((hsl >> 10) & 63) / 64 + 0.5 / 64, saturation = ((hsl >> 7) & 7) / 8 + 0.5 / 8, luminance = (hsl & 127) / 128;
+  const chroma = (1 - Math.abs(2 * luminance - 1)) * saturation, x = chroma * (1 - Math.abs(((hue * 6) % 2) - 1)), lightness = luminance - chroma / 2;
+  let r = lightness, g = lightness, b = lightness;
+  switch (Math.floor(hue * 6)) { case 0: r += chroma; g += x; break; case 1: g += chroma; r += x; break; case 2: g += chroma; b += x; break; case 3: b += chroma; g += x; break; case 4: b += chroma; r += x; break; default: r += chroma; b += x; }
+  const brighten = (v) => Math.floor(Math.pow(Math.floor(v * 256) / 256, 0.6) * 256);
+  return (brighten(r) << 16) | (brighten(g) << 8) | brighten(b) || 1;
+}
+
+async function terrainAsset(cache, regionId) {
+  const regionX = regionId >> 8;
+  const regionY = regionId & 255;
+  const map = await cache.getMap(regionX, regionY);
+  const tiles = map?.tiles?.[0] ?? [];
+  const positions = [], indices = [], colors = [], faceColors = [], alphas = [];
+  const colorForTile = async (tile) => {
+    if (tile?.overlayId > 0) {
+      const overlay = await cache.getDef(IndexType.CONFIGS.id, ConfigType.OVERLAY.id, tile.overlayId - 1);
+      if (overlay?.color >= 0) return overlay.color;
+    }
+    if (tile?.underlayId > 0) {
+      const underlay = await cache.getDef(IndexType.CONFIGS.id, ConfigType.UNDERLAY.id, tile.underlayId - 1);
+      if (underlay?.color >= 0) return underlay.color;
+    }
+    return null;
+  };
+  for (let x = 0; x < 64; x++) for (let y = 0; y < 64; y++) {
+    const tile = tiles[x]?.[y];
+    const hsl = await colorForTile(tile);
+    // A 0/0 tile has neither terrain layer in the cache. It is intentional
+    // void, not a black material, so leave the viewport's base floor visible.
+    if (hsl === null) continue;
+    const color = hslRgb(hsl);
+    // Region 9043's plane is flat. Place authored terrain just above the
+    // viewport's -0.5 floor plane instead of coplanar with it.
+    const height = 0.01;
+    // Counter-clockwise from above: BufferGeometry then computes an upward
+    // normal, and FrontSide terrain is visible to the top-down viewport.
+    // CacheRenderInstancedModel centers a placement at x + 0.5, y - 0.5.
+    // Express tile corners around that same centre rather than assuming the
+    // scene entity itself is aligned to a cache tile corner.
+    // CacheRenderInstancedModel applies its normal +90° actor rotation. Map
+    // terrain is already expressed in world tile axes, so pre-rotate it -90°
+    // (x, z) -> (-z, x) to keep it in the same region square as objects.
+    const vertex = (worldX, worldZ) => [-(worldZ + 0.5), height, worldX - 0.5];
+    const sw = vertex(x, y - 1), se = vertex(x + 1, y - 1), ne = vertex(x + 1, y), nw = vertex(x, y);
+    const vertices = [sw, nw, se, se, nw, ne];
+    for (const vertex of vertices) {
+      const index = positions.length / 3;
+      positions.push(...vertex); indices.push(index); colors.push(color); faceColors.push(color); alphas.push(0);
+    }
+  }
+  return { id: `scene-${regionId}-terrain`, payload: { positions, indices, colors, faceColors, alphas, color: 0xffffff, animations: {} } };
+}
+
+async function sceneAssets(cache, regionId, assets) {
+  const regionX = regionId >> 8;
+  const regionY = regionId & 255;
+  const locations = (await cache.getLoc(regionX, regionY))?.locations ?? [];
+  const variants = new Map();
+  const definitions = new Map();
+  const placements = [];
+  for (const sourceLocation of locations) {
+    const location = applySceneTouchups(regionId, sourceLocation);
+    if (!location) continue;
+    // Location objects encode the definition, object layer/type, and its
+    // rotation. That is the exact input ObjectDefinition.getModel needs to
+    // apply definition-specific model selection, recolours, resizing, and
+    // offsets before we serialise cache geometry.
+    const key = `${location.id}:${location.type}:${location.orientation}`;
+    const assetId = `scene-${regionId}-object-${location.id}-${location.type}-${location.orientation}`;
+    let definition = definitions.get(location.id);
+    if (!definition) {
+      definition = await cache.getDef(IndexType.CONFIGS.id, ConfigType.OBJECT.id, location.id);
+      definitions.set(location.id, definition);
+    }
+    const width = (location.orientation & 1) ? (definition?.sizeY ?? 1) : (definition?.sizeX ?? 1);
+    const height = (location.orientation & 1) ? (definition?.sizeX ?? 1) : (definition?.sizeY ?? 1);
+    variants.set(key, { assetId, location, definition });
+    placements.push({ assetId, x: location.position.localX, y: location.position.localY, plane: location.position.height, width, height });
+  }
+  for (const { assetId, location, definition } of variants.values()) {
+    const model = await definition?.getModel(cache, location.type, location.orientation);
+    // Some map locations are sound/collision-only definitions. They remain in
+    // the recipe for accounting, but have no model and should not become an
+    // empty render payload.
+    if (!model?.vertexCount) continue;
+    const result = await attachTextures(cache, payload({ getMergedModel: () => model }));
+    assets.push({ id: assetId, payload: result });
+  }
+  const available = new Set(assets.map((asset) => asset.id));
+  return {
+    regionId,
+    // Cache region X is mirrored relative to the trainer's game-space
+    // convention. Keep that scene-level correction in the compiled recipe.
+    mirrorY: true,
+    width: 64,
+    height: 64,
+    // Tiles remain unrendered in this first individual-object pass. Heights
+    // are retained for a future terrain/contoured-ground pass.
+    // Terrain is compiled and retained in the bundle for the upcoming
+    // authored-floor pass, but hidden while validating object placement.
+    placements: placements.filter((placement) => available.has(placement.assetId)),
+  };
+}
 
 function payload(group, includeFace = () => true) {
   const model = group.getMergedModel();
   if (!model || !model.vertexCount) throw new Error("Decoded model has no vertices");
   const positions = [], indices = [], colors = [], faceColors = [], uvs = [], textureIds = [], sourceVertices = [], animayaGroups = [], animayaScales = [], alphas = [], alphaGroups = (model.faceLabelsAlpha ?? []).map(() => []), vertexGroups = (model.vertexGroups ?? []).map(() => []);
-  const rgb = (hsl) => {
-    const hue = ((hsl >> 10) & 63) / 64 + 0.5 / 64, saturation = ((hsl >> 7) & 7) / 8 + 0.5 / 8, luminance = (hsl & 127) / 128;
-    const chroma = (1 - Math.abs(2 * luminance - 1)) * saturation, x = chroma * (1 - Math.abs(((hue * 6) % 2) - 1)), lightness = luminance - chroma / 2;
-    let r = lightness, g = lightness, b = lightness;
-    switch (Math.floor(hue * 6)) { case 0: r += chroma; g += x; break; case 1: g += chroma; r += x; break; case 2: g += chroma; b += x; break; case 3: b += chroma; g += x; break; case 4: b += chroma; r += x; break; default: r += chroma; b += x; }
-    const brighten = (v) => Math.floor(Math.pow(Math.floor(v * 256) / 256, 0.6) * 256);
-    return (brighten(r) << 16) | (brighten(g) << 8) | brighten(b) || 1;
-  };
   for (let face = 0; face < model.faceVertexIndices1.length; face++) {
     if (!includeFace(model, face)) continue;
     for (const source of [model.faceVertexIndices1[face], model.faceVertexIndices2[face], model.faceVertexIndices3[face]]) {
@@ -25,7 +170,7 @@ function payload(group, includeFace = () => true) {
       sourceVertices.push(source);
       animayaGroups.push(model.animayaGroups?.[source] ?? []);
       animayaScales.push(model.animayaScales?.[source] ?? []);
-      colors.push(rgb(model.faceColors?.[face] ?? 0));
+      colors.push(hslRgb(model.faceColors?.[face] ?? 0));
       faceColors.push(model.faceColors?.[face] ?? 0);
       alphas.push(model.faceAlphas?.[face] ?? 0);
       uvs.push(model.faceTextureUCoordinates?.[face]?.[corner] ?? 0, model.faceTextureVCoordinates?.[face]?.[corner] ?? 0);
@@ -293,11 +438,13 @@ export async function decodeSample({ cachePath, revision }) {
     assets.push({ id: "player-animations", payload: sharedPlayerAnimations });
     sharedAssets = { playerAnimations: "player-animations" };
   }
+  assets.push(await terrainAsset(cache, INFERNO_REGION_ID));
+  const scenes = { [`region:${INFERNO_REGION_ID}`]: await sceneAssets(cache, INFERNO_REGION_ID, assets) };
   await cache.close?.();
   const rev = Number(revision || 0);
   return {
     revision: rev,
-    source: `openrs2:${rev}`,
+    source: process.env.OSRS_CACHE_SOURCE ?? `openrs2:${rev}`,
     assets,
     references: {
       [`npc:${NPC_ID}`]: [`npc-${NPC_ID}`],
@@ -309,5 +456,6 @@ export async function decodeSample({ cachePath, revision }) {
     spotAnims: spotAnimAssets,
     playerItems: playerItemAssets,
     sharedAssets,
+    scenes,
   };
 }

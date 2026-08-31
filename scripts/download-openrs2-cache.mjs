@@ -22,18 +22,26 @@ if (requestedId !== undefined && (!Number.isSafeInteger(requestedId) || requeste
 const caches = await json("https://archive.openrs2.org/caches.json");
 const complete = (cache) => cache.game === "oldschool" && cache.environment === "live" && cache.language === "en" &&
   cache.disk_store_valid === true && cache.valid_indexes === cache.indexes && cache.valid_groups === cache.groups;
+// Historical scene recipes must reproduce the cache revision that authored the
+// scene. Some of those snapshots are usable disk stores but predate OpenRS2's
+// "complete" classification, so only apply the stricter completeness check
+// when choosing the default/latest cache.
+const requestedCache = (cache) => cache.id === requestedId && cache.game === "oldschool" && cache.disk_store_valid === true;
 const selected = requestedId === undefined
   ? caches.filter(complete).sort((a, b) => (Date.parse(b.timestamp || "") || 0) - (Date.parse(a.timestamp || "") || 0) || b.id - a.id)[0]
-  : caches.find((cache) => cache.id === requestedId && complete(cache));
-if (!selected) throw new Error(requestedId ? `OpenRS2 cache ${requestedId} is not a complete live OSRS cache` : "No complete live OSRS cache is available");
+  : caches.find(requestedCache);
+if (!selected) throw new Error(requestedId ? `OpenRS2 cache ${requestedId} is not an available Old School disk-store cache` : "No complete live OSRS cache is available");
 
 const destination = resolve(repositoryRoot, ".cache-render", "openrs2", String(selected.id));
 const metadataPath = resolve(destination, "openrs2.json");
+const cacheDirectory = resolve(destination, "cache");
+const xteasPath = resolve(cacheDirectory, "xteas.json");
 try {
   const previous = JSON.parse(await readFile(metadataPath, "utf8"));
-  await access(resolve(destination, "cache"));
+  await access(cacheDirectory);
+  await access(xteasPath);
   if (previous.id === selected.id) {
-    console.log(`Using cached OpenRS2 cache ${selected.id}: ${resolve(destination, "cache")}`);
+    console.log(`Using cached OpenRS2 cache ${selected.id}: ${cacheDirectory}`);
     process.exit(0);
   }
 } catch { /* cache has not been downloaded yet */ }
@@ -41,7 +49,6 @@ await mkdir(destination, { recursive: true });
 const zipPath = resolve(destination, "disk.zip");
 await download(`https://archive.openrs2.org/caches/${selected.scope}/${selected.id}/disk.zip`, zipPath);
 const archive = unzipSync(new Uint8Array(await readFile(zipPath)));
-const cacheDirectory = resolve(destination, "cache");
 // Extraction is repeatable, including after an interrupted/older extraction left
 // a file where the ZIP expects the cache directory.
 await rm(cacheDirectory, { recursive: true, force: true });
@@ -54,5 +61,9 @@ for (const [entry, contents] of Object.entries(archive)) {
     await writeFile(target, contents);
   }
 }
+// Disk-store archives intentionally contain only cache data. Map locations are
+// XTEA encrypted, so keep the cache-specific keys beside the extracted files
+// for osrscachereader's local map loader.
+await download(`https://archive.openrs2.org/caches/${selected.scope}/${selected.id}/keys.json`, xteasPath);
 await writeFile(metadataPath, `${JSON.stringify({ ...selected, downloadedAt: new Date().toISOString() }, null, 2)}\n`);
 console.log(`Downloaded OpenRS2 cache ${selected.id} to ${resolve(destination, "cache")}`);

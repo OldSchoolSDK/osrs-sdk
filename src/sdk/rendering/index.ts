@@ -11,6 +11,7 @@ export * from './GLTFModel';
 export * from './CacheRenderBundle';
 export * from './CacheRenderModel';
 export * from './CacheRenderInstancedModel';
+export * from './CacheRenderSceneModel';
 export * from './CacheRenderReference';
 export * from './Model';
 export * from './PointingModel';

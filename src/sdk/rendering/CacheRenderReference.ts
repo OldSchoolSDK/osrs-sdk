@@ -2,6 +2,8 @@
 export type CacheRenderReference =
   | { kind: "npc"; definitionId: number; spotAnims?: CacheRenderSpotAnim[]; bundleId?: string }
   | { kind: "model"; modelId: number; bundleId?: string }
+  /** A precomposed cache payload, used by compiled static scene recipes. */
+  | { kind: "asset"; assetId: string; bundleId?: string }
   | { kind: "spotAnim"; spotAnims: CacheRenderSpotAnim[]; bundleId?: string }
   | { kind: "player"; loadout: Array<string | number>; poses?: Record<string, number>; spotAnims?: CacheRenderSpotAnim[]; bundleId?: string };
 
@@ -36,6 +38,9 @@ export const CacheRenderReferences = {
   },
   model(modelId: number, bundleId?: string): CacheRenderReference {
     return { kind: "model", modelId, bundleId };
+  },
+  asset(assetId: string, bundleId?: string): CacheRenderReference {
+    return { kind: "asset", assetId, bundleId };
   },
   spotAnim(spotAnims: CacheRenderSpotAnim[], bundleId?: string): CacheRenderReference {
     return { kind: "spotAnim", spotAnims: spotAnims.slice(), bundleId };

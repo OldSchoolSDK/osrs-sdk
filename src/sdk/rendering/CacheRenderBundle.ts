@@ -3,12 +3,16 @@ import { CacheRenderReference, cacheRenderItemKey } from "./CacheRenderReference
 export const CACHE_RENDER_BUNDLE_SCHEMA_VERSION = 1;
 
 export type CacheRenderAsset = { file: string; sha256: string; bytes?: number };
+export type CacheRenderScenePlacement = { assetId: string; x: number; y: number; plane: number; width?: number; height?: number };
+export type CacheRenderScene = { regionId: number; placements: CacheRenderScenePlacement[]; mirrorY?: boolean; width?: number; height?: number };
 export type CacheRenderBundleManifest = {
   schemaVersion: number;
   bundleVersion: string;
   cache: { revision: number; source: string; contentHash: string };
   assets: Record<string, CacheRenderAsset>;
   references: Record<string, string[]>;
+  /** Cache-derived static scene recipes. Geometry is stored in assets and reused by placement. */
+  scenes?: Record<string, CacheRenderScene>;
   /** Maps semantic SDK item IDs (item:<id>) or legacy names to composable player payloads. */
   playerItems?: Record<string, string>;
   spotAnims?: Record<string, string>;
@@ -39,6 +43,17 @@ export function validateCacheRenderBundleManifest(value: any): CacheRenderBundle
       Object.values(value.spotAnims).some((id: any) => typeof id !== "string"))) {
     throw new CacheRenderBundleError("manifest", "Invalid spot animation asset mapping");
   }
+  if (value.scenes !== undefined && (!value.scenes || typeof value.scenes !== "object" ||
+      Object.values(value.scenes).some((scene: any) => !scene || !Number.isInteger(scene.regionId) || !Array.isArray(scene.placements) ||
+        (scene.mirrorY !== undefined && typeof scene.mirrorY !== "boolean") ||
+        (scene.width !== undefined && (!Number.isInteger(scene.width) || scene.width <= 0)) ||
+        (scene.height !== undefined && (!Number.isInteger(scene.height) || scene.height <= 0)) ||
+        scene.placements.some((placement: any) => !placement || typeof placement.assetId !== "string" ||
+          !Number.isFinite(placement.x) || !Number.isFinite(placement.y) || !Number.isFinite(placement.plane) ||
+          (placement.width !== undefined && (!Number.isFinite(placement.width) || placement.width <= 0)) ||
+          (placement.height !== undefined && (!Number.isFinite(placement.height) || placement.height <= 0)))))) {
+    throw new CacheRenderBundleError("manifest", "Invalid scene recipe");
+  }
   if (value.sharedAssets !== undefined && (!value.sharedAssets || typeof value.sharedAssets !== "object" ||
       (value.sharedAssets.playerAnimations !== undefined && typeof value.sharedAssets.playerAnimations !== "string"))) {
     throw new CacheRenderBundleError("manifest", "Invalid shared asset mapping");
@@ -50,7 +65,8 @@ export function validateCacheRenderBundleManifest(value: any): CacheRenderBundle
   if (reference.kind === "npc") return `npc:${reference.definitionId}`;
   if (reference.kind === "model") return `model:${reference.modelId}`;
   if (reference.kind === "spotAnim") return "spotAnim";
-  return `player:${reference.loadout.map(cacheRenderItemKey).join(",")}`;
+  if (reference.kind === "player") return `player:${reference.loadout.map(cacheRenderItemKey).join(",")}`;
+  return "asset";
 }
 
 async function sha256(bytes: ArrayBuffer): Promise<string> {
@@ -84,6 +100,7 @@ export class CacheRenderBundle {
 
   assetIds(reference: CacheRenderReference): string[] {
     if (reference.kind === "spotAnim") return [];
+    if (reference.kind === "asset") return [reference.assetId];
     if (reference.kind === "player" && this.manifest.playerItems) {
       const itemIds = reference.loadout.map((item) => this.manifest.playerItems[cacheRenderItemKey(item)] || this.manifest.playerItems[item]);
       const missing = reference.loadout.filter((item, index) => !itemIds[index]);
@@ -96,7 +113,7 @@ export class CacheRenderBundle {
   }
 
   spotAnimIds(reference: CacheRenderReference): string[] {
-    const spotAnims = reference.kind === "model" ? undefined : reference.spotAnims;
+    const spotAnims = reference.kind === "model" || reference.kind === "asset" ? undefined : reference.spotAnims;
     return (spotAnims ?? []).map((spotAnim) => this.manifest.spotAnims?.[String(spotAnim.id)]).filter((id): id is string => Boolean(id));
   }
 

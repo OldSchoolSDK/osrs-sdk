@@ -260,7 +260,7 @@ export class CacheRenderModel implements Model, RenderableListener {
   private meshGeneration = -1;
 
   constructor(private renderable: Renderable, private reference: CacheRenderReference) {
-    this.activeSpotAnims = this.currentSpotAnims(reference.kind === "model" ? undefined : reference.spotAnims);
+    this.activeSpotAnims = this.currentSpotAnims(reference.kind === "model" || reference.kind === "asset" ? undefined : reference.spotAnims);
     // A spotanim-only renderable has no actor animation transition to start
     // playback. Its own graphic timeline begins as soon as it is created.
     if (reference.kind === "spotAnim") this.animationPlaying = true;
@@ -326,7 +326,7 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.animayaGroups = [];
     this.animayaScales = [];
     this.spotAnims = [];
-    this.activeSpotAnims = this.currentSpotAnims(this.reference.kind === "model" ? undefined : this.reference.spotAnims);
+    this.activeSpotAnims = this.currentSpotAnims(this.reference.kind === "model" || this.reference.kind === "asset" ? undefined : this.reference.spotAnims);
   }
   async preload() { await this.ensureLoaded(); }
 
