@@ -12,7 +12,7 @@ import { Model } from "./Model";
 // Static arena recipes commonly contain more than 128 repeated floor or wall
 // objects. Pools are shared per cache asset, so retain a conservative but
 // scene-capable ceiling without duplicating their geometry.
-const MAX_INSTANCES = 4096;
+const DEFAULT_MAX_INSTANCES = 128;
 type Pool = {
   mesh: THREE.InstancedMesh; ready: Promise<void>; next: number; free: number[]; active: Set<number>;
   scaleX: number; scaleY: number; positions: Float32Array; groups: number[][]; sources: number[];
@@ -35,7 +35,13 @@ export class CacheRenderInstancedModel implements Model {
   private transform = new THREE.Object3D();
   private destroyed = false;
 
-  constructor(private renderable: Renderable, private reference: CacheRenderReference) {}
+  /**
+   * 
+   * @param renderable 
+   * @param reference 
+   * @param maxInstances max instances of this instanced model. Note that we pre-allocate this many models, so don't set it too high (especially for complex models like the scene)
+   */
+  constructor(private renderable: Renderable, private reference: CacheRenderReference, private maxInstances = DEFAULT_MAX_INSTANCES) {}
 
   static forRenderable(renderable: Renderable, reference: CacheRenderReference) {
     return new CacheRenderInstancedModel(renderable, reference);
@@ -97,11 +103,11 @@ export class CacheRenderInstancedModel implements Model {
           polygonOffsetFactor: terrain ? 1 : 0,
           polygonOffsetUnits: terrain ? 1 : 0,
         });
-        pool!.mesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCES);
+        pool!.mesh = new THREE.InstancedMesh(geometry, material, this.maxInstances);
         pool!.mesh.frustumCulled = false;
         // Hide unclaimed instances until their first transform is written.
         const hidden = hiddenMatrix();
-        for (let i = 0; i < MAX_INSTANCES; i++) pool!.mesh.setMatrixAt(i, hidden);
+        for (let i = 0; i < this.maxInstances; i++) pool!.mesh.setMatrixAt(i, hidden);
         pool!.mesh.instanceMatrix.needsUpdate = true;
       });
       pools.set(key, pool);
@@ -112,7 +118,7 @@ export class CacheRenderInstancedModel implements Model {
     if (this.slot < 0) {
       if (!pool.active.size) pool.elapsed = 0;
       const reused = pool.free.pop();
-      if (reused == null && pool.next >= MAX_INSTANCES) throw new Error("Cache render instance capacity exceeded");
+      if (reused == null && pool.next >= this.maxInstances) throw new Error("Cache render instance capacity exceeded");
       this.slot = reused ?? pool.next++;
       pool.active.add(this.slot);
     }
@@ -125,7 +131,7 @@ export class CacheRenderInstancedModel implements Model {
       if (pool.mesh.parent !== scene) scene.add(pool.mesh);
       // Wall men all use the same idle sequence. Apply the CPU deformation
       // once, on the first instance, then all placements share the result.
-      let leader = MAX_INSTANCES;
+      let leader = this.maxInstances;
       pool.active.forEach((slot) => { leader = Math.min(leader, slot); });
       // Do not consume a short spotanim timeline while its entity is still
       // waiting for its delayed visual reveal (or while the payload loads).

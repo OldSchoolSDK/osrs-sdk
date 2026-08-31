@@ -3,7 +3,13 @@ export const CACHE_RENDER_BUNDLE_SCHEMA_VERSION = 1;
 
 export type CacheRenderAsset = { file: string; sha256: string; bytes?: number };
 export type CacheRenderScenePlacement = { assetId: string; x: number; y: number; plane: number; width?: number; height?: number };
-export type CacheRenderScene = { regionId: number; placements: CacheRenderScenePlacement[]; mirrorY?: boolean; width?: number; height?: number };
+export type CacheRenderScene = {
+  regionId: number;
+  /** Build-time source recipe. It is omitted from published compiled bundles. */
+  placements?: CacheRenderScenePlacement[];
+  mirrorY?: boolean; width?: number; height?: number;
+  compiledAssets: { opaque?: string; transparent?: string };
+};
 export type CacheRenderBundleManifest = {
   schemaVersion: number;
   bundleVersion: string;
@@ -25,11 +31,13 @@ export function isCacheRenderBundleManifest(value: any): value is CacheRenderBun
   if (value.spotAnims !== undefined && (!value.spotAnims || typeof value.spotAnims !== "object" || Object.values(value.spotAnims).some((id: any) => typeof id !== "string"))) return false;
   if (value.sharedAssets !== undefined && (!value.sharedAssets || typeof value.sharedAssets !== "object" || (value.sharedAssets.playerAnimations !== undefined && typeof value.sharedAssets.playerAnimations !== "string"))) return false;
   return value.scenes === undefined || (typeof value.scenes === "object" && Object.values(value.scenes).every((scene: any) =>
-    scene && Number.isInteger(scene.regionId) && Array.isArray(scene.placements) &&
+    scene && Number.isInteger(scene.regionId) && (scene.placements === undefined || Array.isArray(scene.placements)) && scene.compiledAssets && typeof scene.compiledAssets === "object" &&
+    (scene.compiledAssets.opaque === undefined || typeof scene.compiledAssets.opaque === "string") &&
+    (scene.compiledAssets.transparent === undefined || typeof scene.compiledAssets.transparent === "string") &&
     (scene.mirrorY === undefined || typeof scene.mirrorY === "boolean") &&
     (scene.width === undefined || (Number.isInteger(scene.width) && scene.width > 0)) &&
     (scene.height === undefined || (Number.isInteger(scene.height) && scene.height > 0)) &&
-    scene.placements.every((placement: any) => placement && typeof placement.assetId === "string" && Number.isFinite(placement.x) && Number.isFinite(placement.y) && Number.isFinite(placement.plane) &&
+    (scene.placements ?? []).every((placement: any) => placement && typeof placement.assetId === "string" && Number.isFinite(placement.x) && Number.isFinite(placement.y) && Number.isFinite(placement.plane) &&
       (placement.width === undefined || (Number.isFinite(placement.width) && placement.width > 0)) &&
       (placement.height === undefined || (Number.isFinite(placement.height) && placement.height > 0)))));
 }

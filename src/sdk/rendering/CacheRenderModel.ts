@@ -66,15 +66,18 @@ function needsVertexAlpha(payload: Payload) {
 
 export function mergePayloads(payloads: Payload[]): Payload {
   const nonEmpty = payloads.filter((payload) => (payload.indices?.length ?? 0) > 0 || payload.positions.length > 3);
-  const positions: number[] = [];
-  const indices: number[] = [];
-  const vertexGroups: number[][] = [];
-  const alphaGroups: number[][] = [];
-  const sourceVertices: number[] = [];
-  const animayaGroups: number[][] = [], animayaScales: number[][] = [];
-  const colors: number[] = [];
-  const alphas: number[] = [];
-  const uvs: number[] = [], textureIds: number[] = [];
+  // note: mutable references so we can x = x.concat(y) instead of x.push(...y), which hits stack limits
+  let positions: number[] = [];
+  let indices: number[] = [];
+  let vertexGroups: number[][] = [];
+  let alphaGroups: number[][] = [];
+  let sourceVertices: number[] = [];
+  let animayaGroups: number[][] = [];
+  let animayaScales: number[][] = [];
+  let colors: number[] = [];
+  let alphas: number[] = [];
+  let uvs: number[] = [];
+  let textureIds: number[] = [];
   const textures: Record<string, TexturePayload> = {};
   const animations: Record<string, AnimationPayload> = {};
   // Animation metadata may live in a geometry-free shared payload. Collect it
@@ -97,12 +100,12 @@ export function mergePayloads(payloads: Payload[]): Payload {
   let sourceVertexOffset = 0;
   nonEmpty.forEach((payload) => {
     const localVertexCount = payload.positions.length / 3;
-    positions.push(...payload.positions);
-    if (payload.colors) colors.push(...payload.colors);
-    if (payload.alphas) alphas.push(...payload.alphas);
-    else alphas.push(...Array(localVertexCount).fill(0));
-    if (payload.uvs) uvs.push(...payload.uvs);
-    if (payload.textureIds) textureIds.push(...payload.textureIds);
+    positions = positions.concat(payload.positions);
+    if (payload.colors) colors = colors.concat(payload.colors);
+    if (payload.alphas) alphas = alphas.concat(payload.alphas);
+    else alphas = alphas.concat(Array(localVertexCount).fill(0));
+    if (payload.uvs) uvs = uvs.concat(payload.uvs);
+    if (payload.textureIds) textureIds = textureIds.concat(payload.textureIds);
     Object.assign(textures, payload.textures ?? {});
     const localSources = payload.sourceVertices?.length === localVertexCount
       ? payload.sourceVertices
@@ -120,12 +123,12 @@ export function mergePayloads(payloads: Payload[]): Payload {
         }
         return ids;
       })();
-    sourceVertices.push(...localSources.map((index) => index + sourceVertexOffset));
-    animayaGroups.push(...Array.from({ length: localVertexCount }, (_, index) => payload.animayaGroups?.[index] ?? []));
-    animayaScales.push(...Array.from({ length: localVertexCount }, (_, index) => payload.animayaScales?.[index] ?? []));
+    sourceVertices = sourceVertices.concat(localSources.map((index) => index + sourceVertexOffset));
+    animayaGroups = animayaGroups.concat(Array.from({ length: localVertexCount }, (_, index) => payload.animayaGroups?.[index] ?? []));
+    animayaScales = animayaScales.concat(Array.from({ length: localVertexCount }, (_, index) => payload.animayaScales?.[index] ?? []));
     sourceVertexOffset += Math.max(localVertexCount, localSources.reduce((max, index) => Math.max(max, index + 1), 0));
     const localIndices = payload.indices ?? Array.from({ length: payload.positions.length / 3 }, (_, index) => index);
-    indices.push(...localIndices.map((index) => index + vertexOffset));
+    indices = indices.concat(localIndices.map((index) => index + vertexOffset));
     vertexOffset += payload.positions.length / 3;
     (payload.vertexGroups ?? []).forEach((group, groupIndex) => {
       vertexGroups[groupIndex] ??= [];

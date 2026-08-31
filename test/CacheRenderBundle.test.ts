@@ -16,9 +16,9 @@ test("validates a compiled scene recipe with reusable object assets", () => {
   const manifest = validateCacheRenderBundleManifest({
     schemaVersion: 1, bundleVersion: "test", cache: { revision: 236, source: "openrs2:2437", contentHash: sha },
     assets: { wall: { file: "wall.bin", sha256: sha } }, references: {},
-    scenes: { "region:9043": { regionId: 9043, placements: [{ assetId: "wall", x: 27, y: 52, plane: 0 }] } },
+    scenes: { "region:9043": { regionId: 9043, compiledAssets: { opaque: "wall" }, placements: [{ assetId: "wall", x: 27, y: 52, plane: 0 }] } },
   });
-  expect(manifest.scenes?.["region:9043"].placements).toHaveLength(1);
+  expect(manifest.scenes?.["region:9043"].compiledAssets.opaque).toBe("wall");
 });
 test("decodes binary render payloads", () => {
   const json = new TextEncoder().encode(JSON.stringify({ version: 1, positions: [0, 0, 0] }));

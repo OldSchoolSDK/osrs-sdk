@@ -1,6 +1,7 @@
 /* Adapter for Dezinater/osrscachereader. Kept Node-only: this file is never bundled. */
 import { RSCache, IndexType, ConfigType, ModelGroup } from "../../../osrscachereader/src/reader.js";
 import { applySceneTouchups } from "./scene-touchups.mts";
+import { compileScene } from "./compile-scene.mts";
 
 const itemKey = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -282,8 +283,7 @@ async function sceneAssets(cache, regionId, assets) {
     mirrorY: true,
     width: 64,
     height: 64,
-    // Tiles remain unrendered in this first individual-object pass. Heights
-    // are retained for a future terrain/contoured-ground pass.
+    compiledAssets: {},
     placements: [{ assetId: `scene-${regionId}-terrain`, x: 0, y: 0, plane: 0 }, ...placements.filter((placement) => available.has(placement.assetId))],
   };
 }
@@ -570,10 +570,23 @@ export async function decodeSample({ cachePath, revision }) {
   }
   const sceneRegionIds = [INFERNO_REGION_ID, COLOSSEUM_REGION_ID];
   for (const regionId of sceneRegionIds) assets.push(await terrainAsset(cache, regionId));
-  const scenes = Object.fromEntries(await Promise.all(sceneRegionIds.map(async (regionId) => [
-    `region:${regionId}`,
-    await sceneAssets(cache, regionId, assets),
-  ])));
+  const scenes = {};
+  for (const regionId of sceneRegionIds) {
+    const recipe = await sceneAssets(cache, regionId, assets);
+    const compiled = compileScene(recipe, assets);
+    assets.push(...compiled);
+    recipe.compiledAssets = Object.fromEntries(compiled.map((asset) => [asset.id.endsWith("-transparent") ? "transparent" : "opaque", asset.id]));
+    delete recipe.placements;
+    scenes[`region:${regionId}`] = recipe;
+  }
+  // The placement payloads were inputs to compilation only. Do not publish
+  // them: runtime has no fallback path and shipping them would make the
+  // manifest (and accidental client fetch surface) scale with scene objects.
+  const sceneInputPrefix = new Set(sceneRegionIds.map((regionId) => `scene-${regionId}-`));
+  for (let index = assets.length - 1; index >= 0; index--) {
+    const id = assets[index].id;
+    if ([...sceneInputPrefix].some((prefix) => id.startsWith(prefix)) && !id.includes("-compiled-")) assets.splice(index, 1);
+  }
   await cache.close?.();
   const rev = Number(revision || 0);
   return {
