@@ -15,7 +15,7 @@ async function json(url) {
 async function download(url, destination) {
   await execFileAsync("curl", ["--fail", "--location", "--silent", "--show-error", "--retry", "3", "--connect-timeout", "30", "--output", destination, url]);
 }
-const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const requestedId = process.argv[2] ? Number(process.argv[2]) : undefined;
 if (requestedId !== undefined && (!Number.isSafeInteger(requestedId) || requestedId < 1)) throw new Error("Cache id must be a positive OpenRS2 cache id");
 

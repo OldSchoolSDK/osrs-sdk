@@ -5,7 +5,7 @@ import { readFile, stat } from "node:fs/promises";
 import { dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "cache-render-bundle");
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "cache-render-bundle");
 const port = Number(process.argv[2] || process.env.CACHE_RENDER_PORT || 8081);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Port must be between 1 and 65535");
 const contentTypes = { ".json": "application/json", ".bin": "application/octet-stream" };

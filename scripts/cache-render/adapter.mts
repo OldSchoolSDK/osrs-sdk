@@ -1,56 +1,12 @@
 /* Adapter for Dezinater/osrscachereader. Kept Node-only: this file is never bundled. */
-import { RSCache, IndexType, ConfigType, ModelGroup } from "../../osrscachereader/src/reader.js";
+import { RSCache, IndexType, ConfigType, ModelGroup } from "../../../osrscachereader/src/reader.js";
+import { applySceneTouchups } from "./scene-touchups.mts";
 
 const itemKey = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 const NPC_ID = 8373; // Verzik Vitur (phase 3)
 const INFERNO_REGION_ID = 9043;
-
-// Presentation adjustments belong to the scene recipe, not the renderer.
-// These reproduce InfernoSceneOverrider from OSRS-Environment-Exporter while
-// keeping future scene-editor changes small, reviewable data edits.
-const SCENE_TOUCHUPS = {
-  [INFERNO_REGION_ID]: {
-    replacements: [
-      { x: 27, y: 52, objectId: 30340, orientation: 1 },
-      { x: 27, y: 55, objectId: 30327, orientation: 2 },
-      { x: 27, y: 54, objectId: 30342, orientation: 1 },
-      // The cache has a separate plane-1 location at this tile; replace only
-      // the ground-plane wall to avoid stacking two copies of the corner.
-      { x: 27, y: 56, z: 0, objectId: 30328, orientation: 2 },
-      { x: 35, y: 52, objectId: 30339, orientation: 3 },
-      { x: 35, y: 54, objectId: 30341, orientation: 3 },
-      { x: 28, y: 52, objectId: 30345, orientation: 3 },
-      { x: 33, y: 52, objectId: 30345, orientation: 3 },
-    ],
-    rectangleReplacements: [
-      { xMin: 26, xMax: 33, yMin: 50, yMax: 54, objectId: 30291 }, // Zuk-side lava
-    ],
-    removals: [
-      { xMin: 17, xMax: 45, yMin: 17, yMax: 45 }, // exporter clutter removal
-    ],
-  },
-};
-
-function applySceneTouchups(regionId, location) {
-  const touchups = SCENE_TOUCHUPS[regionId];
-  if (!touchups) return location;
-  const { localX: x, localY: y } = location.position;
-  let result = location;
-  for (const replacement of touchups.replacements) {
-    // Kotlin's SceneOverrider returns immediately. In particular, these
-    // hand-authored corner walls must win over the broader lava rectangle.
-    if (replacement.x === x && replacement.y === y && (replacement.z === undefined || replacement.z === location.position.height)) {
-      return { ...result, id: replacement.objectId, orientation: replacement.orientation ?? result.orientation };
-    }
-  }
-  for (const replacement of touchups.rectangleReplacements) {
-    if (x >= replacement.xMin && x <= replacement.xMax && y >= replacement.yMin && y <= replacement.yMax) {
-      return { ...result, id: replacement.objectId, orientation: replacement.orientation ?? result.orientation };
-    }
-  }
-  return touchups.removals.some((removal) => x >= removal.xMin && x <= removal.xMax && y >= removal.yMin && y <= removal.yMax) ? null : result;
-}
+const COLOSSEUM_REGION_ID = 7216;
 
 function hslRgb(hsl) {
   const hue = ((hsl >> 10) & 63) / 64 + 0.5 / 64, saturation = ((hsl >> 7) & 7) / 8 + 0.5 / 8, luminance = (hsl & 127) / 128;
@@ -166,7 +122,12 @@ async function terrainAsset(cache, regionId) {
     // CacheRenderInstancedModel already supplies the scene's floor origin;
     // retain only the terrain height relative to this region's base elevation.
     const heightAt = (cornerX, cornerY) => ((tileHeights[cornerX]?.[cornerY] ?? baseHeight) - baseHeight) / 128;
-    const shape = Math.max(1, Math.min(13, Math.floor(tile.overlayPath ?? 0) + 1));
+    const fullOverlay = tile?.overlayId > 0 && Math.floor(tile.overlayPath ?? 0) === 0;
+    // Kotlin's overlayPath==1 TilePaint branch is overlay-only. A transparent
+    // 0xFF00FF overlay therefore leaves no terrain face at all, even if the
+    // cache tile also carries an underlay ID.
+    if (fullOverlay && tileColors.transparentOverlay) continue;
+    const shape = fullOverlay ? 1 : Math.max(1, Math.min(13, Math.floor(tile.overlayPath ?? 0) + 1));
     // Object locations are mirrored onto trainer Y. Mirror the tile geometry
     // too; reflection reverses overlay-path rotation.
     const rotation = (-(tile.overlayRotation ?? 0)) & 3;
@@ -205,7 +166,7 @@ async function terrainAsset(cache, regionId) {
       const a = vertices[rotateIndex(pathShape[i + 1])], b = vertices[rotateIndex(pathShape[i + 2])], c = vertices[rotateIndex(pathShape[i + 3])];
       for (const point of [a, b, c]) {
         const index = positions.length / 3;
-        const color = pathShape[i] === 0 ? underlayColor : overlayColor;
+        const color = fullOverlay || pathShape[i] === 1 ? overlayColor : underlayColor;
         positions.push(...point); indices.push(index); colors.push(color); faceColors.push(color); alphas.push(0);
       }
     }
@@ -217,6 +178,53 @@ async function sceneAssets(cache, regionId, assets) {
   const regionX = regionId >> 8;
   const regionY = regionId & 255;
   const locations = (await cache.getLoc(regionX, regionY))?.locations ?? [];
+  const map = await cache.getMap(regionX, regionY);
+  const terrainHeights = map?.getHeights?.() ?? [];
+  const terrainBaseHeight = terrainHeights[0]?.[0]?.[0] ?? 0;
+  const objectTerrain = (location, width, length) => {
+    const x = location.position.localX, y = location.position.localY, plane = location.position.height;
+    const xLow = width + x <= 64 ? x + (width >> 1) : x;
+    const xHigh = width + x <= 64 ? x + ((width + 1) >> 1) : x + 1;
+    const yLow = length + y <= 64 ? y + (length >> 1) : y;
+    const yHigh = length + y <= 64 ? y + ((length + 1) >> 1) : y + 1;
+    const heightAt = (tileX, tileY) => terrainHeights[plane]?.[tileX]?.[tileY] ?? terrainBaseHeight;
+    // Same four footprint samples and averaging convention as
+    // SceneRegionBuilder before it creates the static object entity.
+    const samples = [heightAt(xHigh, yHigh), heightAt(xLow, yHigh), heightAt(xHigh, yLow), heightAt(xLow, yLow)];
+    const height = samples.reduce((sum, value) => sum + value, 0) / samples.length;
+    return { height, elevation: height / 128 - terrainBaseHeight / 128, heightAt, varied: samples.some((value) => value !== height) };
+  };
+  const contourModel = (model, location, width, length, terrain, clipType) => {
+    const xzMagnitude = Math.ceil(Math.sqrt(Math.max(...model.vertexPositionsX.map((value, index) => value * value + model.vertexPositionsZ[index] * model.vertexPositionsZ[index]))));
+    const xOffset = location.position.localX * 128 + width * 64;
+    const yOffset = location.position.localY * 128 + length * 64;
+    const left = (xOffset - xzMagnitude) >> 7, right = (xOffset + xzMagnitude + 127) >> 7;
+    const top = (yOffset - xzMagnitude) >> 7, bottom = (yOffset + xzMagnitude + 127) >> 7;
+    const corners = [terrain.heightAt(left, top), terrain.heightAt(right, top), terrain.heightAt(left, bottom), terrain.heightAt(right, bottom)];
+    if (corners.every((value) => value === terrain.height)) return false;
+    const interpolateHeight = (worldX, worldY) => {
+      const fractionX = worldX & 127, fractionY = worldY & 127;
+      const tileX = worldX >> 7, tileY = worldY >> 7;
+      const first = terrain.heightAt(tileX, tileY), second = terrain.heightAt(tileX + 1, tileY);
+      const third = terrain.heightAt(tileX, tileY + 1), fourth = terrain.heightAt(tileX + 1, tileY + 1);
+      const north = (first * (128 - fractionX) + second * fractionX) >> 7;
+      const south = (third * (128 - fractionX) + fourth * fractionX) >> 7;
+      return (north * (128 - fractionY) + south * fractionY) >> 7;
+    };
+    for (let vertex = 0; vertex < model.vertexCount; vertex++) {
+      const originalY = model.vertexPositionsY[vertex];
+      if (clipType === 0) {
+        model.vertexPositionsY[vertex] = interpolateHeight(xOffset + model.vertexPositionsX[vertex], yOffset + model.vertexPositionsZ[vertex]) + originalY - terrain.height;
+      } else {
+        const scaledY = (-originalY << 16) / terrain.height;
+        if (scaledY < clipType) {
+          const sampled = interpolateHeight(xOffset + model.vertexPositionsX[vertex], yOffset + model.vertexPositionsZ[vertex]);
+          model.vertexPositionsY[vertex] = ((clipType - scaledY) * (sampled - terrain.height)) / clipType + originalY;
+        }
+      }
+    }
+    return true;
+  };
   const variants = new Map();
   const definitions = new Map();
   const placements = [];
@@ -227,8 +235,6 @@ async function sceneAssets(cache, regionId, assets) {
     // rotation. That is the exact input ObjectDefinition.getModel needs to
     // apply definition-specific model selection, recolours, resizing, and
     // offsets before we serialise cache geometry.
-    const key = `${location.id}:${location.type}:${location.orientation}`;
-    const assetId = `scene-${regionId}-object-${location.id}-${location.type}-${location.orientation}`;
     let definition = definitions.get(location.id);
     if (!definition) {
       definition = await cache.getDef(IndexType.CONFIGS.id, ConfigType.OBJECT.id, location.id);
@@ -236,15 +242,35 @@ async function sceneAssets(cache, regionId, assets) {
     }
     const width = (location.orientation & 1) ? (definition?.sizeY ?? 1) : (definition?.sizeX ?? 1);
     const height = (location.orientation & 1) ? (definition?.sizeX ?? 1) : (definition?.sizeY ?? 1);
-    variants.set(key, { assetId, location, definition });
-    placements.push({ assetId, x: location.position.localX, y: location.position.localY, plane: location.position.height, width, height });
+    const terrain = objectTerrain(location, width, height);
+    // Kotlin's SceneRegionBuilder changes the model orientation for wall
+    // corners/diagonal decorations, and WALL_CORNER (type 2) emits a second
+    // perpendicular model. Preserve the source location for placement while
+    // compiling each model orientation as its own reusable payload.
+    const firstModelOrientation = location.type === 2 || location.type === 6 || location.type === 8
+      ? location.orientation + 4
+      : location.type === 7
+        ? ((location.orientation + 2) & 3) + 4
+        : location.orientation;
+    const modelOrientations = location.type === 2
+      ? [firstModelOrientation, (location.orientation + 1) & 3]
+      : [firstModelOrientation];
+    for (const modelOrientation of modelOrientations) {
+      const needsContour = definition?.contouredGround >= 0 && terrain.varied;
+      const contourKey = needsContour ? `:${location.position.localX}:${location.position.localY}:${location.position.height}` : "";
+      const key = `${location.id}:${location.type}:${modelOrientation}${contourKey}`;
+      const assetId = `scene-${regionId}-object-${location.id}-${location.type}-${modelOrientation}${contourKey}`;
+      variants.set(key, { assetId, location, definition, modelOrientation, terrain, width, height, needsContour });
+      placements.push({ assetId, x: location.position.localX, y: location.position.localY, plane: terrain.elevation, width, height });
+    }
   }
-  for (const { assetId, location, definition } of variants.values()) {
-    const model = await definition?.getModel(cache, location.type, location.orientation);
+  for (const { assetId, location, definition, modelOrientation, terrain, width, height, needsContour } of variants.values()) {
+    const model = await definition?.getModel(cache, location.type, modelOrientation);
     // Some map locations are sound/collision-only definitions. They remain in
     // the recipe for accounting, but have no model and should not become an
     // empty render payload.
     if (!model?.vertexCount) continue;
+    if (needsContour) contourModel(model, location, width, height, terrain, definition.contouredGround);
     const result = await attachTextures(cache, payload({ getMergedModel: () => model }));
     assets.push({ id: assetId, payload: result });
   }
@@ -542,8 +568,12 @@ export async function decodeSample({ cachePath, revision }) {
     assets.push({ id: "player-animations", payload: sharedPlayerAnimations });
     sharedAssets = { playerAnimations: "player-animations" };
   }
-  assets.push(await terrainAsset(cache, INFERNO_REGION_ID));
-  const scenes = { [`region:${INFERNO_REGION_ID}`]: await sceneAssets(cache, INFERNO_REGION_ID, assets) };
+  const sceneRegionIds = [INFERNO_REGION_ID, COLOSSEUM_REGION_ID];
+  for (const regionId of sceneRegionIds) assets.push(await terrainAsset(cache, regionId));
+  const scenes = Object.fromEntries(await Promise.all(sceneRegionIds.map(async (regionId) => [
+    `region:${regionId}`,
+    await sceneAssets(cache, regionId, assets),
+  ])));
   await cache.close?.();
   const rev = Number(revision || 0);
   return {

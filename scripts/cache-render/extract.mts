@@ -20,7 +20,11 @@ await mkdir(outputDirectory, { recursive: true });
 // accumulate or remain discoverable alongside the current manifest. Only
 // delete files produced by this extractor; leave unrelated files/directories
 // in the output directory untouched.
-const generatedFile = /^[a-z0-9][a-z0-9-]*\.(?:[a-f0-9]{64})\.bin$/i;
+// Payload ids can contain cache location separators (`:`). A leading colon
+// makes an otherwise relative name look like a URL scheme to `new URL(...)`,
+// so use the content digest as the on-disk/HTTP filename instead. The legacy
+// pattern is retained solely to clean bundles written by older extractors.
+const generatedFile = /^(?:[a-z0-9][a-z0-9:_-]*\.)?[a-f0-9]{64}\.bin$/i;
 for (const entry of await readdir(outputDirectory, { withFileTypes: true })) {
   if (entry.isFile() && (entry.name === "manifest.json" || generatedFile.test(entry.name))) {
     await unlink(resolve(outputDirectory, entry.name));
@@ -33,7 +37,7 @@ for (const asset of decoded.assets.sort((a, b) => a.id.localeCompare(b.id))) {
   const compressed = Buffer.from(gzipSync(json, { level: 6 }));
   const bytes = Buffer.concat([Buffer.from("OSRB"), Buffer.from(Uint32Array.of(compressed.length).buffer), compressed]);
   const hash = createHash("sha256").update(bytes).digest("hex");
-  const file = `${asset.id}.${hash}.bin`;
+  const file = `${hash}.bin`;
   await writeFile(resolve(outputDirectory, file), bytes);
   assets[asset.id] = { file, sha256: hash, bytes: bytes.length };
 }

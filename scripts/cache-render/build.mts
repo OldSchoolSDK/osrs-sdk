@@ -7,13 +7,14 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const run = promisify(execFile);
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const defaultAdapter = resolve(root, "scripts/osrs-cache-adapter.mjs");
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const defaultAdapter = resolve(root, "scripts/cache-render/adapter.mts");
 const args = process.argv.slice(2);
 const requestedId = /^\d+$/.test(args[0] || "") ? args[0] : args[1];
 const adapterPath = /^\d+$/.test(args[0] || "") || !args[0] ? defaultAdapter : resolve(args[0]);
-const downloader = resolve(root, "scripts/download-openrs2-cache.mjs");
-await run(process.execPath, [downloader, ...(requestedId ? [requestedId] : [])], { cwd: root, stdio: "inherit" });
+const tsx = resolve(root, "node_modules", ".bin", process.platform === "win32" ? "tsx.cmd" : "tsx");
+const downloader = resolve(root, "scripts/cache-render/download.mts");
+await run(tsx, [downloader, ...(requestedId ? [requestedId] : [])], { cwd: root, stdio: "inherit" });
 const metadataRoot = resolve(root, ".cache-render", "openrs2");
 let id = requestedId || (await readFile(resolve(metadataRoot, "latest"), "utf8").catch(() => "")).trim();
 if (!id) {
@@ -30,4 +31,4 @@ if (!id) {
 }
 const metadata = JSON.parse(await readFile(resolve(metadataRoot, String(id), "openrs2.json"), "utf8"));
 const revision = metadata.builds?.[0]?.major ?? id;
-await run(process.execPath, [resolve(root, "scripts/extract-cache-render-bundle.mjs"), adapterPath, resolve(metadataRoot, String(id), "cache"), resolve(root, "cache-render-bundle")], { cwd: root, stdio: "inherit", env: { ...process.env, OSRS_CACHE_REVISION: String(revision), OSRS_CACHE_SOURCE: `openrs2:${id}` } });
+await run(tsx, [resolve(root, "scripts/cache-render/extract.mts"), adapterPath, resolve(metadataRoot, String(id), "cache"), resolve(root, "cache-render-bundle")], { cwd: root, stdio: "inherit", env: { ...process.env, OSRS_CACHE_REVISION: String(revision), OSRS_CACHE_SOURCE: `openrs2:${id}` } });
