@@ -1,5 +1,9 @@
 declare const __OSRS_ASSET_BASE_URL__: string;
 
+/** Public CDN used by default for GLB and UI assets. Build-time configuration
+ * can still override this for a development or self-hosted deployment. */
+export const DEFAULT_OSRS_ASSET_BASE_URL = "https://assets-soltrainer.netlify.app";
+
 export class Assets {
   static assetCount = 0;
   static loadingAssetUrls = [];
@@ -14,7 +18,7 @@ export class Assets {
     const configuredBaseUrl = typeof __OSRS_ASSET_BASE_URL__ !== "undefined"
       ? __OSRS_ASSET_BASE_URL__
       : "";
-    const baseUrl = configuredBaseUrl || "https://oldschool-cdn.com";
+    const baseUrl = configuredBaseUrl || DEFAULT_OSRS_ASSET_BASE_URL;
     const url = `${baseUrl.replace(/\/$/, "")}/${asset}`;
     if (Assets.loadedAssets[url]) {
       return url;

@@ -5,12 +5,19 @@ import { cachedPayload } from "./CacheRenderModel";
 import { Model } from "./Model";
 
 /** Renders pipeline-compiled static scene meshes (opaque + transparent). */
+export type CacheRenderSceneModelOptions = {
+  /** Integration offset supplied by the consuming arena, in world units. */
+  elevation?: number;
+  /** Trainer-local XY translation; cache scene vertices remain region-local. */
+  originOffset?: { x?: number; y?: number };
+};
+
 export class CacheRenderSceneModel implements Model {
   private ready: Promise<void> | null = null;
   private root = new THREE.Group();
   private worldPosition = new THREE.Vector3();
   private destroyed = false;
-  constructor(private readonly sceneId: string) {}
+  constructor(private readonly sceneId: string, private readonly options: CacheRenderSceneModelOptions = {}) {}
   private async ensureLoaded() {
     if (this.ready) return this.ready;
     this.ready = (async () => {
@@ -32,7 +39,7 @@ export class CacheRenderSceneModel implements Model {
     })(); return this.ready;
   }
   draw(scene: THREE.Scene, _clockDelta: number, _tickPercent: number, location: Location3, _angleRadians: number, _pitchRadians: number, visible: boolean, _modelOffsets: Location3[]) {
-    this.ensureLoaded().then(() => { if (this.destroyed) return; if (this.root.parent !== scene) scene.add(this.root); this.root.position.set(location.x + .5, location.z - .49, location.y - .5); this.root.visible = visible; this.worldPosition.set(location.x, location.z, location.y); }).catch((error) => console.error("[osrs-sdk] Compiled cache scene failed", error));
+    this.ensureLoaded().then(() => { if (this.destroyed) return; if (this.root.parent !== scene) scene.add(this.root); this.root.position.set(location.x + .5 + (this.options.originOffset?.x ?? 0), location.z - .49 + (this.options.elevation ?? 0), location.y - .5 + (this.options.originOffset?.y ?? 0)); this.root.visible = visible; this.worldPosition.set(location.x, location.z, location.y); }).catch((error) => console.error("[osrs-sdk] Compiled cache scene failed", error));
   }
   destroy(scene: THREE.Scene) { this.destroyed = true; scene.remove(this.root); this.root.traverse((object: any) => { if (object.isMesh) { object.geometry.dispose(); object.material.dispose(); } }); }
   getWorldPosition() { return this.worldPosition; }
