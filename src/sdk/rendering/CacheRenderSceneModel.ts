@@ -1,69 +1,40 @@
 import * as THREE from "three";
-import { Location, Location3 } from "../Location";
-import { Renderable } from "../Renderable";
-import { CacheRender, CacheRenderScenePlacement } from "./CacheRenderBundle";
-import { CacheRenderInstancedModel } from "./CacheRenderInstancedModel";
-import { CacheRenderReferences } from "./CacheRenderReference";
+import { Location3 } from "../Location";
+import { CacheRender } from "./CacheRenderBundle";
+import { cachedPayload } from "./CacheRenderModel";
 import { Model } from "./Model";
 
-class ScenePlacement extends Renderable {
-  constructor(private readonly placement: CacheRenderScenePlacement) { super(); }
-  getPerceivedLocation(_tickPercent: number): Location3 { return { x: this.placement.x, y: this.placement.y, z: this.placement.plane }; }
-  getPerceivedRotation(_tickPercent: number) { return 0; }
-  getTrueLocation(): Location { return { x: this.placement.x, y: this.placement.y }; }
-  get size() { return 1; }
-  get color() { return "#000000"; }
-  get animationIndex() { return -1; }
-  shouldDestroy() { return false; }
-  get selectable() { return false; }
-}
-
-/** Draws asset-pipeline-compiled static scene meshes. */
+/** Renders pipeline-compiled static scene meshes (opaque + transparent). */
 export class CacheRenderSceneModel implements Model {
   private ready: Promise<void> | null = null;
-  private models: CacheRenderInstancedModel[] = [];
+  private root = new THREE.Group();
   private worldPosition = new THREE.Vector3();
   private destroyed = false;
-
   constructor(private readonly sceneId: string) {}
-
   private async ensureLoaded() {
     if (this.ready) return this.ready;
     this.ready = (async () => {
-      const bundle = await CacheRender.bundle();
-      const recipe = bundle.manifest.scenes?.[this.sceneId];
+      const bundle = await CacheRender.bundle(); const recipe = bundle.manifest.scenes?.[this.sceneId];
       if (!recipe) throw new Error(`Bundle has no static scene recipe for ${this.sceneId}`);
-      const assetIds = Object.values(recipe.compiledAssets ?? {});
-      if (!assetIds.length) throw new Error(`Scene ${this.sceneId} has no compiled geometry`);
-      const placement: CacheRenderScenePlacement = { assetId: "compiled-scene", x: 0, y: 0, plane: 0 };
-      this.models = assetIds.map((assetId) => {
-        // we only want 1 instance of this (in fact, should we even be using instances for this?)
-        return new CacheRenderInstancedModel(new ScenePlacement(placement), CacheRenderReferences.asset(assetId), 1);
-      });
-      await Promise.all(this.models.map((model) => model.preload()));
-    })();
-    return this.ready;
+      for (const [kind, assetId] of Object.entries(recipe.compiledAssets)) {
+        if (!assetId) continue;
+        const chunks = (await cachedPayload(bundle, assetId)).chunks ?? [];
+        if (!chunks.length) throw new Error(`Compiled scene asset ${assetId} has no chunks`);
+        const material = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, flatShading: true, transparent: kind === "transparent", alphaTest: 0.01 });
+        chunks.forEach((chunk) => {
+          const geometry = new THREE.BufferGeometry(); geometry.setAttribute("position", new THREE.Float32BufferAttribute(chunk.positions, 3));
+          const colors: number[] = [];
+          chunk.colors.forEach((value, index) => { const color = new THREE.Color(value); colors.push(color.r, color.g, color.b, 1 - (chunk.alphas[index] & 255) / 255); });
+          geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 4)); geometry.setIndex(chunk.indices); geometry.computeVertexNormals();
+          this.root.add(new THREE.Mesh(geometry, material));
+        });
+      }
+    })(); return this.ready;
   }
-
-  draw(scene: THREE.Scene, clockDelta: number, tickPercent: number, location: Location3, _angleRadians: number, _pitchRadians: number, visible: boolean, _modelOffsets: Location3[]) {
-    this.ensureLoaded().then(() => {
-      if (this.destroyed) return;
-      this.worldPosition.set(location.x, location.z, location.y);
-      this.models.forEach((model) => {
-        model.draw(scene, clockDelta, tickPercent, {
-          x: location.x, y: location.y, z: location.z,
-        // The compiler bakes object and terrain orientation, so cancel the
-        // instancer's actor-facing +90-degree rotation once for the whole scene.
-        }, -Math.PI / 2, 0, visible, [{ x: 0, y: 0, z: 0 }]);
-      });
-    }).catch((error) => console.error("[osrs-sdk] Cache scene preload failed", error));
+  draw(scene: THREE.Scene, _clockDelta: number, _tickPercent: number, location: Location3, _angleRadians: number, _pitchRadians: number, visible: boolean, _modelOffsets: Location3[]) {
+    this.ensureLoaded().then(() => { if (this.destroyed) return; if (this.root.parent !== scene) scene.add(this.root); this.root.position.set(location.x + .5, location.z - .49, location.y - .5); this.root.visible = visible; this.worldPosition.set(location.x, location.z, location.y); }).catch((error) => console.error("[osrs-sdk] Compiled cache scene failed", error));
   }
-
-  destroy(scene: THREE.Scene) {
-    this.destroyed = true;
-    this.models.forEach((model) => model.destroy(scene));
-  }
-
+  destroy(scene: THREE.Scene) { this.destroyed = true; scene.remove(this.root); this.root.traverse((object: any) => { if (object.isMesh) { object.geometry.dispose(); object.material.dispose(); } }); }
   getWorldPosition() { return this.worldPosition; }
   async preload() { await this.ensureLoaded(); }
 }

@@ -16,4 +16,7 @@ export type CacheRenderPayload = {
   animations?: Record<string, CacheRenderAnimation>; poseMap?: Record<string, number>;
   geometryClickbox?: { positions: number[]; indices?: number[] };
   spotAnim?: { id?: number; animationId?: number; resizeX?: number; resizeY?: number; rotation?: number; height?: number; delay?: number };
+  /** Spatially partitioned static geometry, used by compiled region scenes. */
+  chunks?: CacheRenderStaticChunk[];
 };
+export type CacheRenderStaticChunk = Pick<CacheRenderPayload, "positions" | "indices" | "colors" | "faceColors" | "alphas" | "uvs" | "textureIds" | "textures"> & { x: number; y: number };
