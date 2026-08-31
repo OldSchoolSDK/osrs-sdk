@@ -49,6 +49,20 @@ function enableVertexAlpha(material: THREE.Material) {
   };
 }
 
+function needsVertexAlpha(payload: Payload) {
+  // A model with only opaque faces must stay in Three.js's opaque render
+  // queue. Putting it in the transparent queue changes its sorting against
+  // effects such as Sol's sand pools, even though cacheAlpha is always one.
+  // Include legacy type-5 transforms because they can animate face alpha
+  // after an initially-opaque model has loaded.
+  return Boolean(
+    payload.alphas?.some((alpha) => alpha !== 0) ||
+    Object.values(payload.animations ?? {}).some((animation) =>
+      animation.rawFrames?.some((frame) => frame.types.includes(5)),
+    ),
+  );
+}
+
 export function mergePayloads(payloads: Payload[]): Payload {
   const nonEmpty = payloads.filter((payload) => (payload.indices?.length ?? 0) > 0 || payload.positions.length > 3);
   const positions: number[] = [];
@@ -353,19 +367,23 @@ export class CacheRenderModel implements Model, RenderableListener {
       const rawAlphas = payload.alphas?.length === payload.positions.length / 3
         ? payload.alphas.map((value) => value & 255)
         : Array(payload.positions.length / 3).fill(0);
+      const hasVertexAlpha = needsVertexAlpha(payload);
       const alphaValues = rawAlphas.map((value) => 1 - value / 255);
       geometry.setAttribute("cacheAlpha", new THREE.Float32BufferAttribute(alphaValues, 1));
       geometry.setIndex(payload.indices ?? []);
       geometry.computeVertexNormals();
       geometry.computeBoundingSphere();
       const materials: THREE.Material[] = [new THREE.MeshStandardMaterial({ color: payload.color ?? 0xffffff, vertexColors: Boolean(payload.colors?.length), flatShading: true })];
-      enableVertexAlpha(materials[0]);
+      if (hasVertexAlpha) enableVertexAlpha(materials[0]);
       const textureMaterial = new Map<number, number>();
       Object.entries(payload.textures ?? {}).forEach(([id, texture]) => {
         const rgba = new Uint8Array(texture.pixels.length * 4);
         texture.pixels.forEach((pixel, index) => { const value = pixel >>> 0; rgba[index * 4] = value >> 16 & 255; rgba[index * 4 + 1] = value >> 8 & 255; rgba[index * 4 + 2] = value & 255; rgba[index * 4 + 3] = value >> 24 & 255; });
         const image = new THREE.DataTexture(rgba, texture.width, texture.height, THREE.RGBAFormat); image.flipY = false; image.needsUpdate = true;
-        textureMaterial.set(Number(id), materials.length); const textureMaterialInstance = new THREE.MeshStandardMaterial({ map: image, vertexColors: false, flatShading: true }); enableVertexAlpha(textureMaterialInstance); materials.push(textureMaterialInstance);
+        textureMaterial.set(Number(id), materials.length);
+        const textureMaterialInstance = new THREE.MeshStandardMaterial({ map: image, vertexColors: false, flatShading: true });
+        if (hasVertexAlpha) enableVertexAlpha(textureMaterialInstance);
+        materials.push(textureMaterialInstance);
       });
       if (payload.textureIds?.length) {
         geometry.clearGroups();
