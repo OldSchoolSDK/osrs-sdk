@@ -205,7 +205,9 @@ export class Weapon extends Equipment {
 
   _rollAttack(from: Unit, to: Unit, bonuses: AttackBonuses) {
     this.lastHitHit = false;
-    return Random.get() > this._hitChance(from, to, bonuses) ? 0 : this._calculateHitDamage(from, to, bonuses);
+    // Guaranteed max hits bypass accuracy checks.
+    const didHit = from.forceMaxDamageRollsOnNextAttack || Random.get() <= this._hitChance(from, to, bonuses);
+    return didHit ? this._calculateHitDamage(from, to, bonuses) : 0;
   }
 
   _calculateHitDamage(from: Unit, to: Unit, bonuses: AttackBonuses) {

@@ -78,14 +78,17 @@ describe("basic combat scenario", () => {
     world.tickWorld();
   });
 
-  test("a max-damage-roll buff applies to the next successful attack", () => {
+  test("a max-damage-roll buff guarantees the next attack hits for its maximum damage", () => {
     const region = new TestRegion(10, 10);
     const attacker = new TestNpc(region, { x: 4, y: 5 }, {});
     const target = new TestNpc(region, { x: 5, y: 5 }, {});
     const weapon = new MeleeWeapon();
     const bonuses = {};
     const originalRandom = Random.randomFn;
-    Random.setRandom(() => 0);
+    // This always fails an ordinary accuracy roll against the target, so the
+    // max-damage-roll mechanic must bypass accuracy rather than merely fixing
+    // the damage after a successful roll.
+    Random.setRandom(() => 1);
     attacker.grantMaxDamageRollsOnNextAttack();
 
     weapon.attack(attacker, target, bonuses);
