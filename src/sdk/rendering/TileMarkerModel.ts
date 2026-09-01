@@ -2,10 +2,10 @@ import * as THREE from "three";
 import { Model } from "./Model";
 import { Renderable } from "../Renderable";
 import { Location3 } from "../Location";
-import { drawLineOnTop } from "./RenderUtils";
+import { drawLineOnTop, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./RenderUtils";
 
 export class TileMarkerModel implements Model {
-  static forRenderable(r: Renderable, renderOrder: number | null = 1) {
+  static forRenderable(r: Renderable, renderOrder: number | null = GroundOverlayRenderOrder.MARKED_TILE) {
     return new TileMarkerModel(r, renderOrder);
   }
 
@@ -51,7 +51,7 @@ export class TileMarkerModel implements Model {
     const { x, y } = location;
     this.outline.visible = this.renderable.visible(tickPercent) && visible;
     this.outline.position.x = x;
-    this.outline.position.y = -0.49;
+    this.outline.position.y = GROUND_OVERLAY_Y;
     this.outline.position.z = y;
     this.lineMaterial.color.setHex(this.renderable.colorHex);
   }

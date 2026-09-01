@@ -61,8 +61,8 @@ export abstract class Renderable {
     return false;
   }
 
-  // If null, render normally in the scene. Otherwise sets the renderOrder which can
-  // draw it above over elements in the scene, and other lines with lower renderOrder.
+  // If null, use the default ground-overlay priority. Otherwise sets the renderOrder
+  // above other ground overlays with lower render orders.
   get trueTileRenderOrder(): number | null {
     return null;
   }

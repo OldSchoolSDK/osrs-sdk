@@ -6,7 +6,7 @@ import { GLTF, GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { Location, Location3 } from "../Location";
 import { Renderable, RenderableListener } from "../Renderable";
 import { Model } from "./Model";
-import { drawLineNormally, drawLineOnTop } from "./RenderUtils";
+import { drawLineNormally, drawLineOnTop, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./RenderUtils";
 
 const OUTLINE_NORMAL = 0xffffff;
 const OUTLINE_TRUE_TILE = 0x00ffff;
@@ -330,13 +330,9 @@ export class GLTFModel implements Model, RenderableListener {
     if (this.renderable.drawTrueTile) {
       const { x: trueX, y: trueY } = this.renderable.getTrueLocation();
       this.trueTile.position.x = trueX;
-      this.trueTile.position.y = -0.495;
+      this.trueTile.position.y = GROUND_OVERLAY_Y;
       this.trueTile.position.z = trueY;
-      if (this.renderable.trueTileRenderOrder !== null) {
-        drawLineOnTop(this.trueTile, this.renderable.trueTileRenderOrder ?? 1000);
-      } else {
-        drawLineNormally(this.trueTile);
-      }
+      drawLineOnTop(this.trueTile, this.renderable.trueTileRenderOrder ?? GroundOverlayRenderOrder.TRUE_TILE);
     }
      this.trueTile.visible = this.renderable.drawTrueTile && visible;
 

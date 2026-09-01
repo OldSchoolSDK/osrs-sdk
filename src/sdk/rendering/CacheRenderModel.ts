@@ -5,6 +5,7 @@ import { Renderable, RenderableListener } from "../Renderable";
 import { CacheRender, CacheRenderBundle, CacheRenderBundleError } from "./CacheRenderBundle";
 import { CacheRenderReference, CacheRenderSpotAnim } from "./CacheRenderReference";
 import { Model } from "./Model";
+import { drawLineOnTop, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./RenderUtils";
 import { Settings } from "../Settings";
 import { CACHE_RENDER_PAYLOAD_MAGIC, CACHE_RENDER_PAYLOAD_VERSION } from "../../cache-render-format";
 import type { CacheRenderAnimation, CacheRenderPayload, CacheRenderRawFrame, CacheRenderTexture } from "../../cache-render-format";
@@ -287,7 +288,6 @@ export class CacheRenderModel implements Model, RenderableListener {
       new THREE.BufferGeometry().setFromPoints(points),
       new THREE.LineBasicMaterial({ color: 0x00ffff }),
     );
-    if (renderable.trueTileRenderOrder !== null) this.trueTile.renderOrder = renderable.trueTileRenderOrder;
   }
   static forRenderable(renderable: Renderable, reference: CacheRenderReference) { return new CacheRenderModel(renderable, reference); }
   spotAnimChanged(spotAnims: CacheRenderSpotAnim[]) { this.activeSpotAnims = spotAnims.slice(); }
@@ -528,7 +528,8 @@ export class CacheRenderModel implements Model, RenderableListener {
     if (this.trueTile) {
       if (this.trueTile.parent !== scene) scene.add(this.trueTile);
       const trueLocation = this.renderable.getTrueLocation();
-      this.trueTile.position.set(trueLocation.x, -0.495, trueLocation.y);
+      drawLineOnTop(this.trueTile, this.renderable.trueTileRenderOrder ?? GroundOverlayRenderOrder.TRUE_TILE);
+      this.trueTile.position.set(trueLocation.x, GROUND_OVERLAY_Y, trueLocation.y);
       this.trueTile.visible = this.renderable.drawTrueTile && visible;
     }
     this.root.children.forEach((child, index) => {

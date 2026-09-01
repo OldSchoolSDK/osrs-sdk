@@ -17,6 +17,7 @@ import _ from "lodash";
 import { Unit } from "./Unit";
 import { Trainer } from "./Trainer";
 import { Pathing } from "./Pathing";
+import { drawLineOnTop, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./rendering/RenderUtils";
 
 // how many pixels wide should 2d elements be scaled to
 const SPRITE_SCALE = 32;
@@ -147,6 +148,7 @@ export class Viewport3d implements ViewportDelegate {
     ];
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     this.selectedTileMesh = new THREE.LineSegments(geometry, lineMaterial);
+    drawLineOnTop(this.selectedTileMesh, GroundOverlayRenderOrder.HOVERED_TILE);
     this.scene.add(this.selectedTileMesh);
 
     this.animate();
@@ -439,7 +441,7 @@ export class Viewport3d implements ViewportDelegate {
     // highlight selected tile
     if (this.selectedTile) {
       this.selectedTileMesh.position.x = this.selectedTile.x - 0.5;
-      this.selectedTileMesh.position.y = -0.49;
+      this.selectedTileMesh.position.y = GROUND_OVERLAY_Y;
       this.selectedTileMesh.position.z = this.selectedTile.y - 0.5;
       this.selectedTileMesh.visible = !Trainer.clickController.hasSelectedMob();
     }
