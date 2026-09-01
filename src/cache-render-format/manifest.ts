@@ -8,7 +8,7 @@ export type CacheRenderScene = {
   /** Build-time source recipe. It is omitted from published compiled bundles. */
   placements?: CacheRenderScenePlacement[];
   mirrorY?: boolean; width?: number; height?: number;
-  compiledAssets: { opaque?: string; transparent?: string };
+  compiledAssets: { terrain?: string; opaque?: string; transparent?: string };
 };
 export type CacheRenderBundleManifest = {
   schemaVersion: number;
@@ -32,6 +32,7 @@ export function isCacheRenderBundleManifest(value: any): value is CacheRenderBun
   if (value.sharedAssets !== undefined && (!value.sharedAssets || typeof value.sharedAssets !== "object" || (value.sharedAssets.playerAnimations !== undefined && typeof value.sharedAssets.playerAnimations !== "string"))) return false;
   return value.scenes === undefined || (typeof value.scenes === "object" && Object.values(value.scenes).every((scene: any) =>
     scene && Number.isInteger(scene.regionId) && (scene.placements === undefined || Array.isArray(scene.placements)) && scene.compiledAssets && typeof scene.compiledAssets === "object" &&
+    (scene.compiledAssets.terrain === undefined || typeof scene.compiledAssets.terrain === "string") &&
     (scene.compiledAssets.opaque === undefined || typeof scene.compiledAssets.opaque === "string") &&
     (scene.compiledAssets.transparent === undefined || typeof scene.compiledAssets.transparent === "string") &&
     (scene.mirrorY === undefined || typeof scene.mirrorY === "boolean") &&

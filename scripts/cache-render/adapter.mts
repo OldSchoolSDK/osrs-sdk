@@ -9,12 +9,15 @@ const NPC_ID = 8373; // Verzik Vitur (phase 3)
 const INFERNO_REGION_ID = 9043;
 const COLOSSEUM_REGION_ID = 7216;
 
-function hslRgb(hsl) {
+// The SDK's unlit Three.js materials expect the cache palette's established
+// 0.6 gamma adjustment. Tile brightness is applied to packed HSL beforehand;
+// it is not this final RGB conversion.
+function hslRgb(hsl, brightness = 0.6) {
   const hue = ((hsl >> 10) & 63) / 64 + 0.5 / 64, saturation = ((hsl >> 7) & 7) / 8 + 0.5 / 8, luminance = (hsl & 127) / 128;
   const chroma = (1 - Math.abs(2 * luminance - 1)) * saturation, x = chroma * (1 - Math.abs(((hue * 6) % 2) - 1)), lightness = luminance - chroma / 2;
   let r = lightness, g = lightness, b = lightness;
   switch (Math.floor(hue * 6)) { case 0: r += chroma; g += x; break; case 1: g += chroma; r += x; break; case 2: g += chroma; b += x; break; case 3: b += chroma; g += x; break; case 4: b += chroma; r += x; break; default: r += chroma; b += x; }
-  const brighten = (v) => Math.floor(Math.pow(Math.floor(v * 256) / 256, 0.6) * 256);
+  const brighten = (v) => Math.floor(Math.pow(Math.floor(v * 256) / 256, brightness) * 256);
   return (brighten(r) << 16) | (brighten(g) << 8) | brighten(b) || 1;
 }
 
@@ -25,6 +28,26 @@ function packHsl(hue, saturation, lightness) {
   if (lightness > 217) adjustedSaturation /= 2;
   if (lightness > 243) adjustedSaturation /= 2;
   return ((adjustedSaturation / 32 | 0) << 7) + ((hue / 4 | 0) << 10) + (lightness / 2 | 0);
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function multiplyHslBrightness(hsl, brightness = 0x80) {
+  const adjustedBrightness = ((hsl & 0x7f) * brightness) / 0x80;
+  return (hsl & 0xff80) | clamp(adjustedBrightness, 2, 126);
+}
+
+function adjustUnderlayBrightness(hsl, brightness = 0x80) {
+  if (hsl === -1) return 12345678;
+  return multiplyHslBrightness(hsl, brightness);
+}
+
+function adjustOverlayBrightness(hsl, brightness = 0x80) {
+  if (hsl === -2) return 12345678;
+  if (hsl === -1) return clamp(brightness, 2, 126);
+  return multiplyHslBrightness(hsl, brightness);
 }
 
 // RuneScape's scene tile mesh tables (the same tables used by the original
@@ -58,6 +81,25 @@ async function terrainAsset(cache, regionId) {
   const positions = [], indices = [], colors = [], faceColors = [], alphas = [];
   const underlays = new Map();
   const overlays = new Map();
+  // Port of SceneRegionBuilder.calcTileBrightness. The cache format supplies
+  // height and settings, not a precomputed tile brightness value. Lighting is
+  // evaluated at every tile corner, then each TileModel vertex inherits or
+  // averages its adjacent corner colours.
+  const localTile = (x, y) => tiles[clamp(x, 0, 63)]?.[clamp(y, 0, 63)] ?? {};
+  const localHeight = (x, y) => tileHeights[clamp(x, 0, 63)]?.[clamp(y, 0, 63)] ?? baseHeight;
+  const tileBrightness = (x, y) => {
+    const xHeightDiff = localHeight(x + 1, y) - localHeight(x - 1, y);
+    const yHeightDiff = localHeight(x, y + 1) - localHeight(x, y - 1);
+    const magnitude = Math.trunc(Math.hypot(xHeightDiff, yHeightDiff, 256));
+    const normalX = Math.trunc((256 * xHeightDiff) / magnitude) / 256;
+    const normalY = Math.trunc((256 * yHeightDiff) / magnitude) / 256;
+    const normalZ = Math.trunc((256 * 256) / magnitude) / 256;
+    const lightMagnitude = Math.trunc(Math.hypot(-50, -50, -10));
+    const slopeBrightness = Math.trunc((256 * (-50 * normalX - 50 * normalY - 10 * normalZ)) / Math.trunc((lightMagnitude * 768) / 256)) + 96;
+    const setting = (tile) => tile.settings ?? 0;
+    const occlusion = (setting(localTile(x - 1, y)) >> 2) + (setting(localTile(x, y - 1)) >> 2) + (setting(localTile(x + 1, y)) >> 3) + (setting(localTile(x, y + 1)) >> 3) + (setting(localTile(x, y)) >> 1);
+    return slopeBrightness - occlusion;
+  };
   const underlayDefinition = async (id) => {
     if (!underlays.has(id)) underlays.set(id, await cache.getDef(IndexType.CONFIGS.id, ConfigType.UNDERLAY.id, id));
     return underlays.get(id);
@@ -78,13 +120,15 @@ async function terrainAsset(cache, regionId) {
     }
     return overlays.get(id);
   };
-  // Match the scene builder's 11x11 underlay smoothing. The cache reader
+  // Match the scene builder's effective 10x10 underlay smoothing. Its
+  // incremental add/remove loop covers [tile - 4, tile + 5], not a symmetric
+  // 11x11 neighbourhood. The cache reader
   // exposes hue/saturation/lightness but not hueMultiplier, so reconstruct it
   // from the same HSL formula used by the loader.
   const blendedUnderlays = Array.from({ length: 64 }, () => Array(64).fill(null));
   for (let x = 0; x < 64; x++) for (let y = 0; y < 64; y++) {
     let hue = 0, saturation = 0, lightness = 0, multiplier = 0, count = 0;
-    for (let sampleX = Math.max(0, x - 5); sampleX <= Math.min(63, x + 5); sampleX++) for (let sampleY = Math.max(0, y - 5); sampleY <= Math.min(63, y + 5); sampleY++) {
+    for (let sampleX = Math.max(0, x - 4); sampleX <= Math.min(63, x + 5); sampleX++) for (let sampleY = Math.max(0, y - 4); sampleY <= Math.min(63, y + 5); sampleY++) {
       const id = tiles[sampleX]?.[sampleY]?.underlayId;
       if (!id) continue;
       const definition = await underlayDefinition(id - 1);
@@ -115,8 +159,11 @@ async function terrainAsset(cache, regionId) {
     // A 0/0 tile has neither terrain layer in the cache. It is intentional
     // void, not a black material, so leave the viewport's base floor visible.
     if (hsl === null) continue;
-    const underlayColor = tileColors.underlay == null ? 0xffffff : hslRgb(tileColors.underlay);
-    const overlayColor = tileColors.overlay == null ? underlayColor : hslRgb(tileColors.overlay);
+    const cornerBrightness = [tileBrightness(x, y), tileBrightness(x + 1, y), tileBrightness(x + 1, y + 1), tileBrightness(x, y + 1)];
+    // rs-map-viewer's default `smoothTerrain: false` uses the blended
+    // south-west underlay value for every corner of a tile.
+    const underlayHsl = tileColors.underlay == null ? null : cornerBrightness.map((brightness) => adjustUnderlayBrightness(tileColors.underlay, brightness));
+    const overlayHsl = tileColors.overlay == null ? null : cornerBrightness.map((brightness) => adjustOverlayBrightness(tileColors.overlay, brightness));
     // Map heights are absolute cache elevations, but individual scene objects
     // are currently positioned in region-local space. Normalize against the
     // region base until object terrain-height placement is compiled too.
@@ -153,8 +200,12 @@ async function terrainAsset(cache, regionId) {
         13: [0.25, 0.25, cornerHeight[0]], 14: [0.75, 0.25, cornerHeight[1]],
         15: [0.75, 0.75, cornerHeight[2]], 16: [0.25, 0.75, cornerHeight[3]],
       }[v];
+      const colourCorners = {
+        1: [0], 2: [0, 1], 3: [1], 4: [1, 2], 5: [2], 6: [2, 3], 7: [3], 8: [3, 0],
+        9: [0, 1], 10: [1, 2], 11: [2, 3], 12: [3, 0], 13: [0], 14: [1], 15: [2], 16: [3],
+      }[v];
       // CacheRenderInstancedModel applies its normal +90° actor rotation.
-      return [-(63 - y - points[1] + 0.5), points[2], x + points[0] - 0.5];
+      return { point: [-(63 - y - points[1] + 0.5), points[2], x + points[0] - 0.5], colourCorners };
     };
     const vertices = rotationShape.map(vertexForShape);
     // Counter-clockwise triangles keep the terrain visible from above.
@@ -164,11 +215,17 @@ async function terrainAsset(cache, regionId) {
       // HSL value as white.
       if (pathShape[i] === 1 && tileColors.transparentOverlay) continue;
       const rotateIndex = (index) => index < 4 ? (index - rotation) & 3 : index;
+      const useOverlay = fullOverlay || pathShape[i] === 1;
+      const layerHsl = useOverlay ? overlayHsl : underlayHsl;
       const a = vertices[rotateIndex(pathShape[i + 1])], b = vertices[rotateIndex(pathShape[i + 2])], c = vertices[rotateIndex(pathShape[i + 3])];
-      for (const point of [a, b, c]) {
+      for (const vertex of [a, b, c]) {
         const index = positions.length / 3;
-        const color = fullOverlay || pathShape[i] === 1 ? overlayColor : underlayColor;
-        positions.push(...point); indices.push(index); colors.push(color); faceColors.push(color); alphas.push(0);
+        const hsl = layerHsl == null ? null : Math.trunc(vertex.colourCorners.reduce((sum, corner) => sum + layerHsl[corner], 0) / vertex.colourCorners.length);
+        // rs-map-viewer converts terrain HSL directly in its unlit shader.
+        // The compiled terrain asset has the same unlit material, unlike
+        // ordinary cache models which retain the runtime's 0.6 palette path.
+        const color = hsl == null ? 0xffffff : hslRgb(hsl, 1);
+        positions.push(...vertex.point); indices.push(index); colors.push(color); faceColors.push(color); alphas.push(0);
       }
     }
   }
@@ -271,6 +328,10 @@ async function sceneAssets(cache, regionId, assets) {
     // the recipe for accounting, but have no model and should not become an
     // empty render payload.
     if (!model?.vertexCount) continue;
+    // SceneRegionBuilder applies an additional 0x100 (45-degree) turn after
+    // ObjectDefinition conversion for DIAGONAL_INTERACTABLE (type 11).
+    // This is distinct from the model-orientation lookup above.
+    if (location.type === 11) model.method1206(0x100);
     if (needsContour) contourModel(model, location, width, height, terrain, definition.contouredGround);
     const result = await attachTextures(cache, payload({ getMergedModel: () => model }));
     assets.push({ id: assetId, payload: result });
@@ -575,7 +636,7 @@ export async function decodeSample({ cachePath, revision }) {
     const recipe = await sceneAssets(cache, regionId, assets);
     const compiled = compileScene(recipe, assets);
     assets.push(...compiled);
-    recipe.compiledAssets = Object.fromEntries(compiled.map((asset) => [asset.id.endsWith("-transparent") ? "transparent" : "opaque", asset.id]));
+    recipe.compiledAssets = Object.fromEntries(compiled.map((asset) => [asset.id.endsWith("-terrain") ? "terrain" : asset.id.endsWith("-transparent") ? "transparent" : "opaque", asset.id]));
     delete recipe.placements;
     scenes[`region:${regionId}`] = recipe;
   }

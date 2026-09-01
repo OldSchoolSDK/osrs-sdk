@@ -66,6 +66,34 @@ preserve. It intentionally omits discarded implementation experiments.
   negated into renderer vertical coordinates and cache Z is negated into the
   renderer's north/south axis.
 
+## Terrain colour
+
+- A map tile references an underlay and, optionally, an overlay. Cache map
+  references are one-based; the corresponding floor-definition IDs are
+  zero-based. An underlay definition originates as an unsigned RGB medium and
+  is decoded to hue, saturation, lightness, and hue multiplier.
+- Underlay colour is blended before the tile is meshed. The RuneScape
+  incremental algorithm with blend radius `5` has an effective 10×10 window:
+  cache offsets `-4..+5` in each direction. It sums hue blends and hue
+  multipliers, averages saturation and lightness, then packs the result into
+  OSRS HSL. Do not replace this with a symmetric 11×11 sample loop.
+- Overlays do not participate in underlay blending. They use their own packed
+  HSL or texture on the overlay triangles selected by the tile path and
+  rotation. RGB `0xFF00FF` is the transparent terrain sentinel and omits those
+  faces.
+- Terrain lighting is applied to the packed HSL at each corner: derive the
+  corner brightness from height normal and tile-light occlusion, multiply the
+  packed lightness, and clamp it to `2..126`. Edge vertices average/mix packed
+  HSL values; do not interpolate converted RGB values instead.
+- The Kotlin GLB exporter converts final packed HSL with `ColorPalette(1.0)`.
+  rs-map-viewer’s 3D shader has the equivalent conversion at brightness `1`.
+  Fog, tone mapping, and material lighting are later renderer stages and are
+  not part of tile-colour generation.
+- `scripts/debug/dump-region-colours.mts` writes a generated per-tile
+  diagnostic with cache/trainer coordinates, blend inputs, packed/unpacked
+  HSL, and reference RGB. Use it when checking cache-colour parity; do not
+  treat it as a runtime asset format.
+
 ## Performance
 
 - Decoded payloads are promise-cached by bundle version and asset ID.

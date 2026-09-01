@@ -28,7 +28,7 @@ function appendVertex(source: CacheRenderPayload, sourceIndex: number, target: O
  * Output coordinates are relative to the one scene-level instance transform. */
 export function compileScene(recipe: Recipe, sourceAssets: SourceAsset[]) {
   const assets = new Map(sourceAssets.map((asset) => [asset.id, asset.payload]));
-  const opaque = new Map<string, Output>(), transparent = new Map<string, Output>();
+  const terrainOutput = new Map<string, Output>(), opaque = new Map<string, Output>(), transparent = new Map<string, Output>();
   const chunk = (map: Map<string, Output>, x: number, y: number) => {
     const key = `${Math.max(0, Math.min(CHUNK_GRID - 1, x))}:${Math.max(0, Math.min(CHUNK_GRID - 1, y))}`;
     let value = map.get(key); if (!value) { value = output(); map.set(key, value); }
@@ -60,14 +60,15 @@ export function compileScene(recipe: Recipe, sourceAssets: SourceAsset[]) {
       // centroid after its cache-to-scene transform has been applied.
       const chunkX = terrain ? Math.floor((transform(source.positions[indices[index] * 3], source.positions[indices[index] * 3 + 1], source.positions[indices[index] * 3 + 2])[0] + transform(source.positions[indices[index + 1] * 3], source.positions[indices[index + 1] * 3 + 1], source.positions[indices[index + 1] * 3 + 2])[0] + transform(source.positions[indices[index + 2] * 3], source.positions[indices[index + 2] * 3 + 1], source.positions[indices[index + 2] * 3 + 2])[0]) / (CHUNK_SIZE * 3)) : Math.floor(placement.x / CHUNK_SIZE);
       const chunkY = terrain ? Math.floor((transform(source.positions[indices[index] * 3], source.positions[indices[index] * 3 + 1], source.positions[indices[index] * 3 + 2])[2] + transform(source.positions[indices[index + 1] * 3], source.positions[indices[index + 1] * 3 + 1], source.positions[indices[index + 1] * 3 + 2])[2] + transform(source.positions[indices[index + 2] * 3], source.positions[indices[index + 2] * 3 + 1], source.positions[indices[index + 2] * 3 + 2])[2]) / (CHUNK_SIZE * 3)) : Math.floor(placement.y / CHUNK_SIZE);
-      const target = chunk(transparentFace ? transparent : opaque, chunkX, chunkY);
+      const target = chunk(terrain ? terrainOutput : transparentFace ? transparent : opaque, chunkX, chunkY);
       for (let corner = 0; corner < 3; corner++) appendVertex(source, indices[index + corner], target, transform);
     }
-    for (const target of [...opaque.values(), ...transparent.values()]) Object.assign(target.textures, source.textures ?? {});
+    for (const target of [...terrainOutput.values(), ...opaque.values(), ...transparent.values()]) Object.assign(target.textures, source.textures ?? {});
   }
   const payload = (results: Map<string, Output>): CacheRenderPayload => ({ version: 1, positions: [], chunks: Array.from(results.entries()).map(([key, result]) => { const [x, y] = key.split(":").map(Number); return { x, y, ...result }; }), color: 0xffffff, animations: {} });
   const prefix = `scene-${recipe.regionId}-compiled`;
   return [
+    ...(terrainOutput.size ? [{ id: `${prefix}-terrain`, payload: payload(terrainOutput) }] : []),
     ...(opaque.size ? [{ id: `${prefix}-opaque`, payload: payload(opaque) }] : []),
     ...(transparent.size ? [{ id: `${prefix}-transparent`, payload: payload(transparent) }] : []),
   ];

@@ -27,7 +27,9 @@ export class CacheRenderSceneModel implements Model {
         if (!assetId) continue;
         const chunks = (await cachedPayload(bundle, assetId)).chunks ?? [];
         if (!chunks.length) throw new Error(`Compiled scene asset ${assetId} has no chunks`);
-        const material = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, flatShading: true, transparent: kind === "transparent", alphaTest: 0.01 });
+        const material = kind === "terrain"
+          ? new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, transparent: false })
+          : new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, flatShading: true, transparent: kind === "transparent", alphaTest: 0.01 });
         chunks.forEach((chunk) => {
           const geometry = new THREE.BufferGeometry(); geometry.setAttribute("position", new THREE.Float32BufferAttribute(chunk.positions, 3));
           const colors: number[] = [];
