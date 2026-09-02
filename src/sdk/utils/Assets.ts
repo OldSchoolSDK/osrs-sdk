@@ -41,10 +41,16 @@ export class Assets {
 
   static onAssetProgress(progressFn: (loaded: number, total: number) => void) {
     Assets.onProgressFns.push(progressFn);
+    return () => {
+      Assets.onProgressFns = Assets.onProgressFns.filter((listener) => listener !== progressFn);
+    };
   }
 
   static onAllAssetsLoaded(loadFn: () => void) {
     Assets.onLoadFns.push(loadFn);
+    return () => {
+      Assets.onLoadFns = Assets.onLoadFns.filter((listener) => listener !== loadFn);
+    };
   }
 
   static checkAssetsLoaded(timer: NodeJS.Timeout) {

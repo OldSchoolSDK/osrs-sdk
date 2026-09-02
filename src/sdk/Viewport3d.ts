@@ -68,7 +68,7 @@ export class Viewport3d implements ViewportDelegate {
   private renderingSuspended = false;
   private renderFailureLogged = false;
 
-  constructor(faceCameraSouth = true) {
+  constructor(faceCameraSouth = true, worldCanvas?: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
 
     this.canvas = new OffscreenCanvas(this.canvasDimensions.width, this.canvasDimensions.height);
@@ -82,8 +82,8 @@ export class Viewport3d implements ViewportDelegate {
     this.raycaster.params.Points.threshold = 0.1;
     this.raycaster.params.Line.threshold = 0.1;
 
-    const worldCanvas = document.getElementById("world") as HTMLCanvasElement;
-    this.initCameraEvents(worldCanvas);
+    const inputCanvas = worldCanvas ?? document.getElementById("world") as HTMLCanvasElement;
+    this.initCameraEvents(inputCanvas);
     window.addEventListener("resize", () => this.updateCanvasSize());
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") {
@@ -155,6 +155,7 @@ export class Viewport3d implements ViewportDelegate {
   }
 
   checkGpu() {
+    // TODO: this can become a react element
     try {
       const canvas = document.createElement("canvas");
       const gl = canvas.getContext("webgl");
@@ -170,7 +171,8 @@ export class Viewport3d implements ViewportDelegate {
         return;
       }
       if (gpuInfo === "none" || gpuInfo.includes("google") || gpuInfo.includes("apple") || gpuInfo.includes("intel")) {
-        document.getElementById("gpu_warning").innerHTML =
+        const warning = document.getElementById("gpu_warning");
+        if (warning) warning.innerHTML =
           `<span style="color: #FF6666">Software rendering detected. Framerate may be low. Turn on Hardware Acceleration in your browser if you have a GPU.<br />${gpuInfo}</span>`;
       }
     } catch (err) {

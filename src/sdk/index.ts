@@ -79,7 +79,9 @@ export * from './Renderable';
 
 export * from './SetEffect';
 export * from './Settings';
+export * from './SettingsStore';
 export * from './Trainer';
+export * from './TrainerInstance';
 export * from './utils/Assets';
 export * from '../assets/CacheAssets';
 export * from './utils/BrowserUtils';

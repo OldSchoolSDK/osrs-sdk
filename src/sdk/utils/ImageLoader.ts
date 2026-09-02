@@ -30,6 +30,9 @@ export class ImageLoader {
 
   static onAllImagesLoaded(loadFn: () => void) {
     ImageLoader.onLoadFns.push(loadFn);
+    return () => {
+      ImageLoader.onLoadFns = ImageLoader.onLoadFns.filter((listener) => listener !== loadFn);
+    };
   }
 
   static checkImagesLoaded(timer: NodeJS.Timeout) {

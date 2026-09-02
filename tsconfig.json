@@ -8,8 +8,13 @@
     "target": "es5",
     "jsx": "react",
     "allowJs": true,
+    "baseUrl": ".",
     "moduleResolution": "node",
     "esModuleInterop": true,
+    "paths": {
+      "osrs-sdk": ["src/index.ts"],
+      "osrs-sdk-react": ["packages/osrs-sdk-react/src/index.ts"]
+    },
     "typeRoots": [
       "node_modules/@types"
     ]

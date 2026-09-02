@@ -8,7 +8,7 @@ const common = require('./webpack.common.js');
 // used for netlify previews
 module.exports = merge(common, {
   mode: "production",
-  entry: "./sample/sample.ts",
+  entry: "./sample/index.ts",
   output: {
     filename: "sample.js",
     path: path.resolve(__dirname, "dist"),

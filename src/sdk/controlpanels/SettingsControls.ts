@@ -134,12 +134,7 @@ export class SettingsControls extends BaseControls {
       220,
       () => Settings.menuVisible,
       () => {
-        Settings.menuVisible = !Settings.menuVisible;
-        if (Settings.menuVisible) {
-          document.getElementById("right_panel").classList.remove("hidden");
-        } else {
-          document.getElementById("right_panel").classList.add("hidden");
-        }
+        Settings.setMenuVisible(!Settings.menuVisible);
         Viewport.viewport.calculateViewport();
       },
     ),

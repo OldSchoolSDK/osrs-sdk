@@ -1,0 +1,23 @@
+{
+  "name": "osrs-sdk-react",
+  "version": "0.1.0",
+  "description": "React bindings and application-shell components for osrs-sdk",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "build": "rm -rf lib && tsc -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "osrs-sdk": ">=0.1.8 <1",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  },
+  "devDependencies": {
+    "osrs-sdk": "file:../.."
+  },
+  "sideEffects": false,
+  "license": "ISC"
+}

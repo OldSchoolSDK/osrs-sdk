@@ -61,11 +61,12 @@ export interface ViewportDelegate {
 
 export class Viewport {
   static viewport: Viewport;
-  static setupViewport(region: Region, force2d = false) {
+  static setupViewport(region: Region, force2d = false, canvas?: HTMLCanvasElement) {
     const faceInitialSouth = region.initialFacing === CardinalDirection.SOUTH;
     // called after Settings have been initialized
     Viewport.viewport = new Viewport(
-      Settings.use3dView && !force2d ? new Viewport3d(faceInitialSouth) : new Viewport2d(),
+      Settings.use3dView && !force2d ? new Viewport3d(faceInitialSouth, canvas) : new Viewport2d(),
+      canvas,
     );
   }
 
@@ -80,7 +81,9 @@ export class Viewport {
 
   public components: Component[] = [];
 
-  constructor(private delegate: ViewportDelegate) {}
+  constructor(private delegate: ViewportDelegate, canvas?: HTMLCanvasElement) {
+    this.canvas = canvas;
+  }
 
   /**
    * Return all objects or world coordinates at the given position (relative to the top-left of the viewport).
@@ -93,13 +96,13 @@ export class Viewport {
     return this.canvas.getContext("2d") as CanvasRenderingContext2D;
   }
 
-  setPlayer(player: Player) {
+  setPlayer(player: Player, canvas?: HTMLCanvasElement) {
     Trainer.setPlayer(player);
     window.addEventListener("orientationchange", () => this.calculateViewport());
     window.addEventListener("resize", () => this.calculateViewport());
     window.addEventListener("wheel", () => this.calculateViewport());
     window.addEventListener("resize", () => this.calculateViewport());
-    this.canvas = document.getElementById("world") as HTMLCanvasElement;
+    this.canvas = canvas ?? this.canvas ?? document.getElementById("world") as HTMLCanvasElement;
     this.calculateViewport();
     this.canvas.width = Settings._tileSize * 2 * this.width;
     this.canvas.height = Settings._tileSize * 2 * this.height;

@@ -1,9 +1,14 @@
 const webpack = require("webpack");
+const path = require("path");
 
 module.exports = {
   devtool: "source-map",
   resolve: {
     extensions: [".tsx", ".ts", ".js"],
+    alias: {
+      "osrs-sdk$": path.resolve(__dirname, "src/index.ts"),
+      "osrs-sdk-react$": path.resolve(__dirname, "packages/osrs-sdk-react/src/index.ts"),
+    },
   },
   optimization: {
     minimize: false

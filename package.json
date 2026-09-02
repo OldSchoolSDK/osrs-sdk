@@ -5,9 +5,14 @@
   "main": "_bundles/main.js",
   "types": "lib/index.d.ts",
   "node": "^>=16.0.0",
+  "workspaces": [
+    "packages/osrs-sdk-react"
+  ],
   "scripts": {
     "clean": "rm -rf _bundles lib lib-esm",
-    "build": "npm run clean && webpack --config webpack.production.js",
+    "build": "npm run build:core && npm run build:react",
+    "build:core": "npm run clean && webpack --config webpack.production.js",
+    "build:react": "npm run build --workspace osrs-sdk-react",
     "lint": "eslint . --ext .ts --fix",
     "prettier": "npx prettier --write .",
     "start": "npx webpack serve --config webpack.dev.js",
@@ -59,7 +64,11 @@
     "webpack": "^5.91.0",
     "webpack-cli": "^4.9.2",
     "webpack-dev-server": "^3.11.2",
-    "webpack-merge": "^5.10.0"
+    "webpack-merge": "^5.10.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
   },
   "dependencies": {
     "@types/new-relic-browser": "^0.1118.2",

@@ -9,7 +9,7 @@ const common = require('./webpack.common.js');
 module.exports = merge(common, {
   mode: 'development',
   devtool: 'inline-source-map',
-  entry: './sample/sample.ts',
+  entry: './sample/index.ts',
   output: {
     filename: "sample.js",
     path: path.resolve(__dirname, "dist"),
