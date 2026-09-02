@@ -1,6 +1,7 @@
 "use strict";
 
 import { Assets, Entity, CollisionType, LineOfSightMask, Model, GLTFModel, CacheRenderSceneModel } from "../src";
+import { CACHE_ASSETS } from "../src/assets/CacheAssets";
 
 
 // note: v1 has the rocks where zuk should be - we could use that in the future
@@ -35,7 +36,7 @@ export class SampleScene extends Entity {
   }
 
   create3dModel(): Model {
-    if (!useStaticScene) return new CacheRenderSceneModel("region:9043");
+    if (!useStaticScene) return new CacheRenderSceneModel(`region:${CACHE_ASSETS.regions.inferno.id}`);
     return new GLTFModel(this, [SampleSceneModel], { scale: 1, verticalOffset: -2.5, originOffset: {
       x: -6.5,
       y: 12.5,

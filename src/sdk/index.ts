@@ -81,6 +81,7 @@ export * from './SetEffect';
 export * from './Settings';
 export * from './Trainer';
 export * from './utils/Assets';
+export * from '../assets/CacheAssets';
 export * from './utils/BrowserUtils';
 export * from './utils/ImageLoader';
 export * from './utils/SoundCache';

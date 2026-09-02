@@ -1,4 +1,5 @@
 import { BasicModel, CacheRender, CacheRenderModel, CacheRenderReferences, FallbackModel, Location, Mob, Region, UnitOptions } from "../src";
+import { CACHE_ASSETS } from "../src/assets/CacheAssets";
 import { SampleSpotAnim } from "./SampleSpotAnim";
 
 /** Sol Heredit fixture used to exercise skeleton-based Animaya rendering. */
@@ -42,7 +43,7 @@ export class SampleAnimayaNpc extends Mob {
   override create3dModel() {
     if (CacheRender.isConfigured()) {
       return new FallbackModel(
-        CacheRenderModel.forRenderable(this, CacheRenderReferences.npc(12821)),
+        CacheRenderModel.forRenderable(this, CacheRenderReferences.npc(CACHE_ASSETS.npcs.solHeredit.id)),
         BasicModel.forRenderable(this),
       );
     }

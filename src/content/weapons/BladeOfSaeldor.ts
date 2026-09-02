@@ -6,10 +6,11 @@ import { Assets } from "../../sdk/utils/Assets";
 import { Sound } from "../../sdk/utils/SoundCache";
 import { MeleeWeapon } from "../../sdk/weapons/MeleeWeapon";
 
-import ScytheAttackSound from "../../assets/sounds/scythe_swing_2524.ogg";
+import { cacheSound } from "../../sdk/audio/CacheSoundEffects";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 
 export class BladeOfSaeldor extends MeleeWeapon {
-  get cacheItemId(): number { return 23995; }
+  get cacheItemId(): number { return CACHE_ASSETS.items.bladeOfSaeldor.id; }
   constructor() {
     super();
 
@@ -95,6 +96,6 @@ export class BladeOfSaeldor extends MeleeWeapon {
   }
 
   get attackSound() {
-    return new Sound(ScytheAttackSound, 0.1);
+    return new Sound(cacheSound(CACHE_ASSETS.sounds.meleeAttack.id), 0.1);
   }
 }

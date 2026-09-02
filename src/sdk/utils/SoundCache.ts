@@ -1,4 +1,5 @@
 import { Settings } from "../Settings";
+import { isCacheSound, synthesizeCacheSound } from "../audio/CacheSoundEffects";
 
 const LOADING_SOUND = null;
 
@@ -35,9 +36,17 @@ export class SoundCache {
       return null;
     }
     SoundCache.cachedSounds[src] = LOADING_SOUND;
-    const response = await window.fetch(src);
-    const buffer = await response.arrayBuffer();
-    const audioBuffer = await SoundCache.context.decodeAudioData(buffer);
+    let audioBuffer: AudioBuffer;
+    if (isCacheSound(src)) {
+      const raw = await synthesizeCacheSound(src);
+      audioBuffer = SoundCache.context.createBuffer(1, raw.samples.length, raw.sampleRate);
+      const channel = audioBuffer.getChannelData(0);
+      for (let i = 0; i < raw.samples.length; i++) channel[i] = raw.samples[i] / 128;
+    } else {
+      const response = await window.fetch(src);
+      const buffer = await response.arrayBuffer();
+      audioBuffer = await SoundCache.context.decodeAudioData(buffer);
+    }
     SoundCache.cachedSounds[src] = audioBuffer;
     return audioBuffer;
   }

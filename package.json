@@ -13,6 +13,7 @@
     "start": "npx webpack serve --config webpack.dev.js",
     "watch": "npx webpack --config webpack.production.js --watch",
     "extract:cache-render": "tsx scripts/cache-render/extract.mts",
+    "extract:sounds": "tsx scripts/sounds/extract.mts",
     "download:cache-render": "tsx scripts/cache-render/download.mts",
     "assets": "tsx scripts/cache-render/build.mts",
     "serve:assets": "tsx scripts/cache-render/serve.mts",

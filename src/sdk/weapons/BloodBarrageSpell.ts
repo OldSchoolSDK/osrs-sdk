@@ -4,16 +4,22 @@ import { ProjectileOptions } from "./Projectile";
 import { AttackBonuses } from "../gear/Weapon";
 import { ItemName } from "../ItemName";
 import { Sound, SoundCache } from "../utils/SoundCache";
-import BloodBarrageSound from "../../assets/sounds/blood_barrage.ogg"
+import { cacheSound } from "../audio/CacheSoundEffects";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 
 export class BloodBarrageSpell extends BarrageSpell {
   constructor(projectileRules?: ProjectileOptions) {
     super(projectileRules);
     SoundCache.preload(this.attackSound.src);
+    SoundCache.preload(this.attackLandingSound.src);
   }
-  
+
   override get attackSound() {
-    return new Sound(BloodBarrageSound, 0.1);
+    return new Sound(cacheSound(CACHE_ASSETS.sounds.bloodBarrageCast.id), 0.1);
+  }
+
+  override get attackLandingSound() {
+    return new Sound(cacheSound(CACHE_ASSETS.sounds.bloodBarrageImpact.id), 0.1);
   }
 
   get itemName(): ItemName {

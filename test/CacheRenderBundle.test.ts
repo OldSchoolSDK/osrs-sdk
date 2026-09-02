@@ -12,6 +12,9 @@ test("validates a versioned bundle manifest", () => {
 test("validates shared animation asset mappings", () => {
   expect(validateCacheRenderBundleManifest({ schemaVersion: 1, bundleVersion: "test", cache: { revision: 1, source: "fixture", contentHash: sha }, assets: { animations: { file: "animations.bin", sha256: sha } }, references: {}, sharedAssets: { playerAnimations: "animations" } }).sharedAssets?.playerAnimations).toBe("animations");
 });
+test("validates a cache sound-effect pack", () => {
+  expect(validateCacheRenderBundleManifest({ schemaVersion: 1, bundleVersion: "test", cache: { revision: 1, source: "fixture", contentHash: sha }, assets: {}, references: {}, soundEffects: { file: `cache-sound-effects.${sha}.soundpack`, sha256: sha, bytes: 42 } }).soundEffects?.bytes).toBe(42);
+});
 test("validates a compiled scene recipe with reusable object assets", () => {
   const manifest = validateCacheRenderBundleManifest({
     schemaVersion: 1, bundleVersion: "test", cache: { revision: 236, source: "openrs2:2437", contentHash: sha },

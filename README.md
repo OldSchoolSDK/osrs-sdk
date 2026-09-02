@@ -45,15 +45,16 @@ authoritative true-tile and client-side visual movement model.
 
 ### Developing the project from this project (with the "sample" environment):
 
-    npm run assets
-    npm run serve:assets # serves cache bundles/manifest at 127.0.0.1:8081
+    npm run assets       # builds cache models and runtime sound definitions
+    npm run serve:assets # serves the combined asset bundle at 127.0.0.1:8081
     npm run start
 
 Open up http://localhost:8000 in the browser.
 
 The sample uses the cache-render bundle at `http://127.0.0.1:8081/manifest.json`
-by default. To use a hosted or locally generated bundle, set the URL before
-starting the dev server:
+by default. Its manifest covers both model payloads and the runtime soundpack,
+so only `cache-render-bundle` needs to be hosted. To use a hosted or locally
+generated bundle, set the URL before starting the dev server:
 
     OSRS_CACHE_RENDER_MANIFEST_URL=https://assets.example.com/osrs-cache-render/manifest.json npm run start
 
@@ -66,6 +67,11 @@ builds can bake a different asset host into the bundle with
 `OSRS_ASSET_BASE_URL`, for example:
 
     OSRS_ASSET_BASE_URL=https://assets-soltrainer.netlify.app npm run build
+
+Cache-derived sample asset IDs are maintained in
+[`src/assets/CacheAssets.ts`](src/assets/CacheAssets.ts). Runtime code and the
+cache extraction pipeline both import that registry, including related model,
+animation, spot-animation, item, object, and sound IDs.
 
 ### Developing the project from a client project:
 

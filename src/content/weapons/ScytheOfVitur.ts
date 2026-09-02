@@ -6,7 +6,8 @@ import { Assets } from "../../sdk/utils/Assets";
 import { Sound } from "../../sdk/utils/SoundCache";
 import { MeleeWeapon } from "../../sdk/weapons/MeleeWeapon";
 
-import ScytheAttackSound from "../../assets/sounds/scythe_swing_2524.ogg";
+import { cacheSound } from "../../sdk/audio/CacheSoundEffects";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 import { Collision } from "../../sdk/Collision";
 import { AttackBonuses } from "../../sdk/gear/Weapon";
 import { Unit } from "../../sdk/Unit";
@@ -32,7 +33,7 @@ const EXTRA_HIT_LOCATIONS = [
 ];
 
 export class ScytheOfVitur extends MeleeWeapon {
-  get cacheItemId(): number { return 22325; }
+  get cacheItemId(): number { return CACHE_ASSETS.items.scytheOfVitur.id; }
   constructor() {
     super();
 
@@ -124,7 +125,12 @@ export class ScytheOfVitur extends MeleeWeapon {
       direction = 0; // North
     }
     if (from instanceof Player) {
-      const spotAnimByDirection = [506, 1172, 478, 1231];
+    const spotAnimByDirection = [
+      CACHE_ASSETS.spotAnims.scytheNorth.id,
+      CACHE_ASSETS.spotAnims.scytheEast.id,
+      CACHE_ASSETS.spotAnims.scytheSouth.id,
+      CACHE_ASSETS.spotAnims.scytheWest.id,
+    ];
       const offsetByDirection = [{ x: 0, y: -0.5 }, { x: 0.5, y: 0 }, { x: 0, y: 0.5 }, { x: -0.5, y: 0 }];
       from.addSpotAnim({ id: spotAnimByDirection[direction], channel: "scythe-swing", animation: PlayerAnimationIndices.ScytheSwing, height: 0.49 + 96 / 128, delay: 20, offset: offsetByDirection[direction], recolor: { "960": 0xffffff } });
     }
@@ -162,6 +168,6 @@ export class ScytheOfVitur extends MeleeWeapon {
   }
 
   get attackSound() {
-    return new Sound(ScytheAttackSound, 0.1);
+    return new Sound(cacheSound(CACHE_ASSETS.sounds.meleeAttack.id), 0.1);
   }
 }

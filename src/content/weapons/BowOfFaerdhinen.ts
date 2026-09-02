@@ -10,10 +10,11 @@ import { PlayerAnimationIndices } from "../../sdk/rendering/GLTFAnimationConstan
 import { Assets } from "../../sdk/utils/Assets";
 import { Sound } from "../../sdk/utils/SoundCache";
 
-import BofaAttackSound from "../../assets/sounds/crystal_bow_1352.ogg";
+import { cacheSound } from "../../sdk/audio/CacheSoundEffects";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 
 export class BowOfFaerdhinen extends RangedWeapon {
-  get cacheItemId(): number { return 25865; }
+  get cacheItemId(): number { return CACHE_ASSETS.items.bowOfFaerdhinen.id; }
   constructor() {
     super();
     this.bonuses = {
@@ -57,7 +58,7 @@ export class BowOfFaerdhinen extends RangedWeapon {
   }
 
   get attackSound() {
-    return new Sound(BofaAttackSound, 0.1);
+    return new Sound(cacheSound(CACHE_ASSETS.sounds.bowOfFaerdhinenAttack.id), 0.1);
   }
 
   get attackSpeed() {

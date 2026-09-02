@@ -88,14 +88,24 @@ export class CacheRenderBundle {
   async fetchAsset(id: string): Promise<ArrayBuffer> {
     const asset = this.manifest.assets[id];
     if (!asset) throw new CacheRenderBundleError("missing-asset", `Bundle is missing asset ${id}`);
+    return this.fetchManifestAsset(asset, `cache render asset ${id}`);
+  }
+
+  async fetchSoundEffects(): Promise<ArrayBuffer> {
+    const asset = this.manifest.soundEffects;
+    if (!asset) throw new CacheRenderBundleError("missing-asset", "Bundle has no sound-effect pack");
+    return this.fetchManifestAsset(asset, "cache sound-effect pack");
+  }
+
+  private async fetchManifestAsset(asset: CacheRenderAsset, label: string): Promise<ArrayBuffer> {
     let response: Response;
     try { response = await fetch(new URL(asset.file, this.baseUrl).toString()); } catch (error) {
-      throw new CacheRenderBundleError("network", `Unable to load cache render asset ${id}: ${error.message}`);
+      throw new CacheRenderBundleError("network", `Unable to load ${label}: ${error.message}`);
     }
-    if (!response.ok) throw new CacheRenderBundleError("missing-asset", `Unable to load cache render asset ${id} (${response.status})`);
+    if (!response.ok) throw new CacheRenderBundleError("missing-asset", `Unable to load ${label} (${response.status})`);
     const bytes = await response.arrayBuffer();
-    if (asset.bytes !== undefined && bytes.byteLength !== asset.bytes) throw new CacheRenderBundleError("integrity", `Invalid length for cache render asset ${id}`);
-    if ((await sha256(bytes)).toLowerCase() !== asset.sha256.toLowerCase()) throw new CacheRenderBundleError("integrity", `Integrity check failed for cache render asset ${id}`);
+    if (asset.bytes !== undefined && bytes.byteLength !== asset.bytes) throw new CacheRenderBundleError("integrity", `Invalid length for ${label}`);
+    if ((await sha256(bytes)).toLowerCase() !== asset.sha256.toLowerCase()) throw new CacheRenderBundleError("integrity", `Integrity check failed for ${label}`);
     return bytes;
   }
 }

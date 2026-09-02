@@ -1,11 +1,12 @@
 import { ImageLoader } from "../../sdk/utils/ImageLoader";
 import InventImage from "../../assets/images/equipment/Torva_platelegs.png";
 import { ItemName } from "../../sdk/ItemName";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 import { Legs } from "../../sdk/gear/Legs";
 import { Assets } from "../../sdk/utils/Assets";
 
 export class TorvaPlatelegs extends Legs {
-  get cacheItemId(): number { return 26386; }
+  get cacheItemId(): number { return CACHE_ASSETS.items.torvaPlatelegs.id; }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get itemName(): ItemName {

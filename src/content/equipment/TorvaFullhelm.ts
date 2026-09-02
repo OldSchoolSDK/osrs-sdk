@@ -1,11 +1,12 @@
 import { ImageLoader } from "../../sdk/utils/ImageLoader";
 import InventImage from "../../assets/images/equipment/Torva_full_helm.png";
 import { ItemName } from "../../sdk/ItemName";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 import { Assets } from "../../sdk/utils/Assets";
 import { Helmet } from "../../sdk/gear/Helmet";
 
 export class TorvaFullhelm extends Helmet {
-  get cacheItemId(): number { return 26382; }
+  get cacheItemId(): number { return CACHE_ASSETS.items.torvaFullHelm.id; }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get itemName(): ItemName {

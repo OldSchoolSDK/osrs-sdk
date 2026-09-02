@@ -10,11 +10,12 @@ import { Sound, SoundCache } from "../../sdk/utils/SoundCache";
 import { RangedWeapon } from "../../sdk/weapons/RangedWeapon";
 
 import TbowInventImage from "../../assets/images/weapons/twistedBow.png";
-import TwistedBowAttackSound from "../../assets/sounds/shortbow_2702.ogg";
+import { cacheSound } from "../../sdk/audio/CacheSoundEffects";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 import { ArcProjectileMotionInterpolator } from "../../sdk/weapons/Projectile";
 
 export class TwistedBow extends RangedWeapon {
-  get cacheItemId(): number { return 20997; }
+  get cacheItemId(): number { return CACHE_ASSETS.items.twistedBow.id; }
   constructor(geno = false) {
     super({
       modelScale: 1 / 128,
@@ -76,7 +77,7 @@ export class TwistedBow extends RangedWeapon {
   }
 
   get attackSound() {
-    return new Sound(TwistedBowAttackSound, 0.1);
+    return new Sound(cacheSound(CACHE_ASSETS.sounds.twistedBowAttack.id), 0.1);
   }
 
   get weight(): number {

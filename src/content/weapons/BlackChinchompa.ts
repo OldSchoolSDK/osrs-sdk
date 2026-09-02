@@ -6,8 +6,8 @@ import { ItemName } from "../../sdk/ItemName";
 import { AttackStyle, AttackStyleTypes } from "../../sdk/AttackStylesController";
 import { Sound } from "../../sdk/utils/SoundCache";
 
-import ChinThrowSound from "../../assets/sounds/thrown_axe_2706.ogg";
-import ChinLandSound from "../../assets/sounds/chinchompa_explode_360.ogg";
+import { cacheSound } from "../../sdk/audio/CacheSoundEffects";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 import { ProjectileOptions } from "../../sdk/weapons/Projectile";
 import { AttackBonuses } from "../../sdk/gear/Weapon";
 import { Unit } from "../../sdk/Unit";
@@ -17,7 +17,7 @@ import { Assets } from "../../sdk/utils/Assets";
 import { PlayerAnimationIndices } from "../../sdk/rendering/GLTFAnimationConstants";
 
 export class BlackChinchompa extends RangedWeapon {
-  get cacheItemId(): number { return 11959; }
+  get cacheItemId(): number { return CACHE_ASSETS.items.blackChinchompa.id; }
   maxConcurrentHits = 9;
 
   constructor() {
@@ -98,11 +98,11 @@ export class BlackChinchompa extends RangedWeapon {
   }
 
   get attackSound() {
-    return new Sound(ChinThrowSound, 0.1);
+    return new Sound(cacheSound(CACHE_ASSETS.sounds.chinchompaAttack.id), 0.1);
   }
 
   get attackLandingSound() {
-    return new Sound(ChinLandSound, 0.1);
+    return new Sound(cacheSound(CACHE_ASSETS.sounds.chinchompaImpact.id), 0.1);
   }
 
   get aoe() {

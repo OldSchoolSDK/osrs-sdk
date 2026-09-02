@@ -8,8 +8,8 @@ import { AttackBonuses } from "../../sdk/gear/Weapon";
 import { AttackStyle, AttackStyleTypes } from "../../sdk/AttackStylesController";
 import { ArcProjectileMotionInterpolator, Projectile, ProjectileOptions } from "../../sdk/weapons/Projectile";
 
-import BPAttackSound from "../../assets/sounds/dart_2696.ogg";
-import BPSpecSound from "../../assets/sounds/snake_hit_800.ogg";
+import { cacheSound } from "../../sdk/audio/CacheSoundEffects";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 import { Sound, SoundCache } from "../../sdk/utils/SoundCache";
 
 import { PlayerAnimationIndices } from "../../sdk/rendering/GLTFAnimationConstants";
@@ -17,7 +17,7 @@ import { Assets } from "../../sdk/utils/Assets";
 
 export class Blowpipe extends RangedWeapon {
   get cacheItemId(): number {
-    return 12926;
+    return CACHE_ASSETS.items.toxicBlowpipe.id;
   }
   constructor() {
     super({
@@ -137,11 +137,11 @@ export class Blowpipe extends RangedWeapon {
   }
 
   get attackSound() {
-    return new Sound(BPAttackSound, 0.1);
+    return new Sound(cacheSound(CACHE_ASSETS.sounds.blowpipeAttack.id), 0.1);
   }
 
   get specialAttackSound() {
-    return new Sound(BPSpecSound, 0.5);
+    return new Sound(cacheSound(CACHE_ASSETS.sounds.blowpipeSpecial.id), 0.5);
   }
 
   Model = Assets.getAssetUrl("models/player_toxic_blowpipe.glb");

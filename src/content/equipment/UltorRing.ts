@@ -2,9 +2,10 @@ import { ImageLoader } from "../../sdk/utils/ImageLoader";
 import InventImage from "../../assets/images/equipment/Ultor_ring.png";
 import { Ring } from "../../sdk/gear/Ring";
 import { ItemName } from "../../sdk/ItemName";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 
 export class UltorRing extends Ring {
-  get cacheItemId(): number { return 25485; }
+  get cacheItemId(): number { return CACHE_ASSETS.items.ultorRing.id; }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

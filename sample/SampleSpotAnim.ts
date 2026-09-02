@@ -1,4 +1,5 @@
 import { CacheRenderInstancedModel, CacheRenderReferences, CollisionType, Entity, LineOfSightMask, Location, Region } from "../src";
+import { CACHE_ASSETS } from "../src/assets/CacheAssets";
 
 /** A short-lived cache spotanim instance used by the SDK sample. */
 export class SampleSpotAnim extends Entity {
@@ -21,7 +22,7 @@ export class SampleSpotAnim extends Entity {
 
   override create3dModel() {
     return CacheRenderInstancedModel.forRenderable(this, CacheRenderReferences.spotAnim([{
-      id: 2669,
+      id: CACHE_ASSETS.spotAnims.solDust.id,
       delay: this.delay,
       rotation: this.rotation,
       height: 0,

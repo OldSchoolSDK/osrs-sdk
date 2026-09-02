@@ -69,7 +69,7 @@ export class CacheRenderInstancedModel implements Model {
         pool!.sources = payload.sourceVertices ?? [];
         pool!.baseAlphas = new Float32Array(payload.alphas ?? Array(payload.positions.length / 3).fill(0));
         pool!.alphaGroups = payload.alphaGroups ?? [];
-        const animationId = this.reference.kind === "spotAnim" ? metadata.animationId : payload.poseMap?.["0"] ?? 7508;
+        const animationId = this.reference.kind === "spotAnim" ? metadata.animationId : payload.poseMap?.["0"] ?? 0;
         const animation = payload.animations?.[String(animationId)];
         pool!.frames = animation?.rawFrames ?? [];
         pool!.lengths = animation?.lengths ?? [];

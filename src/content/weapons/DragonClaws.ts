@@ -7,18 +7,29 @@ import { PlayerAnimationIndices } from "../../sdk/rendering/GLTFAnimationConstan
 import { Unit } from "../../sdk/Unit";
 import { MeleeWeapon } from "../../sdk/weapons/MeleeWeapon";
 import { ProjectileOptions } from "../../sdk/weapons/Projectile";
-import { Sound } from "../../sdk/utils/SoundCache";
+import { Sound, SoundCache } from "../../sdk/utils/SoundCache";
+import { cacheSound } from "../../sdk/audio/CacheSoundEffects";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 
-import DragonClawsAttackSound from "../../assets/sounds/Dragon_claws_attack.ogg";
-import DragonClawsSpecialAttackSound from "../../assets/sounds/Dragon_claws_special_attack.ogg";
+const NORMAL_ATTACK_SOUND_ID = CACHE_ASSETS.sounds.dragonClawsAttack.id;
+const SPECIAL_ATTACK_SOUND_ID = CACHE_ASSETS.sounds.dragonClawsSpecialFirst.id;
+// TODO: Verify whether these client-side sound cues should instead align to 600 ms game-tick boundaries.
+const SPECIAL_ATTACK_FOLLOW_UP_SOUNDS = [
+  { id: CACHE_ASSETS.sounds.dragonClawsSpecialSecond.id, delayMs: 520 },
+  { id: CACHE_ASSETS.sounds.dragonClawsSpecialThird.id, delayMs: 1040 },
+];
+const SOUND_VOLUME = 0.1;
 
 export class DragonClaws extends MeleeWeapon {
   get cacheItemId(): number {
-    return 13652;
+    return CACHE_ASSETS.items.dragonClaws.id;
   }
 
   constructor() {
     super();
+    [NORMAL_ATTACK_SOUND_ID, SPECIAL_ATTACK_SOUND_ID, ...SPECIAL_ATTACK_FOLLOW_UP_SOUNDS.map(({ id }) => id)].forEach(
+      (id) => SoundCache.preload(cacheSound(id)),
+    );
     this.bonuses = {
       attack: { stab: 41, slash: 57, crush: -4, magic: -4, range: 0 },
       defence: { stab: 13, slash: 26, crush: 7, magic: -4, range: 0 },
@@ -64,11 +75,11 @@ export class DragonClaws extends MeleeWeapon {
   }
 
   override get specialAttackAnimationId(): number {
-    return 7514;
+    return CACHE_ASSETS.playerAnimations.dragonClawsAttack.id;
   }
 
   override get idleAnimationId(): number {
-    return 808;
+    return CACHE_ASSETS.playerAnimations.idle.id;
   }
 
   hasSpecialAttack(): boolean {
@@ -140,16 +151,19 @@ export class DragonClaws extends MeleeWeapon {
         setDelay: hit < 2 ? 1 : 2,
       });
     });
+    SPECIAL_ATTACK_FOLLOW_UP_SOUNDS.forEach(({ id, delayMs }) => {
+      setTimeout(() => SoundCache.play(new Sound(cacheSound(id), SOUND_VOLUME)), delayMs);
+    });
     this.lastHitHit = firstSuccessfulHit >= 0;
     if (this.lastHitHit) from.consumeMaxDamageRollsOnNextAttack();
     return true;
   }
 
   get specialAttackSound() {
-    return new Sound(DragonClawsSpecialAttackSound, 0.1);
+    return new Sound(cacheSound(SPECIAL_ATTACK_SOUND_ID), SOUND_VOLUME);
   }
 
   get attackSound() {
-    return new Sound(DragonClawsAttackSound, 0.1);
+    return new Sound(cacheSound(NORMAL_ATTACK_SOUND_ID), SOUND_VOLUME);
   }
 }

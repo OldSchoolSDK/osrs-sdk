@@ -20,6 +20,7 @@ export type CacheRenderBundleManifest = {
   playerItems?: Record<string, string>;
   spotAnims?: Record<string, string>;
   sharedAssets?: { playerAnimations?: string };
+  soundEffects?: CacheRenderAsset;
 };
 
 /** Structural validation shared by the asset writer and browser loader. */
@@ -28,6 +29,7 @@ export function isCacheRenderBundleManifest(value: any): value is CacheRenderBun
       !value.cache || typeof value.cache.revision !== "number" || typeof value.cache.source !== "string" ||
       typeof value.cache.contentHash !== "string" || !value.assets || !value.references) return false;
   if (Object.values(value.assets).some((asset: any) => !asset || typeof asset.file !== "string" || !/^[a-f0-9]{64}$/i.test(asset.sha256))) return false;
+  if (value.soundEffects !== undefined && (!value.soundEffects || typeof value.soundEffects.file !== "string" || !/^[a-f0-9]{64}$/i.test(value.soundEffects.sha256))) return false;
   if (value.spotAnims !== undefined && (!value.spotAnims || typeof value.spotAnims !== "object" || Object.values(value.spotAnims).some((id: any) => typeof id !== "string"))) return false;
   if (value.sharedAssets !== undefined && (!value.sharedAssets || typeof value.sharedAssets !== "object" || (value.sharedAssets.playerAnimations !== undefined && typeof value.sharedAssets.playerAnimations !== "string"))) return false;
   return value.scenes === undefined || (typeof value.scenes === "object" && Object.values(value.scenes).every((scene: any) =>

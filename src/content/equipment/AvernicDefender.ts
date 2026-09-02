@@ -2,10 +2,11 @@ import { ImageLoader } from "../../sdk/utils/ImageLoader";
 import InventImage from "../../assets/images/equipment/Avernic_defender.png";
 import { Offhand } from "../../sdk/gear/Offhand";
 import { ItemName } from "../../sdk/ItemName";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 import { Assets } from "../../sdk/utils/Assets";
 
 export class AvernicDefender extends Offhand {
-  get cacheItemId(): number { return 22322; }
+  get cacheItemId(): number { return CACHE_ASSETS.items.avernicDefender.id; }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

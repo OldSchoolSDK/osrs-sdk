@@ -3,24 +3,26 @@
  * faithful source reader. These currently mirror InfernoSceneOverrider from
  * OSRS-Environment-Exporter.
  */
-const INFERNO_REGION_ID = 9043;
+import { CACHE_ASSETS } from "../../src/assets/CacheAssets";
+
+const INFERNO_REGION_ID = CACHE_ASSETS.regions.inferno.id;
 
 const SCENE_TOUCHUPS = {
   [INFERNO_REGION_ID]: {
     replacements: [
-      { x: 27, y: 52, objectId: 30340, orientation: 1 },
-      { x: 27, y: 55, objectId: 30327, orientation: 2 },
-      { x: 27, y: 54, objectId: 30342, orientation: 1 },
+      { x: 27, y: 52, objectId: CACHE_ASSETS.objects.infernoCornerA.id, orientation: 1 },
+      { x: 27, y: 55, objectId: CACHE_ASSETS.objects.infernoCornerB.id, orientation: 2 },
+      { x: 27, y: 54, objectId: CACHE_ASSETS.objects.infernoCornerC.id, orientation: 1 },
       // The cache has a separate plane-1 location at this tile; replace only
       // the ground-plane wall to avoid stacking two copies of the corner.
-      { x: 27, y: 56, z: 0, objectId: 30328, orientation: 2 },
-      { x: 35, y: 52, objectId: 30339, orientation: 3 },
-      { x: 35, y: 54, objectId: 30341, orientation: 3 },
-      { x: 28, y: 52, objectId: 30345, orientation: 3 },
-      { x: 33, y: 52, objectId: 30345, orientation: 3 },
+      { x: 27, y: 56, z: 0, objectId: CACHE_ASSETS.objects.infernoCornerD.id, orientation: 2 },
+      { x: 35, y: 52, objectId: CACHE_ASSETS.objects.infernoCornerE.id, orientation: 3 },
+      { x: 35, y: 54, objectId: CACHE_ASSETS.objects.infernoCornerF.id, orientation: 3 },
+      { x: 28, y: 52, objectId: CACHE_ASSETS.objects.infernoCornerG.id, orientation: 3 },
+      { x: 33, y: 52, objectId: CACHE_ASSETS.objects.infernoCornerG.id, orientation: 3 },
     ],
     rectangleReplacements: [
-      { xMin: 26, xMax: 33, yMin: 50, yMax: 54, objectId: 30291 },
+      { xMin: 26, xMax: 33, yMin: 50, yMax: 54, objectId: CACHE_ASSETS.objects.infernoLavaRectangle.id },
     ],
     removals: [{ xMin: 17, xMax: 45, yMin: 17, yMax: 45 }],
   },

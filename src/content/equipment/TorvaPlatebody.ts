@@ -2,10 +2,11 @@ import { Chest } from "../../sdk/gear/Chest";
 import { ImageLoader } from "../../sdk/utils/ImageLoader";
 import InventImage from "../../assets/images/equipment/Torva_platebody.png";
 import { ItemName } from "../../sdk/ItemName";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 import { Assets } from "../../sdk/utils/Assets";
 
 export class TorvaPlatebody extends Chest {
-  get cacheItemId(): number { return 26384; }
+  get cacheItemId(): number { return CACHE_ASSETS.items.torvaPlatebody.id; }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get itemName(): ItemName {

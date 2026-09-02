@@ -3,9 +3,10 @@ import { Necklace } from "../../sdk/gear/Necklace";
 import { ItemName } from "../../sdk/ItemName";
 import { Assets } from "../../sdk/utils/Assets";
 import { ImageLoader } from "../../sdk/utils/ImageLoader";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 
 export class AmuletOfTorture extends Necklace {
-  get cacheItemId(): number { return 19553; }
+  get cacheItemId(): number { return CACHE_ASSETS.items.amuletOfTorture.id; }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

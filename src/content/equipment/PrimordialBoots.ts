@@ -2,10 +2,11 @@ import { Feet } from "../../sdk/gear/Feet";
 import { ImageLoader } from "../../sdk/utils/ImageLoader";
 import InventImage from "../../assets/images/equipment/Primordial_boots.png";
 import { ItemName } from "../../sdk/ItemName";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 import { Assets } from "../../sdk/utils/Assets";
 
 export class PrimordialBoots extends Feet {
-  get cacheItemId(): number { return 13239; }
+  get cacheItemId(): number { return CACHE_ASSETS.items.primordialBoots.id; }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

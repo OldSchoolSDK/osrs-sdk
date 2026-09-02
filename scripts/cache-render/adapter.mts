@@ -1,13 +1,14 @@
+/* eslint-env node */
 /* Adapter for Dezinater/osrscachereader. Kept Node-only: this file is never bundled. */
 import { RSCache, IndexType, ConfigType, ModelGroup } from "../../../osrscachereader/src/reader.js";
+import { CACHE_ASSETS, CACHE_SOUND_EFFECT_IDS, SEMANTIC_POSE_MAP } from "../../src/assets/CacheAssets";
 import { applySceneTouchups } from "./scene-touchups.mts";
 import { compileScene } from "./compile-scene.mts";
 
 const itemKey = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-const NPC_ID = 8373; // Verzik Vitur (phase 3)
-const INFERNO_REGION_ID = 9043;
-const COLOSSEUM_REGION_ID = 7216;
+const INFERNO_REGION_ID = CACHE_ASSETS.regions.inferno.id;
+const COLOSSEUM_REGION_ID = CACHE_ASSETS.regions.colosseum.id;
 
 // The SDK's unlit Three.js materials expect the cache palette's established
 // 0.6 gamma adjustment. Tile brightness is applied to packed HSL beforehand;
@@ -349,7 +350,7 @@ async function sceneAssets(cache, regionId, assets) {
   };
 }
 
-function payload(group, includeFace = () => true) {
+function payload(group, includeFace = (model, face) => true) {
   const model = group.getMergedModel();
   if (!model || !model.vertexCount) throw new Error("Decoded model has no vertices");
   const positions = [], indices = [], colors = [], faceColors = [], uvs = [], textureIds = [], sourceVertices = [], animayaGroups = [], animayaScales = [], alphas = [], alphaGroups = (model.faceLabelsAlpha ?? []).map(() => []), vertexGroups = (model.vertexGroups ?? []).map(() => []);
@@ -472,57 +473,52 @@ export async function decodeSample({ cachePath, revision }) {
   await cache.onload;
   const models = new Map();
   const assets = [];
-  const npc = await cache.getNPC(NPC_ID);
-  if (!npc || !npc.models?.length) throw new Error(`Missing NPC definition ${NPC_ID}`);
-  for (const id of npc.models) await modelAsset(cache, id, models);
-  const npcGroup = new ModelGroup([...models.values()], false);
-  const npcPayload = await attachTextures(cache, payload(npcGroup));
-  npcPayload.scale = (npc.heightScale ?? 128) / 128;
-  npcPayload.animations = await animations(cache, npcGroup, [npc.standingAnimation, npc.walkingAnimation]);
-  npcPayload.poseMap = { 0: npc.standingAnimation, 1: npc.walkingAnimation };
-  assets.push({ id: `npc-${NPC_ID}`, payload: npcPayload });
-
-  // Sol Heredit is kept as a small Animaya fixture for exercising the
-  // skeleton renderer in the SDK sample. The sequence IDs are the cache's
-  // standing, walking and attack/death sequences used by the trainer.
-  const solNpcId = 12821;
-  const sol = await cache.getNPC(solNpcId);
-  if (!sol || !sol.models?.length) throw new Error(`Missing NPC definition ${solNpcId}`);
-  const solModelIds = sol.models;
-  for (const id of solModelIds) await modelAsset(cache, id, models);
-  const solGroup = new ModelGroup(solModelIds.map((id) => models.get(id)), false);
-  // Sol has a 12-face, alpha-254 box in model space. It is the cache's
-  // authored click volume, but assigning it to Animaya group 0 makes it move
-  // with his body. Extract it as a static proxy instead of skinning it.
-  const solPayload = await attachTextures(cache, payload(solGroup, (model, face) => (model.faceAlphas?.[face] ?? 0) !== 254));
-  solPayload.geometryClickbox = payload(solGroup, (model, face) => (model.faceAlphas?.[face] ?? 0) === 254);
-  solPayload.scale = (sol.heightScale ?? 128) / 128;
-  const solSequences = [10874, 10878, 10883, 10884, 10885, 10886, 10887, 10888, 10877];
-  solPayload.animations = await animations(cache, solGroup, solSequences);
-  solPayload.poseMap = { 0: 10874, 1: 10878, 2: 10883, 3: 10884, 4: 10885, 5: 10886, 6: 10887, 7: 10888, 8: 10877 };
-  assets.push({ id: `npc-${solNpcId}`, payload: solPayload });
+  for (const npcAsset of Object.values(CACHE_ASSETS.npcs)) {
+    const npc = await cache.getNPC(npcAsset.id);
+    if (!npc || !npc.models?.length) throw new Error(`Missing NPC definition ${npcAsset.id}`);
+    const npcModelIds = npc.models;
+    for (const id of npcModelIds) await modelAsset(cache, id, models);
+    const npcGroup = new ModelGroup(npcModelIds.map((id) => models.get(id)), false);
+    const { clickboxFilter } = npcAsset;
+    const npcPayload = await attachTextures(cache, payload(npcGroup, clickboxFilter ? (model, face) => !clickboxFilter(model, face) : undefined));
+    if (clickboxFilter) npcPayload.geometryClickbox = payload(npcGroup, clickboxFilter);
+    npcPayload.scale = (npc.heightScale ?? 128) / 128;
+    // Base idle/walk sequences come from the cache NPC definition. Additional
+    // sequences are owned by this registry entry and are extracted uniformly.
+    const npcAnimations = {
+      idle: npc.standingAnimation,
+      walk: npc.walkingAnimation,
+      ...(npcAsset.animations ?? {}),
+    };
+    const sequenceIds = Object.values(npcAnimations);
+    npcPayload.animations = await animations(cache, npcGroup, sequenceIds);
+    npcPayload.poseMap = Object.fromEntries(sequenceIds.map((id, index) => [index, id]));
+    assets.push({ id: `npc-${npcAsset.id}`, payload: npcPayload });
+  }
 
   // Static cache models are useful for scenery and props that do not have an
   // NPC definition. Keep this model reference explicit and versioned.
-  const pillarModelId = 33044;
+  const pillarModelId = CACHE_ASSETS.models.infernoPillar.id;
   await modelAsset(cache, pillarModelId, models);
   const pillarPayload = await attachTextures(cache, payload({ getMergedModel: () => models.get(pillarModelId) }));
   assets.push({ id: `model-${pillarModelId}`, payload: pillarPayload });
 
   // Sol arena wall men. These are complete cache models (rather than NPC
   // definitions), so keep both visual variants as direct model references.
-  // Sequence 7508 is the Dinhs Bulwark idle pose used by these models.
-  for (const wallModelId of [50963, 50964]) {
+  // The Dinhs Bulwark idle pose is used by these models.
+  for (const wallModel of [CACHE_ASSETS.models.solWallA, CACHE_ASSETS.models.solWallB]) {
+    const wallModelId = wallModel.id;
     await modelAsset(cache, wallModelId, models);
     const wallGroup = new ModelGroup([models.get(wallModelId)], false);
     const wallPayload = await attachTextures(cache, payload(wallGroup));
-    wallPayload.animations = await animations(cache, wallGroup, [7508]);
-    wallPayload.poseMap = { 0: 7508 };
+    const wallAnimations = Object.values(wallModel.animations ?? {});
+    wallPayload.animations = await animations(cache, wallGroup, wallAnimations);
+    if (wallAnimations.length) wallPayload.poseMap = { 0: wallAnimations[0] };
     assets.push({ id: `model-${wallModelId}`, payload: wallPayload });
   }
 
   // Sol Heredit's dust impact graphic (the other variants are 2670-2672).
-  const spotAnimIds = [478, 506, 1172, 1231, 2669];
+  const spotAnimIds = Object.values(CACHE_ASSETS.spotAnims).map(({ id }) => id);
   const spotAnimAssets = {};
   for (const id of spotAnimIds) {
     const assetId = `spotanim-${id}`;
@@ -531,67 +527,16 @@ export async function decodeSample({ cachePath, revision }) {
   }
 
   const itemDefs = await cache.getAllDefs(IndexType.CONFIGS.id, ConfigType.ITEM.id);
-  // These names intentionally match ItemName values used by the SDK (Dragon arrow is singular).
-  // SampleRegion keeps Dragon arrow equipped while switching weapons; the SDK's
-  // ammo rules include it in the render reference even for melee variants.
-  // These IDs mirror the explicit cacheItemId values on the SDK equipment
-  // definitions. Names are labels only, never the lookup key.
-  // TODO: parse the code to find all references to cache IDs and determine this dynamically
-  const playerItems = [
-    ["Torva full helm", 26382], ["Amulet of torture", 19553], ["Infernal cape", 21295],
-    ["Torva platebody", 26384], ["Torva platelegs", 26386], ["Primordial boots", 13239],
-    ["Ferocious gloves", 22981], ["Ultor ring", 25485], ["Dragon arrow", 11212],
-    ["Scythe of Vitur", 22325], ["Twisted Bow", 20997], ["Toxic blowpipe", 12926],
-    ["Black chinchompa", 11959], ["Bow of faerdhinen", 25865], ["Noxious halberd", 29796],
-    ["Blade of saeldor", 23995], ["Dragon claws", 13652], ["Avernic defender", 22322],
-    // Remaining SDK equipment/weapons (IDs will be made explicit on the
-    // definitions in a follow-up; names are used only for this inventory).
-    ["Ahrim's robetop", null], ["Ahrim's robeskirt", null], ["Amulet of Fury", null],
-    ["Ancestral Robe bottom", null], ["Ancestral Robe top", null], ["Ancient staff", null],
-    ["Aranea boots", null], ["Armadyl Chainskirt", null], ["Armadyl Chestplate", null], ["Ava's accumulator", null],
-    ["Avas Assembler", null], ["Barrows Gloves", null], ["Black d'hide body", null],
-    ["Black d'hide chaps", null], ["Black d'hide vambraces", null], ["Crystal Body", null],
-    ["Crystal Helm", null], ["Crystal Legs", null], ["Crystal Shield", null],
-    ["Dagon'hai robe top", null], ["Devout Boots", null], ["Diamond bolts (e)", null],
-    ["Dizana's Quiver", null], ["Dragon defender", null], ["Guthix robe top", null],
-    ["Holy Blessing", null], ["Justiciar Chestguard", null], ["Justiciar Faceguard", null],
-    ["Justiciar Legguards", null], ["Mage's Book", null], ["Masori body (f)", null],
-    ["Masori chaps (f)", null], ["Masori mask (f)", null], ["Necklace of Anguish", null],
-    ["Occult necklace", null], ["Pegasian Boots", null], ["Ranger boots", null], ["Berserker ring (i)", null],
-    ["Ring of Endurance", null], ["Ring of Suffering (i)", null], ["Robin hood hat", null],
-    ["Ruby bolts (e)", null], ["Rune Crossbow", null], ["Rune kiteshield", null],
-    ["Saradomin coif", null], ["Saradomin d'hide body", null], ["Saradomin d'hide boots", null],
-    ["Saradomin chaps", null], ["Slayer helmet (i)", null], ["Zaryte Vambraces", null],
-    ["Abyssal tentacle", null], ["Kodai Wand", null],
-  ];
   const findItem = (name, id) => {
-    const item = itemDefs.find((entry) => id != null ? entry?.id === id : entry?.name && itemKey(entry.name) === itemKey(name));
+    const item = itemDefs.find((entry) => entry?.id === id || entry?.name && itemKey(entry.name) === itemKey(name));
     if (!item) throw new Error(`Missing player equipment definition: ${name} (${id})`);
     return item;
   };
-  // Keep these semantic indices aligned with PlayerAnimationIndices in the
-  // SDK. The values are the corresponding sequence IDs from the OSRS cache.
-  const playerPoseMap = {
-    0: 808,  // Idle
-    1: 819,  // Walk
-    2: 824,  // Run
-    3: 820,  // Rotate180
-    4: 822,  // StrafeLeft
-    5: 821,  // StrafeRight
-    6: 426,  // FireBow
-    7: 5061, // FireBlowpipe
-    8: 7618, // ThrowChinchompa
-    9: 8057, // ScytheIdle
-    10: 8056, // ScytheSwing
-    11: 390,  // SwordSlash
-    12: 829,  // Eat / drink
-    13: 836,  // Dying
-    14: 7514, // Dragon claws attack
-  };
+  const playerPoseMap = Object.fromEntries(Object.entries(SEMANTIC_POSE_MAP).map(([index, animation]) => [index, animation.id]));
   const playerItemAssets = {};
   let sharedPlayerAnimations;
-  for (const [itemName, itemId] of playerItems) {
-    const item = findItem(itemName, itemId);
+  for (const [itemName, itemDefinition] of Object.entries(CACHE_ASSETS.items)) {
+    const item = findItem(itemName, itemDefinition.id);
     const itemIds = await itemModels(cache, item, models);
     const assetId = `player-item-${itemName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
     let playerPayload;
@@ -648,6 +593,11 @@ export async function decodeSample({ cachePath, revision }) {
     const id = assets[index].id;
     if ([...sceneInputPrefix].some((prefix) => id.startsWith(prefix)) && !id.includes("-compiled-")) assets.splice(index, 1);
   }
+  const soundEffects = [];
+  for (const id of CACHE_SOUND_EFFECT_IDS) {
+    const file = await cache.getFile(IndexType.SOUNDEFFECTS, id, 0, { cacheResults: false });
+    soundEffects.push({ id, bytes: Uint8Array.from(file.def.bytes) });
+  }
   await cache.close?.();
   const rev = Number(revision || 0);
   return {
@@ -655,15 +605,15 @@ export async function decodeSample({ cachePath, revision }) {
     source: process.env.OSRS_CACHE_SOURCE ?? `openrs2:${rev}`,
     assets,
     references: {
-      [`npc:${NPC_ID}`]: [`npc-${NPC_ID}`],
-      [`npc:${solNpcId}`]: [`npc-${solNpcId}`],
-      "model:33044": ["model-33044"],
-      "model:50963": ["model-50963"],
-      "model:50964": ["model-50964"],
+      ...Object.fromEntries(Object.values(CACHE_ASSETS.npcs).map(({ id }) => [`npc:${id}`, [`npc-${id}`]])),
+      [`model:${CACHE_ASSETS.models.infernoPillar.id}`]: [`model-${CACHE_ASSETS.models.infernoPillar.id}`],
+      [`model:${CACHE_ASSETS.models.solWallA.id}`]: [`model-${CACHE_ASSETS.models.solWallA.id}`],
+      [`model:${CACHE_ASSETS.models.solWallB.id}`]: [`model-${CACHE_ASSETS.models.solWallB.id}`],
     },
     spotAnims: spotAnimAssets,
     playerItems: playerItemAssets,
     sharedAssets,
     scenes,
+    soundEffects,
   };
 }

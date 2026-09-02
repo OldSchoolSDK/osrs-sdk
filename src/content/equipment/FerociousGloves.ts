@@ -2,10 +2,11 @@ import { ImageLoader } from "../../sdk/utils/ImageLoader";
 import InventImage from "../../assets/images/equipment/Ferocious_gloves.png";
 import { Gloves } from "../../sdk/gear/Gloves";
 import { ItemName } from "../../sdk/ItemName";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 import { Assets } from "../../sdk/utils/Assets";
 
 export class FerociousGloves extends Gloves {
-  get cacheItemId(): number { return 22981; }
+  get cacheItemId(): number { return CACHE_ASSETS.items.ferociousGloves.id; }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

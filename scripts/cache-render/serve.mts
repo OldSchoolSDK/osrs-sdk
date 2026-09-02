@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-env node */
 /* Small dependency-free local server for validating the browser bundle. */
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
@@ -13,20 +14,39 @@ const contentTypes = { ".json": "application/json", ".bin": "application/octet-s
 const server = createServer(async (request, response) => {
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
-  if (request.method === "OPTIONS") { response.writeHead(204); response.end(); return; }
-  if (request.method !== "GET" && request.method !== "HEAD") { response.writeHead(405); response.end(); return; }
+  if (request.method === "OPTIONS") {
+    response.writeHead(204);
+    response.end();
+    return;
+  }
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    response.writeHead(405);
+    response.end();
+    return;
+  }
   try {
     const requestPath = decodeURIComponent(new URL(request.url || "/", "http://localhost").pathname);
     const file = resolve(root, `.${requestPath === "/" ? "/manifest.json" : requestPath}`);
-    if (file !== root && !file.startsWith(`${root}/`)) { response.writeHead(403); response.end("Forbidden"); return; }
+    if (file !== root && !file.startsWith(`${root}/`)) {
+      response.writeHead(403);
+      response.end("Forbidden");
+      return;
+    }
     const info = await stat(file);
     if (!info.isFile()) throw new Error("not a file");
     response.setHeader("Content-Type", contentTypes[extname(file)] || "application/octet-stream");
-    response.setHeader("Cache-Control", file.endsWith(".bin") ? "public, max-age=31536000, immutable" : "no-cache");
+    response.setHeader(
+      "Cache-Control",
+      file.endsWith(".bin") || file.endsWith(".soundpack") ? "public, max-age=31536000, immutable" : "no-cache",
+    );
     response.setHeader("Content-Length", info.size);
     response.writeHead(200);
-    if (request.method === "GET") response.end(await readFile(file)); else response.end();
-  } catch { response.writeHead(404); response.end("Not found"); }
+    if (request.method === "GET") response.end(await readFile(file));
+    else response.end();
+  } catch {
+    response.writeHead(404);
+    response.end("Not found");
+  }
 });
 
 server.listen(port, "127.0.0.1", () => {

@@ -1,4 +1,5 @@
 import { BasicModel, CacheRender, CacheRenderModel, CacheRenderReferences, FallbackModel, Location, Mob, Region, UnitOptions } from "../src";
+import { CACHE_ASSETS } from "../src/assets/CacheAssets";
 
 /** Passive target dummy based on InfernoTrainer's pillar entity. */
 export class SampleDummy extends Mob {
@@ -48,7 +49,7 @@ export class SampleDummy extends Mob {
     if (CacheRender.isConfigured()) {
       return new FallbackModel(
         // it's an inferno pillar
-        CacheRenderModel.forRenderable(this, CacheRenderReferences.model(33044)),
+        CacheRenderModel.forRenderable(this, CacheRenderReferences.model(CACHE_ASSETS.models.infernoPillar.id)),
         BasicModel.forRenderable(this),
       );
     }
