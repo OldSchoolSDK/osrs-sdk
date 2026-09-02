@@ -3,7 +3,7 @@
 /*
  * Node-only boundary around osrscachereader. It deliberately writes decoded payloads,
  * never cache archives or GLTF. The adapter is kept separate because cache reader APIs
- * are revision-sensitive; it must export decodeSample({ cachePath, revision }).
+ * are revision-sensitive; it must export decodeAllAssets({ cachePath, revision }).
  */
 import { createHash } from "node:crypto";
 import { mkdir, readdir, unlink, writeFile } from "node:fs/promises";
@@ -25,9 +25,9 @@ const [adapterPath, cachePath, outputDirectory] = process.argv.slice(2);
 if (!adapterPath || !cachePath || !outputDirectory)
   throw new Error("Usage: extract-cache-render-bundle <osrscachereader-adapter.mjs> <cache-path> <output-dir>");
 const adapter = await import(resolve(adapterPath));
-if (typeof adapter.decodeSample !== "function")
-  throw new Error("Extractor adapter must export decodeSample; implement it with osrscachereader@1.1.3");
-const decoded = await adapter.decodeSample({ cachePath, revision: process.env.OSRS_CACHE_REVISION });
+if (typeof adapter.decodeAllAssets !== "function")
+  throw new Error("Extractor adapter must export decodeAllAssets; implement it with osrscachereader@1.1.3");
+const decoded = await adapter.decodeAllAssets({ cachePath, revision: process.env.OSRS_CACHE_REVISION });
 if (
   !Number.isInteger(decoded.revision) ||
   !decoded.source ||

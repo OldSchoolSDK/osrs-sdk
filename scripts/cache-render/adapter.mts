@@ -7,9 +7,6 @@ import { compileScene } from "./compile-scene.mts";
 
 const itemKey = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-const INFERNO_REGION_ID = CACHE_ASSETS.regions.inferno.id;
-const COLOSSEUM_REGION_ID = CACHE_ASSETS.regions.colosseum.id;
-
 // The SDK's unlit Three.js materials expect the cache palette's established
 // 0.6 gamma adjustment. Tile brightness is applied to packed HSL beforehand;
 // it is not this final RGB conversion.
@@ -468,7 +465,7 @@ async function spotAnimAsset(cache, id, models) {
   return result;
 }
 
-export async function decodeSample({ cachePath, revision }) {
+export async function decodeAllAssets({ cachePath, revision }) {
   const cache = new RSCache(cachePath);
   await cache.onload;
   const models = new Map();
@@ -496,28 +493,17 @@ export async function decodeSample({ cachePath, revision }) {
     assets.push({ id: `npc-${npcAsset.id}`, payload: npcPayload });
   }
 
-  // Static cache models are useful for scenery and props that do not have an
-  // NPC definition. Keep this model reference explicit and versioned.
-  const pillarModelId = CACHE_ASSETS.models.infernoPillar.id;
-  await modelAsset(cache, pillarModelId, models);
-  const pillarPayload = await attachTextures(cache, payload({ getMergedModel: () => models.get(pillarModelId) }));
-  assets.push({ id: `model-${pillarModelId}`, payload: pillarPayload });
-
-  // Sol arena wall men. These are complete cache models (rather than NPC
-  // definitions), so keep both visual variants as direct model references.
-  // The Dinhs Bulwark idle pose is used by these models.
-  for (const wallModel of [CACHE_ASSETS.models.solWallA, CACHE_ASSETS.models.solWallB]) {
-    const wallModelId = wallModel.id;
-    await modelAsset(cache, wallModelId, models);
-    const wallGroup = new ModelGroup([models.get(wallModelId)], false);
-    const wallPayload = await attachTextures(cache, payload(wallGroup));
-    const wallAnimations = Object.values(wallModel.animations ?? {});
-    wallPayload.animations = await animations(cache, wallGroup, wallAnimations);
-    if (wallAnimations.length) wallPayload.poseMap = { 0: wallAnimations[0] };
-    assets.push({ id: `model-${wallModelId}`, payload: wallPayload });
+  for (const modelAssetDefinition of Object.values(CACHE_ASSETS.models)) {
+    const modelId = modelAssetDefinition.id;
+    await modelAsset(cache, modelId, models);
+    const modelGroup = new ModelGroup([models.get(modelId)], false);
+    const modelPayload = await attachTextures(cache, payload(modelGroup));
+    const modelAnimations = Object.values(modelAssetDefinition.animations ?? {});
+    modelPayload.animations = await animations(cache, modelGroup, modelAnimations);
+    if (modelAnimations.length) modelPayload.poseMap = { 0: modelAnimations[0] };
+    assets.push({ id: `model-${modelId}`, payload: modelPayload });
   }
 
-  // Sol Heredit's dust impact graphic (the other variants are 2670-2672).
   const spotAnimIds = Object.values(CACHE_ASSETS.spotAnims).map(({ id }) => id);
   const spotAnimAssets = {};
   for (const id of spotAnimIds) {
@@ -574,7 +560,7 @@ export async function decodeSample({ cachePath, revision }) {
     assets.push({ id: "player-animations", payload: sharedPlayerAnimations });
     sharedAssets = { playerAnimations: "player-animations" };
   }
-  const sceneRegionIds = [INFERNO_REGION_ID, COLOSSEUM_REGION_ID];
+  const sceneRegionIds = Object.values(CACHE_ASSETS.regions).map(({ id }) => id);
   for (const regionId of sceneRegionIds) assets.push(await terrainAsset(cache, regionId));
   const scenes = {};
   for (const regionId of sceneRegionIds) {
@@ -606,9 +592,7 @@ export async function decodeSample({ cachePath, revision }) {
     assets,
     references: {
       ...Object.fromEntries(Object.values(CACHE_ASSETS.npcs).map(({ id }) => [`npc:${id}`, [`npc-${id}`]])),
-      [`model:${CACHE_ASSETS.models.infernoPillar.id}`]: [`model-${CACHE_ASSETS.models.infernoPillar.id}`],
-      [`model:${CACHE_ASSETS.models.solWallA.id}`]: [`model-${CACHE_ASSETS.models.solWallA.id}`],
-      [`model:${CACHE_ASSETS.models.solWallB.id}`]: [`model-${CACHE_ASSETS.models.solWallB.id}`],
+      ...Object.fromEntries(Object.values(CACHE_ASSETS.models).map(({ id }) => [`model:${id}`, [`model-${id}`]])),
     },
     spotAnims: spotAnimAssets,
     playerItems: playerItemAssets,
