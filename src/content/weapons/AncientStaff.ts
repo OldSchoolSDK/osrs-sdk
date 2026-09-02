@@ -9,7 +9,11 @@ import { BarrageSpell } from "../../sdk/weapons/BarrageSpell";
 import { BloodBarrageSpell } from "../../sdk/weapons/BloodBarrageSpell";
 import { MeleeWeapon } from "../../sdk/weapons/MeleeWeapon";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class AncientStaff extends MeleeWeapon {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.ancientStaff.id;
+  }
   autocastSpell: BarrageSpell = new BloodBarrageSpell();
 
   constructor() {

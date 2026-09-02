@@ -3,7 +3,11 @@ import InventImage from "../../assets/images/equipment/Black_d'hide_vambraces.pn
 import { Gloves } from "../../sdk/gear/Gloves";
 import { ItemName } from "../../sdk/ItemName";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class BlackDhideVambraces extends Gloves {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.blackDhideVambraces.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

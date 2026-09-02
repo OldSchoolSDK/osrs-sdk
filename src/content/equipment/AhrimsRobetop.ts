@@ -3,7 +3,11 @@ import InventImage from "../../assets/images/equipment/Ahrims_robetop.png";
 import { Chest } from "../../sdk/gear/Chest";
 import { ItemName } from "../../sdk/ItemName";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class AhrimsRobetop extends Chest {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.ahrimsRobeTop.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

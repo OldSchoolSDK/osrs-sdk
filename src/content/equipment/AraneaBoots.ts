@@ -4,7 +4,11 @@ import InventImage from "../../assets/images/equipment/Aranea_boots.png";
 import { ItemName } from "../../sdk/ItemName";
 import { Assets } from "../../sdk/utils/Assets";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class AraneaBoots extends Feet {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.araneaBoots.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

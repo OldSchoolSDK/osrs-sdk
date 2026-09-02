@@ -3,7 +3,11 @@ import InventImage from "../../assets/images/equipment/Armadyl_chainskirt.png";
 import { Legs } from "../../sdk/gear/Legs";
 import { ItemName } from "../../sdk/ItemName";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class ArmadylChainskirt extends Legs {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.armadylChainskirt.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

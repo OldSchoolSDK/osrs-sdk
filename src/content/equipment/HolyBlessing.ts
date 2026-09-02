@@ -2,7 +2,11 @@ import { ImageLoader } from "../../sdk/utils/ImageLoader";
 import InventImage from "../../assets/images/equipment/Holy_blessing.png";
 import { Ammo, AmmoType } from "../../sdk/gear/Ammo";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class HolyBlessing extends Ammo {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.holyBlessing.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

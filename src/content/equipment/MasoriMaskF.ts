@@ -4,7 +4,11 @@ import { ItemName } from "../../sdk/ItemName";
 import { Assets } from "../../sdk/utils/Assets";
 import { ImageLoader } from "../../sdk/utils/ImageLoader";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class MasoriMaskF extends Helmet {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.masoriMaskF.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

@@ -514,7 +514,7 @@ export async function decodeAllAssets({ cachePath, revision }) {
 
   const itemDefs = await cache.getAllDefs(IndexType.CONFIGS.id, ConfigType.ITEM.id);
   const findItem = (name, id) => {
-    const item = itemDefs.find((entry) => entry?.id === id || entry?.name && itemKey(entry.name) === itemKey(name));
+    const item = itemDefs.find((entry) => entry?.id === id);
     if (!item) throw new Error(`Missing player equipment definition: ${name} (${id})`);
     return item;
   };

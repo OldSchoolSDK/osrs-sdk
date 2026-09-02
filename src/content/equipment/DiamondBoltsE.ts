@@ -3,7 +3,11 @@ import InventImage from "../../assets/images/equipment/Diamond_bolts_e_5.png";
 import { Ammo } from "../../sdk/gear/Ammo";
 import { ItemName } from "../../sdk/ItemName";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class DiamondBoltsE extends Ammo {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.diamondBoltsE.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

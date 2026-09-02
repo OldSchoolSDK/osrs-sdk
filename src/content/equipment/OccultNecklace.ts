@@ -3,7 +3,11 @@ import { ImageLoader } from "../../sdk/utils/ImageLoader";
 import InventImage from "../../assets/images/equipment/Occult_necklace.png";
 import { ItemName } from "../../sdk/ItemName";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class OccultNecklace extends Necklace {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.occultNecklace.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

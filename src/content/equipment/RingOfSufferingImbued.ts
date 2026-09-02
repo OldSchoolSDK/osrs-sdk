@@ -3,7 +3,11 @@ import InventImage from "../../assets/images/equipment/Ring_of_suffering_imbued.
 import { Ring } from "../../sdk/gear/Ring";
 import { ItemName } from "../../sdk/ItemName";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class RingOfSufferingImbued extends Ring {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.ringOfSufferingI.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

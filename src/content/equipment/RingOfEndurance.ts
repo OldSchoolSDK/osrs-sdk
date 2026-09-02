@@ -3,7 +3,11 @@ import InventImage from "../../assets/images/equipment/Ring_of_endurance.png";
 import { Ring } from "../../sdk/gear/Ring";
 import { ItemName } from "../../sdk/ItemName";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class RingOfEndurance extends Ring {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.ringOfEndurance.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

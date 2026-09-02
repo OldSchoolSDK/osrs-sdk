@@ -9,7 +9,11 @@ import { AttackStyleTypes, AttackStyle } from "../../sdk/AttackStylesController"
 import { Projectile } from "../../sdk/weapons/Projectile";
 import { Random } from "../../sdk/Random";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class RuneCrossbow extends RangedWeapon {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.runeCrossbow.id;
+  }
   constructor() {
     super();
     this.bonuses = {

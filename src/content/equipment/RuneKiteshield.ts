@@ -3,7 +3,11 @@ import InventImage from "../../assets/images/equipment/Rune_kiteshield.png";
 import { Offhand } from "../../sdk/gear/Offhand";
 import { ItemName } from "../../sdk/ItemName";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class RuneKiteshield extends Offhand {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.runeKiteshield.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

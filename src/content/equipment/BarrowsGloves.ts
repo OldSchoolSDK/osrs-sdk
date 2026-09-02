@@ -4,7 +4,11 @@ import { Gloves } from "../../sdk/gear/Gloves";
 import { ItemName } from "../../sdk/ItemName";
 import { Assets } from "../../sdk/utils/Assets";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class BarrowsGloves extends Gloves {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.barrowsGloves.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

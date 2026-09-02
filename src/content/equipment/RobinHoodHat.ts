@@ -3,7 +3,11 @@ import { ImageLoader } from "../../sdk/utils/ImageLoader";
 import InventImage from "../../assets/images/equipment/Robin_hood_hat.png";
 import { ItemName } from "../../sdk/ItemName";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class RobinHoodHat extends Helmet {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.robinHoodHat.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get itemName(): ItemName {

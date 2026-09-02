@@ -4,7 +4,11 @@ import { Legs } from "../../sdk/gear/Legs";
 import { ItemName } from "../../sdk/ItemName";
 import { Assets } from "../../sdk/utils/Assets";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class CrystalLegs extends Legs {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.crystalLegs.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

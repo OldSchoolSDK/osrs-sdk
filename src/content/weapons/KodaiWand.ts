@@ -10,7 +10,11 @@ import { Unit } from "../../sdk/Unit";
 import { Player } from "../../sdk/Player";
 import { BloodBarrageSpell } from "../../sdk/weapons/BloodBarrageSpell";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class KodaiWand extends MeleeWeapon {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.kodaiWand.id;
+  }
   autocastSpell: BarrageSpell = new BloodBarrageSpell();
 
   constructor() {

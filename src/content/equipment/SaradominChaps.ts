@@ -3,7 +3,11 @@ import InventImage from "../../assets/images/equipment/Saradomin_chaps.png";
 import { Legs } from "../../sdk/gear/Legs";
 import { ItemName } from "../../sdk/ItemName";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class SaradominChaps extends Legs {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.saradominChaps.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

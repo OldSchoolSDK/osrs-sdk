@@ -5,7 +5,11 @@ import { SetEffect } from "../../sdk/SetEffect";
 import { ImageLoader } from "../../sdk/utils/ImageLoader";
 import { JusticiarSetEffect } from "../seteffects/JusticiarSetEffect";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class JusticiarChestguard extends Chest {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.justiciarChestguard.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get equipmentSetEffect(): typeof SetEffect {

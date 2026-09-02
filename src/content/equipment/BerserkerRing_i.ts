@@ -3,7 +3,11 @@ import InventImage from "../../assets/images/equipment/Berserker_ring_(i).png";
 import { Ring } from "../../sdk/gear/Ring";
 import { ItemName } from "../../sdk/ItemName";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class BerserkerRing_i extends Ring {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.berserkerRingI.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

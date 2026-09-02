@@ -5,7 +5,11 @@ import { SetEffect } from "../../sdk/SetEffect";
 import { JusticiarSetEffect } from "../seteffects/JusticiarSetEffect";
 import { ItemName } from "../../sdk/ItemName";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class JusticiarFaceguard extends Helmet {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.justiciarFaceguard.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get equipmentSetEffect(): typeof SetEffect {

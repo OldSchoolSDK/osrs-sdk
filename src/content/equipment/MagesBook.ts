@@ -3,7 +3,11 @@ import InventImage from "../../assets/images/equipment/Mages_book.png";
 import { Offhand } from "../../sdk/gear/Offhand";
 import { ItemName } from "../../sdk/ItemName";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class MagesBook extends Offhand {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.magesBook.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

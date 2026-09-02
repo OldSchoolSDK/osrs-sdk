@@ -4,7 +4,11 @@ import InventImage from "../../assets/images/equipment/Pegasian_boots.png";
 import { ItemName } from "../../sdk/ItemName";
 import { Assets } from "../../sdk/utils/Assets";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class PegasianBoots extends Feet {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.pegasianBoots.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

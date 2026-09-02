@@ -3,7 +3,11 @@ import InventImage from "../../assets/images/equipment/Crystal_shield.png";
 import { Offhand } from "../../sdk/gear/Offhand";
 import { ItemName } from "../../sdk/ItemName";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class CrystalShield extends Offhand {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.crystalShield.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

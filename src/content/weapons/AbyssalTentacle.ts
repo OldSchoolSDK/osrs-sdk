@@ -10,6 +10,10 @@ import { cacheSound } from "../../sdk/audio/CacheSoundEffects";
 import { CACHE_ASSETS } from "../../assets/CacheAssets";
 
 export class AbyssalTentacle extends MeleeWeapon {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.abyssalTentacle.id;
+  }
+
   constructor() {
     super();
 

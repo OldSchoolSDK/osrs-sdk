@@ -3,7 +3,11 @@ import InventImage from "../../assets/images/equipment/Avas_accumulator.png";
 import { Cape } from "../../sdk/gear/Cape";
 import { ItemName } from "../../sdk/ItemName";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class AvasAccumulator extends Cape {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.avasAccumulator.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

@@ -7,7 +7,11 @@ import { Equipment, EquipmentTypes } from "../../sdk/Equipment";
 import { RangedWeapon } from "../../sdk/weapons/RangedWeapon";
 import { Assets } from "../../sdk/utils/Assets";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class DizanasQuiver extends Cape {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.dizanasQuiver.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

@@ -3,7 +3,11 @@ import InventImage from "../../assets/images/equipment/Black_d'hide_chaps.png";
 import { Legs } from "../../sdk/gear/Legs";
 import { ItemName } from "../../sdk/ItemName";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class BlackDhideChaps extends Legs {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.blackDhideChaps.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

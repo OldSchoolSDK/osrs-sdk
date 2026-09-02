@@ -4,7 +4,11 @@ import { Chest } from "../../sdk/gear/Chest";
 import { ItemName } from "../../sdk/ItemName";
 import { Assets } from "../../sdk/utils/Assets";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class AncestralRobetop extends Chest {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.ancestralRobeTop.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

@@ -4,7 +4,11 @@ import { Cape } from "../../sdk/gear/Cape";
 import { ItemName } from "../../sdk/ItemName";
 import { Assets } from "../../sdk/utils/Assets";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class AvasAssembler extends Cape {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.avasAssembler.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

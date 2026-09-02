@@ -5,7 +5,11 @@ import { ImageLoader } from "../../sdk/utils/ImageLoader";
 
 import { Assets } from "../../sdk/utils/Assets";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class MasoriChapsF extends Legs {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.masoriChapsF.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

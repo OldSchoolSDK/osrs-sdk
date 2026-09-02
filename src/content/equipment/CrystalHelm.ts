@@ -4,7 +4,11 @@ import InventImage from "../../assets/images/equipment/Crystal_helm.png";
 import { ItemName } from "../../sdk/ItemName";
 import { Assets } from "../../sdk/utils/Assets";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class CrystalHelm extends Helmet {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.crystalHelm.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get itemName(): ItemName {

@@ -4,7 +4,11 @@ import InventImage from "../../assets/images/equipment/Slayer_helmet_imbued.png"
 import { ItemName } from "../../sdk/ItemName";
 import { Assets } from "../../sdk/utils/Assets";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class SlayerHelmet extends Helmet {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.slayerHelmetI.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get itemName(): ItemName {

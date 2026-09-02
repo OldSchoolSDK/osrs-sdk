@@ -3,7 +3,11 @@ import InventImage from "../../assets/images/equipment/Ruby_bolts_e_5.png";
 import { Ammo } from "../../sdk/gear/Ammo";
 import { ItemName } from "../../sdk/ItemName";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class RubyBoltsE extends Ammo {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.rubyBoltsE.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {

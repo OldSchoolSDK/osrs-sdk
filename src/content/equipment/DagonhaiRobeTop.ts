@@ -3,7 +3,11 @@ import { Chest } from "../../sdk/gear/Chest";
 import { ItemName } from "../../sdk/ItemName";
 import { ImageLoader } from "../../sdk/utils/ImageLoader";
 
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class DagonhaiRobeTop extends Chest {
+  get cacheItemId(): number {
+    return CACHE_ASSETS.items.dagonhaiRobeTop.id;
+  }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);
 
   get inventoryImage() {
