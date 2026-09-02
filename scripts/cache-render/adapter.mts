@@ -93,7 +93,7 @@ async function terrainAsset(cache, regionId) {
     const normalY = Math.trunc((256 * yHeightDiff) / magnitude) / 256;
     const normalZ = Math.trunc((256 * 256) / magnitude) / 256;
     const lightMagnitude = Math.trunc(Math.hypot(-50, -50, -10));
-    const slopeBrightness = Math.trunc((256 * (-50 * normalX - 50 * normalY - 10 * normalZ)) / Math.trunc((lightMagnitude * 768) / 256)) + 128;
+    const slopeBrightness = Math.trunc((256 * (-50 * normalX - 50 * normalY - 10 * normalZ)) / Math.trunc((lightMagnitude * 768) / 256)) + 96;
     const setting = (tile) => tile.settings ?? 0;
     const occlusion = (setting(localTile(x - 1, y)) >> 2) + (setting(localTile(x, y - 1)) >> 2) + (setting(localTile(x + 1, y)) >> 3) + (setting(localTile(x, y + 1)) >> 3) + (setting(localTile(x, y)) >> 1);
     return slopeBrightness - occlusion;
