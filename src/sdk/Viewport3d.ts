@@ -346,9 +346,9 @@ export class Viewport3d implements ViewportDelegate {
     /*const light = new THREE.PointLight(0xffffaa, 1200);
     light.position.set(region.width / 2, 30, region.height / 2);
     this.scene.add(light);*/
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff);
+    /*const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff);
     hemiLight.position.set(0, 100, 0);
-    this.scene.add(hemiLight);
+    this.scene.add(hemiLight);*/
     const ambientLight = new THREE.AmbientLight(0xffffff, 1);
     this.scene.add(ambientLight);
 

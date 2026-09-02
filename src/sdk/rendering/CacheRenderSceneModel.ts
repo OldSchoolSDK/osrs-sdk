@@ -27,13 +27,22 @@ export class CacheRenderSceneModel implements Model {
         if (!assetId) continue;
         const chunks = (await cachedPayload(bundle, assetId)).chunks ?? [];
         if (!chunks.length) throw new Error(`Compiled scene asset ${assetId} has no chunks`);
-        const material = kind === "terrain"
-          ? new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, transparent: false })
-          : new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, flatShading: true, transparent: kind === "transparent", alphaTest: 0.01 });
+        const material = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, flatShading: true, transparent: kind === "transparent", alphaTest: 0.01 });
         chunks.forEach((chunk) => {
           const geometry = new THREE.BufferGeometry(); geometry.setAttribute("position", new THREE.Float32BufferAttribute(chunk.positions, 3));
           const colors: number[] = [];
-          chunk.colors.forEach((value, index) => { const color = new THREE.Color(value); colors.push(color.r, color.g, color.b, 1 - (chunk.alphas[index] & 255) / 255); });
+          chunk.colors.forEach((value, index) => {
+            // The Kotlin scene exporter writes its terrain palette bytes
+            // directly into glTF vertex colours. Retain that convention here
+            // so compiled terrain matches the static arena GLBs; ordinary
+            // cache models continue through Three's colour-managed path.
+            if (kind === "terrain") {
+              colors.push(((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255, 1 - (chunk.alphas[index] & 255) / 255);
+            } else {
+              const color = new THREE.Color(value);
+              colors.push(color.r, color.g, color.b, 1 - (chunk.alphas[index] & 255) / 255);
+            }
+          });
           geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 4)); geometry.setIndex(chunk.indices); geometry.computeVertexNormals();
           this.root.add(new THREE.Mesh(geometry, material));
         });
