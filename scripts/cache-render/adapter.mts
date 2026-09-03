@@ -5,6 +5,7 @@ import { CACHE_ASSETS, CACHE_SOUND_EFFECT_IDS, SEMANTIC_POSE_MAP } from "../../s
 import { applySceneTouchups } from "./scene-touchups.mts";
 import { compileScene } from "./compile-scene.mts";
 import { applyDefinitionOverrides } from "./definition-overrides";
+import { renderFaceIndices } from "./face-rendering";
 
 const itemKey = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -359,9 +360,10 @@ function payload(group, includeFace = (model, face) => true, definition) {
       model.faceTextures?.[face] ?? -1,
       definition,
     );
-    for (const source of [model.faceVertexIndices1[face], model.faceVertexIndices2[face], model.faceVertexIndices3[face]]) {
-      const corner = positions.length / 3 % 3;
-      const index = positions.length / 3; positions.push(model.vertexPositionsX[source] / 128, -model.vertexPositionsY[source] / 128, -model.vertexPositionsZ[source] / 128); indices.push(index);
+    const firstVertex = positions.length / 3;
+    const faceIndices = renderFaceIndices(firstVertex, model.faceRenderTypes?.[face]);
+    [model.faceVertexIndices1[face], model.faceVertexIndices2[face], model.faceVertexIndices3[face]].forEach((source, corner) => {
+      const index = positions.length / 3; positions.push(model.vertexPositionsX[source] / 128, -model.vertexPositionsY[source] / 128, -model.vertexPositionsZ[source] / 128); indices.push(faceIndices[corner]);
       sourceVertices.push(source);
       animayaGroups.push(model.animayaGroups?.[source] ?? []);
       animayaScales.push(model.animayaScales?.[source] ?? []);
@@ -372,7 +374,7 @@ function payload(group, includeFace = (model, face) => true, definition) {
       textureIds.push(faceTexture);
       for (let groupIndex = 0; groupIndex < vertexGroups.length; groupIndex++) if (model.vertexGroups[groupIndex]?.includes(source)) vertexGroups[groupIndex].push(index);
       for (let groupIndex = 0; groupIndex < alphaGroups.length; groupIndex++) if (model.faceLabelsAlpha[groupIndex]?.includes(face)) alphaGroups[groupIndex].push(index);
-    }
+    });
   }
   return {
     positions, indices, vertexGroups, sourceVertices, animayaGroups, animayaScales, colors, faceColors, alphas, alphaGroups, uvs, textureIds,
