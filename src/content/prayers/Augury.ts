@@ -32,13 +32,13 @@ export class Augury extends BasePrayer {
 
   playOnSound() {
     if (Settings.playsAudio) {
-      SoundCache.play(new Sound(cacheSound(CACHE_ASSETS.sounds.augury.id), 0.2));
+      SoundCache.play(new Sound(cacheSound(CACHE_ASSETS.sounds.augury.id), 0.1));
     }
   }
 
   playOffSound() {
     if (Settings.playsAudio) {
-      SoundCache.play(new Sound(cacheSound(CACHE_ASSETS.sounds.prayerDeactivated.id), 0.2));
+      SoundCache.play(new Sound(cacheSound(CACHE_ASSETS.sounds.prayerDeactivated.id), 0.1));
     }
   }
 }
