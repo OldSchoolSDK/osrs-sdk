@@ -161,6 +161,7 @@ export const CACHE_ASSETS = {
     bladeOfSaeldor: { id: 23995 },
     dragonClaws: { id: 13652 },
     avernicDefender: { id: 22322 },
+    saradominBrew: { id: 6685 },
   },
   objects: {
     infernoCornerA: { id: 30340 },

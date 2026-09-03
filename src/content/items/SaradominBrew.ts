@@ -1,3 +1,4 @@
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 import OneDose from "../../assets/images/potions/Saradomin_brew_1.png";
 import TwoDose from "../../assets/images/potions/Saradomin_brew_2.png";
 import ThreeDose from "../../assets/images/potions/Saradomin_brew_3.png";
@@ -13,6 +14,10 @@ export class SaradominBrew extends Potion {
   twoDose: HTMLImageElement = ImageLoader.createImage(TwoDose);
   threeDose: HTMLImageElement = ImageLoader.createImage(ThreeDose);
   fourDose: HTMLImageElement = ImageLoader.createImage(FourDose);
+
+  get cacheItemId() {
+    return CACHE_ASSETS.items.saradominBrew.id;
+  }
 
   constructor(doses = 4) {
     super();

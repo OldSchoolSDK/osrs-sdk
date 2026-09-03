@@ -1,14 +1,23 @@
 import React from "react";
-import type { Item, Loadout as LoadoutData } from "../src";
+import { Dropdown } from "osrs-sdk-react";
+import type { Item, Loadout as LoadoutData, UnitEquipment } from "../src";
+import type { LoadoutItemId } from "../src";
 
 export type LoadoutRegistry = Map<number, Item>;
 
+export type LoadoutSlot =
+  | { kind: "equipment"; slot: keyof UnitEquipment }
+  | { index: number; kind: "inventory" };
+
 export type LoadoutProps = {
   loadout: LoadoutData;
+  onItemSelect: (slot: LoadoutSlot, itemId: number) => void;
   registry?: LoadoutRegistry;
+  // return appropriate substitutes for the given slot (slot is null for inventory slots)
+  getSubstitutes: (slot: keyof UnitEquipment | null) => number[];
 };
 
-const equipmentSlotCoordinates = [
+const equipmentSlotCoordinates: { key: keyof UnitEquipment; label: string; left: number; top: number }[] = [
   { key: "helmet", label: "Helmet", left: 84, top: 11 },
   { key: "cape", label: "Cape", left: 43, top: 50 },
   { key: "necklace", label: "Neck", left: 84, top: 50 },
@@ -49,10 +58,21 @@ const slotStyle: React.CSSProperties = {
   display: "flex",
   fontSize: 10,
   justifyContent: "center",
+  position: "relative",
   textAlign: "center",
 };
 
-function ItemSlot({ itemId, registry }: { itemId: number | null; registry?: LoadoutRegistry }) {
+function ItemSlot({
+  itemId,
+  onItemSelect,
+  registry,
+  substituteItemIds,
+}: {
+  itemId: LoadoutItemId;
+  onItemSelect: (itemId: number) => void;
+  registry?: LoadoutRegistry;
+  substituteItemIds: number[];
+}) {
   const item = itemId === null ? undefined : registry?.get(itemId);
 
   if (!item) {
@@ -60,16 +80,47 @@ function ItemSlot({ itemId, registry }: { itemId: number | null; registry?: Load
   }
 
   return (
-    <img
-      src={item.inventoryImage}
-      alt={item.itemName}
-      title={`${item.itemName} (${itemId})`}
-      style={{ maxHeight: "90%", maxWidth: "90%", imageRendering: "pixelated" }}
-    />
+    <Dropdown
+      menuStyle={{ width: slotSize * 2 }}
+      trigger={
+        <img
+          src={item.inventoryImage}
+          alt={item.itemName}
+          title={`${item.itemName} (${itemId})`}
+          style={{ maxHeight: "90%", maxWidth: "90%", imageRendering: "pixelated" }}
+        />
+      }
+    >
+      {substituteItemIds.map((substituteId) => {
+        const substitute = registry?.get(substituteId);
+        if (!substitute) return null;
+        return (
+          <div
+            key={substituteId}
+            onClick={() => onItemSelect(substituteId)}
+            title={`${substitute.itemName} (${substitute.cacheItemId})`}
+            style={{
+              alignItems: "center",
+              cursor: "pointer",
+              display: "flex",
+              gap: 4,
+              minHeight: slotSize,
+            }}
+          >
+            <img
+              src={substitute.inventoryImage}
+              alt={substitute.itemName}
+              style={{ maxHeight: slotSize - 4, maxWidth: slotSize - 4, imageRendering: "pixelated" }}
+            />
+            <span style={{ fontSize: 10 }}>{substitute.itemName}</span>
+          </div>
+        );
+      })}
+    </Dropdown>
   );
 }
 
-export function Loadout({ loadout, registry }: LoadoutProps) {
+export function Loadout({ loadout, onItemSelect, registry, getSubstitutes }: LoadoutProps) {
   return (
     <div style={{ display: "flex", gap: 24 }}>
       <section>
@@ -87,7 +138,12 @@ export function Loadout({ loadout, registry }: LoadoutProps) {
                 width: slotSize,
               }}
             >
-              <ItemSlot itemId={loadout.equipment[slot.key]} registry={registry} />
+              <ItemSlot
+                itemId={loadout.equipment[slot.key]}
+                onItemSelect={(itemId) => onItemSelect({ kind: "equipment", slot: slot.key }, itemId)}
+                registry={registry}
+                substituteItemIds={getSubstitutes(slot.key)}
+              />
             </div>
           ))}
         </div>
@@ -97,7 +153,12 @@ export function Loadout({ loadout, registry }: LoadoutProps) {
         <div style={{ display: "grid", gap: 4, gridTemplateColumns: `repeat(4, ${slotSize}px)` }}>
           {loadout.inventory.map((itemId, index) => (
             <div key={index} style={{ ...slotStyle, height: slotSize, width: slotSize }}>
-              <ItemSlot itemId={itemId} registry={registry} />
+              <ItemSlot
+                itemId={itemId}
+                onItemSelect={(selectedItemId) => onItemSelect({ index, kind: "inventory" }, selectedItemId)}
+                registry={registry}
+                substituteItemIds={getSubstitutes(null)}
+              />
             </div>
           ))}
         </div>
