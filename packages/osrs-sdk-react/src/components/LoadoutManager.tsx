@@ -4,6 +4,7 @@ import type { Loadout as LoadoutData, LoadoutItemId } from "osrs-sdk";
 import { Modal } from "./Modal";
 import { Loadout } from "./Loadout";
 import type { GetLoadoutSubstitutes, LoadoutRegistry, LoadoutSlot } from "./Loadout";
+import { useTrainerContext } from "../TrainerContext";
 
 export type LoadoutManagerProps = {
   getSubstitutes?: GetLoadoutSubstitutes;
@@ -13,6 +14,7 @@ export type LoadoutManagerProps = {
 };
 
 export function LoadoutManager({ getSubstitutes, loadouts, onClose, open }: LoadoutManagerProps) {
+  const trainer = useTrainerContext();
   const settings = Settings.getSnapshot();
   const savedLoadoutIndex = loadouts.findIndex((template) => template.name === settings.loadout);
   const savedCustomLoadout = settings.customLoadout?.name === loadouts[savedLoadoutIndex]?.name
@@ -24,6 +26,7 @@ export function LoadoutManager({ getSubstitutes, loadouts, onClose, open }: Load
   );
   const [isCustomLoadout, setIsCustomLoadout] = useState(savedCustomLoadout !== null);
   const [registry, setRegistry] = useState<LoadoutRegistry>();
+  const [hasPendingChanges, setHasPendingChanges] = useState(false);
 
   useEffect(() => {
     if (!open || registry) return;
@@ -50,6 +53,7 @@ export function LoadoutManager({ getSubstitutes, loadouts, onClose, open }: Load
     setSelectedLoadoutIndex(nextIndex);
     setLoadout(nextLoadout);
     setIsCustomLoadout(false);
+    setHasPendingChanges(true);
     Settings.set({ loadout: nextLoadout.name, customLoadout: null });
   };
 
@@ -88,7 +92,16 @@ export function LoadoutManager({ getSubstitutes, loadouts, onClose, open }: Load
 
     setLoadout(nextLoadout);
     setIsCustomLoadout(true);
+    setHasPendingChanges(true);
     Settings.set({ loadout: nextLoadout.name, customLoadout: nextLoadout });
+  };
+
+  const close = () => {
+    if (hasPendingChanges) {
+      trainer.reset();
+      setHasPendingChanges(false);
+    }
+    onClose();
   };
 
   const getLoadoutSubstitutes: GetLoadoutSubstitutes = (slot, currentRegistry) => {
@@ -138,7 +151,7 @@ export function LoadoutManager({ getSubstitutes, loadouts, onClose, open }: Load
         ) : (
           <p>No loadout templates configured.</p>
         )}
-        <button type="button" onClick={onClose}>Close</button>
+        <button type="button" onClick={close}>{hasPendingChanges ? "Close + Reset" : "Close"}</button>
       </div>
     </Modal>
   );

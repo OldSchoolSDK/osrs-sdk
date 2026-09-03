@@ -4,6 +4,7 @@ import { RSCache, IndexType, ConfigType, ModelGroup } from "../../../osrscachere
 import { CACHE_ASSETS, CACHE_SOUND_EFFECT_IDS, SEMANTIC_POSE_MAP } from "../../src/assets/CacheAssets";
 import { applySceneTouchups } from "./scene-touchups.mts";
 import { compileScene } from "./compile-scene.mts";
+import { applyDefinitionOverrides } from "./definition-overrides";
 
 const itemKey = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -347,23 +348,28 @@ async function sceneAssets(cache, regionId, assets) {
   };
 }
 
-function payload(group, includeFace = (model, face) => true) {
+function payload(group, includeFace = (model, face) => true, definition) {
   const model = group.getMergedModel();
   if (!model || !model.vertexCount) throw new Error("Decoded model has no vertices");
   const positions = [], indices = [], colors = [], faceColors = [], uvs = [], textureIds = [], sourceVertices = [], animayaGroups = [], animayaScales = [], alphas = [], alphaGroups = (model.faceLabelsAlpha ?? []).map(() => []), vertexGroups = (model.vertexGroups ?? []).map(() => []);
   for (let face = 0; face < model.faceVertexIndices1.length; face++) {
     if (!includeFace(model, face)) continue;
+    const { color: faceColor, texture: faceTexture } = applyDefinitionOverrides(
+      model.faceColors?.[face] ?? 0,
+      model.faceTextures?.[face] ?? -1,
+      definition,
+    );
     for (const source of [model.faceVertexIndices1[face], model.faceVertexIndices2[face], model.faceVertexIndices3[face]]) {
       const corner = positions.length / 3 % 3;
       const index = positions.length / 3; positions.push(model.vertexPositionsX[source] / 128, -model.vertexPositionsY[source] / 128, -model.vertexPositionsZ[source] / 128); indices.push(index);
       sourceVertices.push(source);
       animayaGroups.push(model.animayaGroups?.[source] ?? []);
       animayaScales.push(model.animayaScales?.[source] ?? []);
-      colors.push(hslRgb(model.faceColors?.[face] ?? 0));
-      faceColors.push(model.faceColors?.[face] ?? 0);
+      colors.push(hslRgb(faceColor));
+      faceColors.push(faceColor);
       alphas.push(model.faceAlphas?.[face] ?? 0);
       uvs.push(model.faceTextureUCoordinates?.[face]?.[corner] ?? 0, model.faceTextureVCoordinates?.[face]?.[corner] ?? 0);
-      textureIds.push(model.faceTextures?.[face] ?? -1);
+      textureIds.push(faceTexture);
       for (let groupIndex = 0; groupIndex < vertexGroups.length; groupIndex++) if (model.vertexGroups[groupIndex]?.includes(source)) vertexGroups[groupIndex].push(index);
       for (let groupIndex = 0; groupIndex < alphaGroups.length; groupIndex++) if (model.faceLabelsAlpha[groupIndex]?.includes(face)) alphaGroups[groupIndex].push(index);
     }
@@ -459,7 +465,7 @@ async function spotAnimAsset(cache, id, models) {
   // omits face-label alpha groups, which are required by sequence type-5
   // fade transforms.
   const group = { getMergedModel: () => models.get(definition.modelId) };
-  const result = await attachTextures(cache, payload(group));
+  const result = await attachTextures(cache, payload(group, undefined, definition));
   result.animations = definition.animationId >= 0 ? await animations(cache, group, [definition.animationId]) : {};
   result.spotAnim = { id, animationId: definition.animationId, resizeX: definition.resizeX ?? 128, resizeY: definition.resizeY ?? 128, rotation: definition.rotation ?? 0 };
   return result;
@@ -477,7 +483,7 @@ export async function decodeAllAssets({ cachePath, revision }) {
     for (const id of npcModelIds) await modelAsset(cache, id, models);
     const npcGroup = new ModelGroup(npcModelIds.map((id) => models.get(id)), false);
     const { clickboxFilter } = npcAsset;
-    const npcPayload = await attachTextures(cache, payload(npcGroup, clickboxFilter ? (model, face) => !clickboxFilter(model, face) : undefined));
+    const npcPayload = await attachTextures(cache, payload(npcGroup, clickboxFilter ? (model, face) => !clickboxFilter(model, face) : undefined, npc));
     if (clickboxFilter) npcPayload.geometryClickbox = payload(npcGroup, clickboxFilter);
     npcPayload.scale = (npc.heightScale ?? 128) / 128;
     // Base idle/walk sequences come from the cache NPC definition. Additional
@@ -532,7 +538,7 @@ export async function decodeAllAssets({ cachePath, revision }) {
       playerPayload = { positions: [0, 0, 0], indices: [], color: 0xffffff, animations: {}, poseMap: playerPoseMap };
     } else {
       const group = new ModelGroup(itemIds.map((id) => models.get(id)), false);
-      playerPayload = await attachTextures(cache, payload(group));
+      playerPayload = await attachTextures(cache, payload(group, undefined, item));
       const itemAnimations = await animations(cache, group, Object.values(playerPoseMap));
       // Standard cache sequences are model-independent: their frame maps and
       // transform values can be applied after all equipment is composed. Keep

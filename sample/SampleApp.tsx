@@ -83,6 +83,23 @@ const loadoutTemplates: LoadoutData[] = [
     },
     inventory: sampleInventory,
   },
+  {
+    name: "Full Crystal",
+    equipment: {
+      weapon: CACHE_ASSETS.items.bowOfFaerdhinen.id,
+      offhand: null,
+      helmet: CACHE_ASSETS.items.crystalHelm.id,
+      necklace: CACHE_ASSETS.items.necklaceOfAnguish.id,
+      chest: CACHE_ASSETS.items.crystalBody.id,
+      legs: CACHE_ASSETS.items.crystalLegs.id,
+      feet: CACHE_ASSETS.items.pegasianBoots.id,
+      gloves: CACHE_ASSETS.items.zaryteVambraces.id,
+      ring: CACHE_ASSETS.items.ringOfEndurance.id,
+      cape: CACHE_ASSETS.items.dizanasQuiver.id,
+      ammo: CACHE_ASSETS.items.dragonArrows.id,
+    },
+    inventory: sampleInventory,
+  },
 ];
 
 function createTrainer() {
