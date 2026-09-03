@@ -802,10 +802,10 @@ export abstract class Unit extends Renderable {
 
   drawHitsplats(context: OffscreenCanvasRenderingContext2D, scale: number, above: boolean) {
     let projectileOffsets = [
-      [0, 12],
-      [0, 28],
-      [-14, 20],
-      [14, 20],
+      [0, 10],
+      [0, 30],
+      [-18, 20],
+      [18, 20],
     ];
 
     let projectileCounter = 0;
@@ -836,15 +836,16 @@ export abstract class Unit extends Renderable {
           image = this.healHitsplatImage;
         }
 
-        context.drawImage(image, projectile.offsetX - 12, verticalOffset - projectile.offsetY, 24, 23);
-        context.fillStyle = "#FFFFFF";
+        context.drawImage(image, projectile.offsetX - 11, verticalOffset - projectile.offsetY - 1, 24, 23);
         context.font = "16px Stats_11";
         context.textAlign = "center";
-        context.fillText(
-          String(Math.abs(projectile.damage)),
-          projectile.offsetX,
-          verticalOffset - projectile.offsetY + 15,
-        );
+        const damageText = String(Math.abs(projectile.damage));
+        const damageTextX = projectile.offsetX;
+        const damageTextY = verticalOffset - projectile.offsetY + 15;
+        context.fillStyle = "#000000";
+        context.fillText(damageText, damageTextX + 1, damageTextY + 1);
+        context.fillStyle = "#FFFFFF";
+        context.fillText(damageText, damageTextX, damageTextY);
         context.textAlign = "left";
       }
     });
