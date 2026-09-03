@@ -3,6 +3,7 @@ import TwoDose from "../../assets/images/potions/Armadyl_brew_2.png";
 import ThreeDose from "../../assets/images/potions/Armadyl_brew_3.png";
 import FourDose from "../../assets/images/potions/Armadyl_brew_4.png";
 import Vial from "../../assets/images/potions/Vial.png";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 import { ItemName } from "../../sdk/ItemName";
 import { Player } from "../../sdk/Player";
 import { Potion } from "../../sdk/gear/Potion";
@@ -13,6 +14,10 @@ export class ArmadylBrew extends Potion {
   twoDose: HTMLImageElement = ImageLoader.createImage(TwoDose);
   threeDose: HTMLImageElement = ImageLoader.createImage(ThreeDose);
   fourDose: HTMLImageElement = ImageLoader.createImage(FourDose);
+
+  get cacheItemId() {
+    return CACHE_ASSETS.items.armadylBrew.id;
+  }
 
   constructor(doses = 4) {
     super();

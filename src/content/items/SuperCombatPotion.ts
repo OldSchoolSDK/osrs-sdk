@@ -5,6 +5,7 @@ import TwoDose from "../../assets/images/potions/Super_combat_potion_2.png";
 import ThreeDose from "../../assets/images/potions/Super_combat_potion_3.png";
 import FourDose from "../../assets/images/potions/Super_combat_potion_4.png";
 import Vial from "../../assets/images/potions/Vial.png";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 import { Player } from "../../sdk/Player";
 import { Potion } from "../../sdk/gear/Potion";
 
@@ -13,6 +14,10 @@ export class SuperCombatPotion extends Potion {
   twoDose: HTMLImageElement = ImageLoader.createImage(TwoDose);
   threeDose: HTMLImageElement = ImageLoader.createImage(ThreeDose);
   fourDose: HTMLImageElement = ImageLoader.createImage(FourDose);
+
+  get cacheItemId() {
+    return CACHE_ASSETS.items.superCombatPotion.id;
+  }
 
   constructor(doses = 4) {
     super();

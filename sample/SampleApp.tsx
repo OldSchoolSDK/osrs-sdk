@@ -21,7 +21,32 @@ import {
 import { configureSampleCacheRenderer } from "./cache-render";
 import { SampleRegion } from "./SampleRegion";
 
-const sampleInventory = Object.values(CACHE_ASSETS.items).map(({ id }) => id);
+const sampleInventory = [
+  CACHE_ASSETS.items.saradominBrew.id,
+  CACHE_ASSETS.items.superCombatPotion.id,
+  CACHE_ASSETS.items.bastionPotion.id,
+  CACHE_ASSETS.items.superRestore.id,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+];
 
 const loadoutTemplates: LoadoutData[] = [
   {
@@ -39,7 +64,7 @@ const loadoutTemplates: LoadoutData[] = [
       cape: CACHE_ASSETS.items.infernalCape.id,
       ammo: CACHE_ASSETS.items.dragonArrows.id,
     },
-    inventory: sampleInventory.slice(0, 28),
+    inventory: sampleInventory,
   },
   {
     name: "Ranged",
@@ -56,7 +81,7 @@ const loadoutTemplates: LoadoutData[] = [
       cape: CACHE_ASSETS.items.dizanasQuiver.id,
       ammo: CACHE_ASSETS.items.dragonArrows.id,
     },
-    inventory: sampleInventory.slice(28, 56),
+    inventory: sampleInventory,
   },
 ];
 
