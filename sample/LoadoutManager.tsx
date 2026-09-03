@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Modal } from "osrs-sdk-react";
-import { CACHE_ASSETS, loadLoadoutRegistry, Settings, Weapon } from "../src";
+import { CACHE_ASSETS, EQUIPMENT_TYPE_TO_SLOT, Equipment, loadLoadoutRegistry, Settings, Weapon } from "../src";
 import type { Loadout as LoadoutData, LoadoutItemId, UnitEquipment } from "../src";
 import { Loadout } from "./Loadout";
 import type { LoadoutRegistry, LoadoutSlot } from "./Loadout";
@@ -98,14 +98,11 @@ export function LoadoutManager({ loadouts, onClose, open }: LoadoutManagerProps)
         CACHE_ASSETS.items.saradominBrew.id,
       ];
     }
-    return [
-      CACHE_ASSETS.items.scytheOfVitur.id,
-      CACHE_ASSETS.items.abyssalTentacle.id,
-      CACHE_ASSETS.items.bladeOfSaeldor.id,
-      CACHE_ASSETS.items.twistedBow.id,
-      CACHE_ASSETS.items.bowOfFaerdhinen.id,
-      CACHE_ASSETS.items.toxicBlowpipe.id,
-    ];
+    if (!registry) return [];
+
+    return Array.from(registry.entries())
+      .filter(([, item]) => item instanceof Equipment && EQUIPMENT_TYPE_TO_SLOT[item.type] === slot)
+      .map(([itemId]) => itemId);
   }
 
   return (

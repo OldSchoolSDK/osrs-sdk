@@ -3,7 +3,7 @@ import { Player } from "../Player";
 
 export class Cape extends Equipment {
   get type(): EquipmentTypes {
-    return EquipmentTypes.AMMO;
+    return EquipmentTypes.BACK;
   }
 
   assignToPlayer(player: Player) {
