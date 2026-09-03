@@ -12,6 +12,10 @@ import { BloodBarrageSpell } from "../../sdk/weapons/BloodBarrageSpell";
 
 import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class KodaiWand extends MeleeWeapon {
+  override get equipSoundId(): number {
+    return CACHE_ASSETS.sounds.equipStaff.id;
+  }
+
   get cacheItemId(): number {
     return CACHE_ASSETS.items.kodaiWand.id;
   }

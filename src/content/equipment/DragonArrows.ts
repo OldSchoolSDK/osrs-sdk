@@ -5,6 +5,10 @@ import { ItemName } from "../../sdk/ItemName";
 import { CACHE_ASSETS } from "../../assets/CacheAssets";
 
 export class DragonArrows extends Ammo {
+  override get equipSoundId(): number {
+    return CACHE_ASSETS.sounds.equipWood.id;
+  }
+
   // Dragon arrows have no character mesh; the cache item ID is still explicit.
   get cacheItemId(): number { return CACHE_ASSETS.items.dragonArrows.id; }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);

@@ -5,6 +5,10 @@ import { ItemName } from "../../sdk/ItemName";
 
 import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class DiamondBoltsE extends Ammo {
+  override get equipSoundId(): number {
+    return CACHE_ASSETS.sounds.equipBolt.id;
+  }
+
   get cacheItemId(): number {
     return CACHE_ASSETS.items.diamondBoltsE.id;
   }

@@ -2,6 +2,9 @@ import { Item } from "./Item";
 import { UnitBonuses, UnitEquipment } from "./Unit";
 import { SetEffect } from "./SetEffect";
 import { Player } from "./Player";
+import { DelayedAction } from "./DelayedAction";
+import { cacheSound } from "./audio/CacheSoundEffects";
+import { Sound, SoundCache } from "./utils/SoundCache";
 
 export enum EquipmentTypes {
   HELMET = "helmet",
@@ -52,6 +55,25 @@ export class Equipment extends Item {
     this.assignToPlayer(player);
     player.inventory[openInventorySlots.shift()] = currentItem;
     player.equipmentChanged();
+    this.scheduleEquipmentSound();
+  }
+
+  /** Cache sound effect to play when this item is equipped, or null for silence. */
+  get equipSoundId(): number | null {
+    return null;
+  }
+
+  /**
+   * Equip actions are processed on a world tick. Keep the sound on that same
+   * tick boundary instead of playing directly from the browser click handler.
+   */
+  protected scheduleEquipmentSound() {
+    if (this.equipSoundId === null) {
+      return;
+    }
+
+    const sound = new Sound(cacheSound(this.equipSoundId), 0.1);
+    DelayedAction.registerDelayedAction(new DelayedAction(() => SoundCache.play(sound), 0));
   }
 
   get equipmentSetEffect(): typeof SetEffect {
@@ -82,6 +104,7 @@ export class Equipment extends Item {
     this.unassignToPlayer(player);
     player.equipmentChanged();
     player.inventory[openInventorySlots.shift()] = this;
+    this.scheduleEquipmentSound();
   }
 
   get type(): EquipmentTypes {

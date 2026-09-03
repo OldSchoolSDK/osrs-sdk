@@ -14,6 +14,10 @@ import { cacheSound } from "../../sdk/audio/CacheSoundEffects";
 import { CACHE_ASSETS } from "../../assets/CacheAssets";
 
 export class BowOfFaerdhinen extends RangedWeapon {
+  override get equipSoundId(): number {
+    return CACHE_ASSETS.sounds.equipFun.id;
+  }
+
   get cacheItemId(): number { return CACHE_ASSETS.items.bowOfFaerdhinen.id; }
   constructor() {
     super();

@@ -11,6 +11,10 @@ import { MeleeWeapon } from "../../sdk/weapons/MeleeWeapon";
 
 import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class AncientStaff extends MeleeWeapon {
+  override get equipSoundId(): number {
+    return CACHE_ASSETS.sounds.equipStaff.id;
+  }
+
   get cacheItemId(): number {
     return CACHE_ASSETS.items.ancientStaff.id;
   }

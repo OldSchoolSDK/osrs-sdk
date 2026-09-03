@@ -22,6 +22,10 @@ const SPECIAL_ATTACK_FOLLOW_UP_SOUNDS = [
 const SOUND_VOLUME = 0.1;
 
 export class DragonClaws extends MeleeWeapon {
+  override get equipSoundId(): number {
+    return CACHE_ASSETS.sounds.equipFun.id;
+  }
+
   get cacheItemId(): number {
     return CACHE_ASSETS.items.dragonClaws.id;
   }

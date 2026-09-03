@@ -4,8 +4,13 @@ import { AttackBonuses, Weapon } from "../gear/Weapon";
 import { EquipmentTypes } from "../Equipment";
 import { AttackStylesController } from "../AttackStylesController";
 import { PrayerGroups } from "../BasePrayer";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 
 export class RangedWeapon extends Weapon {
+  override get equipSoundId(): number {
+    return CACHE_ASSETS.sounds.equipRanged.id;
+  }
+
   get type() {
     return EquipmentTypes.WEAPON;
   }

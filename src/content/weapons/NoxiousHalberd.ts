@@ -10,6 +10,10 @@ import { cacheSound } from "../../sdk/audio/CacheSoundEffects";
 import { CACHE_ASSETS } from "../../assets/CacheAssets";
 
 export class NoxiousHalberd extends MeleeWeapon {
+  override get equipSoundId(): number {
+    return CACHE_ASSETS.sounds.equipStaff.id;
+  }
+
   get cacheItemId(): number { return CACHE_ASSETS.items.noxiousHalberd.id; }
   constructor() {
     super();

@@ -10,6 +10,10 @@ import { cacheSound } from "../../sdk/audio/CacheSoundEffects";
 import { CACHE_ASSETS } from "../../assets/CacheAssets";
 
 export class AbyssalTentacle extends MeleeWeapon {
+  override get equipSoundId(): number {
+    return CACHE_ASSETS.sounds.equipWhip.id;
+  }
+
   get cacheItemId(): number {
     return CACHE_ASSETS.items.abyssalTentacle.id;
   }

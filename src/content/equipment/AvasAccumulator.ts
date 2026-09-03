@@ -5,6 +5,10 @@ import { ItemName } from "../../sdk/ItemName";
 
 import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class AvasAccumulator extends Cape {
+  override get equipSoundId(): number {
+    return CACHE_ASSETS.sounds.equipBackpack.id;
+  }
+
   get cacheItemId(): number {
     return CACHE_ASSETS.items.avasAccumulator.id;
   }

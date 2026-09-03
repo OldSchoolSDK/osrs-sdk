@@ -4,8 +4,13 @@ import { EquipmentTypes } from "../Equipment";
 import { Weapon, AttackBonuses } from "../gear/Weapon";
 import { Unit, UnitTypes } from "../Unit";
 import { ProjectileOptions } from "./Projectile";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 
 export class MeleeWeapon extends Weapon {
+  override get equipSoundId(): number {
+    return CACHE_ASSETS.sounds.equipSword.id;
+  }
+
   constructor(projectileOptions: ProjectileOptions = {}) {
     super({
       hidden: true,

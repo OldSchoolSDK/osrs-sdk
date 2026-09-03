@@ -1,7 +1,12 @@
 import { Equipment, EquipmentTypes } from "../Equipment";
 import { Player } from "../Player";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
 
 export class Offhand extends Equipment {
+  override get equipSoundId(): number {
+    return CACHE_ASSETS.sounds.equipShield.id;
+  }
+
   get type(): EquipmentTypes {
     return EquipmentTypes.OFFHAND;
   }
@@ -36,6 +41,7 @@ export class Offhand extends Equipment {
     }
 
     player.equipmentChanged();
+    this.scheduleEquipmentSound();
   }
 
   assignToPlayer(player: Player) {

@@ -131,6 +131,7 @@ export class Weapon extends Equipment {
       player.equipment.offhand = null;
     }
     player.equipmentChanged();
+    this.scheduleEquipmentSound();
   }
 
   cast(from: Unit, to: Unit) {

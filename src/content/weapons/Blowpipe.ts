@@ -16,6 +16,10 @@ import { PlayerAnimationIndices } from "../../sdk/rendering/GLTFAnimationConstan
 import { Assets } from "../../sdk/utils/Assets";
 
 export class Blowpipe extends RangedWeapon {
+  override get equipSoundId(): number {
+    return CACHE_ASSETS.sounds.equipStaff.id;
+  }
+
   get cacheItemId(): number {
     return CACHE_ASSETS.items.toxicBlowpipe.id;
   }

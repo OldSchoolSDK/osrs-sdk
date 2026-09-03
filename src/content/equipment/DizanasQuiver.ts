@@ -9,6 +9,10 @@ import { Assets } from "../../sdk/utils/Assets";
 
 import { CACHE_ASSETS } from "../../assets/CacheAssets";
 export class DizanasQuiver extends Cape {
+  override get equipSoundId(): number {
+    return CACHE_ASSETS.sounds.equipBackpack.id;
+  }
+
   get cacheItemId(): number {
     return CACHE_ASSETS.items.dizanasQuiver.id;
   }
