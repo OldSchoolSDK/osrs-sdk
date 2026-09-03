@@ -138,6 +138,7 @@ function ItemSlot({
             title={`${substitute.itemName} (${substitute.cacheItemId})`}
             style={{
               alignItems: "center",
+              justifyItems: "center",
               cursor: "pointer",
               display: "grid",
               gap: 4,
