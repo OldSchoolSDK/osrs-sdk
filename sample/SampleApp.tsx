@@ -7,7 +7,7 @@ import {
   TrainerInstance,
   TrainerLoadingState,
 } from "../src";
-import { DefaultSidebar, TrainerApp, TrainerLoading, useSettingsSnapshot, useTrainerContext } from "osrs-sdk-react";
+import { DefaultSidebar, GameOverlay, TrainerApp, TrainerLoadingSplash, useSettingsSnapshot, useTrainerContext } from "osrs-sdk-react";
 import { configureSampleCacheRenderer } from "./cache-render";
 import { SampleRegion } from "./SampleRegion";
 
@@ -60,7 +60,9 @@ export function SampleApp() {
       trainer={trainer}
       onLoadingStateChange={setLoading}
     >
-      <TrainerLoading state={loading} style={{ left: '50%', position: "absolute", top: '50%', fontSize: '16pt' }} />
+      <GameOverlay>
+        <TrainerLoadingSplash state={loading} />
+      </GameOverlay>
       <div id="disclaimer_panel">Work in progress.<br />All assets are property of Jagex.</div>
       <DefaultSidebar>
         <SampleSidebarContents />

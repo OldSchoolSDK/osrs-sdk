@@ -1,6 +1,6 @@
-import React, { CanvasHTMLAttributes, HTMLAttributes, useLayoutEffect, useRef } from "react";
+import React, { CanvasHTMLAttributes, HTMLAttributes, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { TrainerInstance, TrainerLoadingState } from "osrs-sdk";
-import { PlayableArea } from "./components";
+import { GameOverlayProvider, PlayableArea } from "./components";
 import { TrainerProvider } from "./TrainerContext";
 
 export type TrainerAppProps = HTMLAttributes<HTMLDivElement> & {
@@ -22,8 +22,14 @@ export function TrainerApp({
   const activeTrainer = useRef<TrainerInstance | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const playableAreaRef = useRef<HTMLDivElement | null>(null);
+  const [playableArea, setPlayableArea] = useState<HTMLDivElement | null>(null);
   const loadingListener = useRef(onLoadingStateChange);
   loadingListener.current = onLoadingStateChange;
+
+  const setPlayableAreaRef = useCallback((element: HTMLDivElement | null) => {
+    playableAreaRef.current = element;
+    setPlayableArea(element);
+  }, []);
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
@@ -46,28 +52,30 @@ export function TrainerApp({
 
   return (
     <TrainerProvider trainer={trainer}>
-      <div
-        {...props}
-        style={{ display: "flex", inset: 0, overflow: "hidden", position: "fixed", ...style }}
-      >
-        <PlayableArea ref={playableAreaRef}>
-          <canvas
-            id="world"
-            {...canvasProps}
-            ref={canvasRef}
-            onContextMenu={canvasProps?.onContextMenu ?? ((event) => event.preventDefault())}
-            style={{
-              height: "100%",
-              imageRendering: "pixelated",
-              inset: 0,
-              position: "absolute",
-              width: "100%",
-              ...canvasProps?.style,
-            }}
-          />
-        </PlayableArea>
-        {children}
-      </div>
+      <GameOverlayProvider target={playableArea}>
+        <div
+          {...props}
+          style={{ display: "flex", inset: 0, overflow: "hidden", position: "fixed", ...style }}
+        >
+          <PlayableArea ref={setPlayableAreaRef}>
+            <canvas
+              id="world"
+              {...canvasProps}
+              ref={canvasRef}
+              onContextMenu={canvasProps?.onContextMenu ?? ((event) => event.preventDefault())}
+              style={{
+                height: "100%",
+                imageRendering: "pixelated",
+                inset: 0,
+                position: "absolute",
+                width: "100%",
+                ...canvasProps?.style,
+              }}
+            />
+          </PlayableArea>
+          {children}
+        </div>
+      </GameOverlayProvider>
     </TrainerProvider>
   );
 }

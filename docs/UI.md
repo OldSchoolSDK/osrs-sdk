@@ -54,7 +54,9 @@ export function MyTrainerApp() {
 
   return (
     <TrainerApp trainer={trainer} onLoadingStateChange={setLoading}>
-      <TrainerLoading state={loading} />
+      <GameOverlay>
+        <TrainerLoadingSplash state={loading} />
+      </GameOverlay>
       <DefaultSidebar>
         <Sidebar />
       </DefaultSidebar>
@@ -84,6 +86,20 @@ children and the sidebar are optional, so an empty `TrainerApp` is valid.
 children first, followed by shared rendering settings including Render FPS and
 Smooth Cache Animations. Use it as the sidebar wrapper for client-specific
 controls.
+
+`TrainerLoadingSplash` is an app-level overlay. It is positioned above the complete
+`TrainerApp` layout, including the sidebar, and does not participate in the
+root flex layout.
+
+Use `GameOverlay` when UI should be mounted inside `PlayableArea` while still
+being declared as a `TrainerApp` child. Its contents retain normal React
+context and state, but absolute positioning is relative to the playable area:
+
+```tsx
+<GameOverlay>
+  <LoadingOverlay />
+</GameOverlay>
+```
 
 ## Layout and overlays
 

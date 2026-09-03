@@ -2,12 +2,12 @@ import React, { HTMLAttributes } from "react";
 import { TrainerLoadingState } from "osrs-sdk";
 import { ProgressBar, ProgressBarProps } from "./components";
 
-export type TrainerLoadingProps = HTMLAttributes<HTMLDivElement> & {
+export type TrainerLoadingSplashProps = HTMLAttributes<HTMLDivElement> & {
   state?: TrainerLoadingState;
   progressBar?: Omit<ProgressBarProps, "progress">;
 };
 
-export function TrainerLoading({ progressBar, state, style, ...props }: TrainerLoadingProps) {
+export function TrainerLoadingSplash({ progressBar, state, style, ...props }: TrainerLoadingSplashProps) {
   if (state?.status === "ready") return null;
   const text = state?.status === "error"
     ? `Loading failed: ${state.error?.message ?? "Unknown error"}`
@@ -18,7 +18,14 @@ export function TrainerLoading({ progressBar, state, style, ...props }: TrainerL
       {...props}
       style={{
         fontSize: "16pt",
-        width: "33%",
+        position: "absolute",
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
         ...style,
       }}
     >
@@ -30,7 +37,7 @@ export function TrainerLoading({ progressBar, state, style, ...props }: TrainerL
           fillColor="#FFFF00"
           progress={state?.assetProgress ?? 0}
           {...progressBar}
-          style={{ marginTop: "0.25rem", ...progressBar?.style }}
+          style={{ marginTop: "0.25rem", width: '50%', ...progressBar?.style }}
         />
       )}
     </div>
