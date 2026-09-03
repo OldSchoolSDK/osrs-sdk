@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Modal } from "osrs-sdk-react";
-import { loadLoadoutRegistry } from "../src";
+import { CACHE_ASSETS, loadLoadoutRegistry } from "../src";
 import type { Loadout as LoadoutData } from "../src";
 import { Loadout } from "./Loadout";
 import type { LoadoutRegistry } from "./Loadout";
@@ -24,7 +24,9 @@ const initialLoadout: LoadoutData = {
     cape: 21295,
     ammo: 11212,
   },
-  inventory: Array.from({ length: 28 }, (_, index) => index + 1),
+  inventory: Object.values(CACHE_ASSETS.items)
+    .slice(0, 28)
+    .map(({ id }) => id),
 };
 
 export function LoadoutManager({ onClose, open }: LoadoutManagerProps) {
