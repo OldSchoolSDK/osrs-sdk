@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Modal } from "osrs-sdk-react";
-import { CACHE_ASSETS, loadLoadoutRegistry } from "../src";
+import { CACHE_ASSETS, loadLoadoutRegistry, Settings } from "../src";
 import type { Loadout as LoadoutData, LoadoutItemId, UnitEquipment } from "../src";
 import { Loadout } from "./Loadout";
 import type { LoadoutRegistry, LoadoutSlot } from "./Loadout";
@@ -12,8 +12,16 @@ export type LoadoutManagerProps = {
 };
 
 export function LoadoutManager({ loadouts, onClose, open }: LoadoutManagerProps) {
-  const [selectedLoadoutIndex, setSelectedLoadoutIndex] = useState(0);
-  const [loadout, setLoadout] = useState<LoadoutData | undefined>(loadouts[0]);
+  const settings = Settings.getSnapshot();
+  const savedLoadoutIndex = loadouts.findIndex((template) => template.name === settings.loadout);
+  const savedCustomLoadout = settings.customLoadout?.name === loadouts[savedLoadoutIndex]?.name
+    ? settings.customLoadout
+    : null;
+  const [selectedLoadoutIndex, setSelectedLoadoutIndex] = useState(savedLoadoutIndex >= 0 ? savedLoadoutIndex : 0);
+  const [loadout, setLoadout] = useState<LoadoutData | undefined>(
+    savedCustomLoadout ?? loadouts[savedLoadoutIndex >= 0 ? savedLoadoutIndex : 0],
+  );
+  const [isCustomLoadout, setIsCustomLoadout] = useState(savedCustomLoadout !== null);
   const [registry, setRegistry] = useState<LoadoutRegistry>();
 
   useEffect(() => {
@@ -32,32 +40,39 @@ export function LoadoutManager({ loadouts, onClose, open }: LoadoutManagerProps)
     };
   }, [open, registry]);
 
-  const onLoadoutChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  // selecting something from the dropdown (reset to a base loadout, clear custom)
+  const onSelectTemplatedLoadout = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    if (event.currentTarget.value === "custom") return;
     const nextIndex = Number(event.currentTarget.value);
     const nextLoadout = loadouts[nextIndex];
     if (!nextLoadout) return;
     setSelectedLoadoutIndex(nextIndex);
     setLoadout(nextLoadout);
+    setIsCustomLoadout(false);
+    Settings.set({ loadout: nextLoadout.name, customLoadout: null });
   };
 
+  // changed a specific slot
   const onItemSelect = (slot: LoadoutSlot, itemId: number) => {
-    setLoadout((currentLoadout) => {
-      if (!currentLoadout) return currentLoadout;
+    if (!loadout) return;
 
-      if (slot.kind === "equipment") {
-        return {
-          ...currentLoadout,
-          equipment: {
-            ...currentLoadout.equipment,
-            [slot.slot]: itemId,
-          },
-        };
+    const nextLoadout = slot.kind === "equipment"
+      ? {
+        ...loadout,
+        equipment: {
+          ...loadout.equipment,
+          [slot.slot]: itemId,
+        },
       }
+      : (() => {
+        const inventory = [...loadout.inventory];
+        inventory[slot.index] = itemId;
+        return { ...loadout, inventory };
+      })();
 
-      const inventory = [...currentLoadout.inventory];
-      inventory[slot.index] = itemId;
-      return { ...currentLoadout, inventory };
-    });
+    setLoadout(nextLoadout);
+    setIsCustomLoadout(true);
+    Settings.set({ loadout: nextLoadout.name, customLoadout: nextLoadout });
   };
 
   const getSubstitutes = (slot: keyof UnitEquipment | null): number[] => {
@@ -93,7 +108,12 @@ export function LoadoutManager({ loadouts, onClose, open }: LoadoutManagerProps)
         {loadouts.length > 0 ? (
           <>
             <label htmlFor="loadout-select">Template: </label>
-            <select id="loadout-select" value={selectedLoadoutIndex} onChange={onLoadoutChange}>
+            <select
+              id="loadout-select"
+              value={isCustomLoadout ? "custom" : String(selectedLoadoutIndex)}
+              onChange={onSelectTemplatedLoadout}
+            >
+              {isCustomLoadout && <option value="custom">Custom*</option>}
               {loadouts.map((template, index) => (
                 <option key={template.name} value={index}>{template.name}</option>
               ))}

@@ -3,6 +3,7 @@
 // format.
 
 import { Location } from "./Location";
+import type { Loadout } from "./Loadout";
 import { DeserializePlayerStats, PlayerStats } from "./PlayerStats";
 import { createJsonSettingsStorage, createSettingsStore, SettingsStorage } from "./SettingsStore";
 
@@ -19,7 +20,10 @@ export type SettingsState = {
   equipment_key: string;
   inputDelay: number;
   inventory_key: string;
+  /** The name of the currently selected loadout template. */
   loadout: string;
+  /** The edited loadout payload, or null when the template is unmodified. */
+  customLoadout: Loadout | null;
   lockPOV: boolean;
   maxUiScale: number;
   menuVisible: boolean;
@@ -76,6 +80,7 @@ export class Settings {
   static tileMarkerColor: string;
 
   static loadout: string;
+  static customLoadout: Loadout | null;
   static onTask: boolean;
   static player_stats: PlayerStats;
   static is_keybinding = false;
@@ -180,6 +185,7 @@ export class Settings {
       inputDelay: Settings.inputDelay,
       inventory_key: Settings.inventory_key,
       loadout: Settings.loadout,
+      customLoadout: Settings.customLoadout,
       lockPOV: Settings.lockPOV,
       maxUiScale: Settings.maxUiScale,
       menuVisible: Settings.menuVisible,
@@ -217,6 +223,7 @@ function createDefaults(): SettingsState {
     inputDelay: 0,
     inventory_key: "F4",
     loadout: "max_tbow_speed",
+    customLoadout: null,
     lockPOV: false,
     maxUiScale: 1,
     menuVisible: !mobile,
@@ -261,6 +268,7 @@ const legacyStorage: SettingsStorage<SettingsState> = {
       inputDelay: parseInt(window.localStorage.getItem("inputDelay") ?? "0"),
       inventory_key: window.localStorage.getItem("inventory_key") || defaults.inventory_key,
       loadout: window.localStorage.getItem("loadout") || defaults.loadout,
+      customLoadout: defaults.customLoadout,
       lockPOV: false,
       maxUiScale: parseFloat(window.localStorage.getItem("maxUiScale")) || 1,
       menuVisible: menuVisible === "true" ? true : menuVisible === "false" ? false : defaults.menuVisible,
