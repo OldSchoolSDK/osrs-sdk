@@ -8,6 +8,7 @@ export type LoadoutItemId = number | null;
  * `inventory` is expected to contain exactly 28 entries, one for each slot.
  */
 export type Loadout = {
+  name: string;
   equipment: Record<keyof UnitEquipment, LoadoutItemId>;
   inventory: LoadoutItemId[];
 };

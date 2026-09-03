@@ -1,16 +1,57 @@
 import React, { useState } from "react";
 import {
   ControlPanelController,
+  CACHE_ASSETS,
   Region,
   Settings,
   TileMarker,
   TrainerInstance,
   TrainerLoadingState,
 } from "../src";
+import type { Loadout as LoadoutData } from "../src";
 import { DefaultSidebar, GameOverlay, TrainerApp, TrainerLoadingSplash, useSettingsSnapshot, useTrainerContext } from "osrs-sdk-react";
 import { configureSampleCacheRenderer } from "./cache-render";
 import { LoadoutManager } from "./LoadoutManager";
 import { SampleRegion } from "./SampleRegion";
+
+const sampleInventory = Object.values(CACHE_ASSETS.items).map(({ id }) => id);
+
+const loadoutTemplates: LoadoutData[] = [
+  {
+    name: "Melee",
+    equipment: {
+      weapon: CACHE_ASSETS.items.scytheOfVitur.id,
+      offhand: CACHE_ASSETS.items.avernicDefender.id,
+      helmet: CACHE_ASSETS.items.torvaFullHelm.id,
+      necklace: CACHE_ASSETS.items.amuletOfTorture.id,
+      chest: CACHE_ASSETS.items.torvaPlatebody.id,
+      legs: CACHE_ASSETS.items.torvaPlatelegs.id,
+      feet: CACHE_ASSETS.items.primordialBoots.id,
+      gloves: CACHE_ASSETS.items.ferociousGloves.id,
+      ring: CACHE_ASSETS.items.ultorRing.id,
+      cape: CACHE_ASSETS.items.infernalCape.id,
+      ammo: CACHE_ASSETS.items.dragonArrows.id,
+    },
+    inventory: sampleInventory.slice(0, 28),
+  },
+  {
+    name: "Ranged",
+    equipment: {
+      weapon: CACHE_ASSETS.items.twistedBow.id,
+      offhand: null,
+      helmet: CACHE_ASSETS.items.masoriMaskF.id,
+      necklace: CACHE_ASSETS.items.necklaceOfAnguish.id,
+      chest: CACHE_ASSETS.items.masoriBodyF.id,
+      legs: CACHE_ASSETS.items.masoriChapsF.id,
+      feet: CACHE_ASSETS.items.pegasianBoots.id,
+      gloves: CACHE_ASSETS.items.zaryteVambraces.id,
+      ring: CACHE_ASSETS.items.ringOfEndurance.id,
+      cape: CACHE_ASSETS.items.dizanasQuiver.id,
+      ammo: CACHE_ASSETS.items.dragonArrows.id,
+    },
+    inventory: sampleInventory.slice(28, 56),
+  },
+];
 
 function createTrainer() {
   configureSampleCacheRenderer();
@@ -65,7 +106,7 @@ export function SampleApp() {
     >
       <GameOverlay>
         <TrainerLoadingSplash state={loading} />
-        <LoadoutManager open={loadoutOpen} onClose={() => setLoadoutOpen(false)} />
+        <LoadoutManager loadouts={loadoutTemplates} open={loadoutOpen} onClose={() => setLoadoutOpen(false)} />
       </GameOverlay>
       <div id="disclaimer_panel">Work in progress.<br />All assets are property of Jagex.</div>
       <DefaultSidebar>

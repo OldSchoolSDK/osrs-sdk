@@ -1,36 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { Modal } from "osrs-sdk-react";
-import { CACHE_ASSETS, loadLoadoutRegistry } from "../src";
+import { loadLoadoutRegistry } from "../src";
 import type { Loadout as LoadoutData } from "../src";
 import { Loadout } from "./Loadout";
 import type { LoadoutRegistry } from "./Loadout";
 
 export type LoadoutManagerProps = {
+  loadouts: LoadoutData[];
   onClose: () => void;
   open: boolean;
 };
 
-const initialLoadout: LoadoutData = {
-  equipment: {
-    weapon: 22325,
-    offhand: null,
-    helmet: 26382,
-    necklace: 19547,
-    chest: 26384,
-    legs: 26386,
-    feet: 13239,
-    gloves: 22981,
-    ring: 25485,
-    cape: 21295,
-    ammo: 11212,
-  },
-  inventory: Object.values(CACHE_ASSETS.items)
-    .slice(0, 28)
-    .map(({ id }) => id),
-};
-
-export function LoadoutManager({ onClose, open }: LoadoutManagerProps) {
-  const [loadout] = useState<LoadoutData>(initialLoadout);
+export function LoadoutManager({ loadouts, onClose, open }: LoadoutManagerProps) {
+  const [selectedLoadoutIndex, setSelectedLoadoutIndex] = useState(0);
+  const [loadout, setLoadout] = useState<LoadoutData | undefined>(loadouts[0]);
   const [registry, setRegistry] = useState<LoadoutRegistry>();
 
   useEffect(() => {
@@ -49,6 +32,14 @@ export function LoadoutManager({ onClose, open }: LoadoutManagerProps) {
     };
   }, [open, registry]);
 
+  const onLoadoutChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const nextIndex = Number(event.currentTarget.value);
+    const nextLoadout = loadouts[nextIndex];
+    if (!nextLoadout) return;
+    setSelectedLoadoutIndex(nextIndex);
+    setLoadout(nextLoadout);
+  };
+
   return (
     <Modal open={open}>
       <div
@@ -61,7 +52,19 @@ export function LoadoutManager({ onClose, open }: LoadoutManagerProps) {
         }}
       >
         <h2>Loadout</h2>
-        <Loadout loadout={loadout} registry={registry} />
+        {loadouts.length > 0 ? (
+          <>
+            <label htmlFor="loadout-select">Template: </label>
+            <select id="loadout-select" value={selectedLoadoutIndex} onChange={onLoadoutChange}>
+              {loadouts.map((template, index) => (
+                <option key={template.name} value={index}>{template.name}</option>
+              ))}
+            </select>
+            {loadout && <Loadout loadout={loadout} registry={registry} />}
+          </>
+        ) : (
+          <p>No loadout templates configured.</p>
+        )}
         <button type="button" onClick={onClose}>Close</button>
       </div>
     </Modal>
