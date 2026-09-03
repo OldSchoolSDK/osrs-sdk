@@ -15,8 +15,9 @@ const NORMAL_ATTACK_SOUND_ID = CACHE_ASSETS.sounds.dragonClawsAttack.id;
 const SPECIAL_ATTACK_SOUND_ID = CACHE_ASSETS.sounds.dragonClawsSpecialFirst.id;
 // TODO: Verify whether these client-side sound cues should instead align to 600 ms game-tick boundaries.
 const SPECIAL_ATTACK_FOLLOW_UP_SOUNDS = [
-  { id: CACHE_ASSETS.sounds.dragonClawsSpecialSecond.id, delayMs: 520 },
-  { id: CACHE_ASSETS.sounds.dragonClawsSpecialThird.id, delayMs: 1040 },
+  { id: CACHE_ASSETS.sounds.dragonClawsSpecialSecond.id, delayMs: 300 },
+  { id: CACHE_ASSETS.sounds.dragonClawsSpecialThird.id, delayMs: 600 },
+  { id: CACHE_ASSETS.sounds.dragonClawsSpecialThird.id, delayMs: 900 },
 ];
 const SOUND_VOLUME = 0.1;
 
