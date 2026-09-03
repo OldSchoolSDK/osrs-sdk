@@ -9,9 +9,16 @@ import {
   TrainerLoadingState,
 } from "../src";
 import type { Loadout as LoadoutData } from "../src";
-import { DefaultSidebar, GameOverlay, TrainerApp, TrainerLoadingSplash, useSettingsSnapshot, useTrainerContext } from "osrs-sdk-react";
+import {
+  DefaultSidebar,
+  GameOverlay,
+  LoadoutManager,
+  TrainerApp,
+  TrainerLoadingSplash,
+  useSettingsSnapshot,
+  useTrainerContext,
+} from "osrs-sdk-react";
 import { configureSampleCacheRenderer } from "./cache-render";
-import { LoadoutManager } from "./LoadoutManager";
 import { SampleRegion } from "./SampleRegion";
 
 const sampleInventory = Object.values(CACHE_ASSETS.items).map(({ id }) => id);
@@ -21,7 +28,7 @@ const loadoutTemplates: LoadoutData[] = [
     name: "Melee",
     equipment: {
       weapon: CACHE_ASSETS.items.scytheOfVitur.id,
-      offhand: CACHE_ASSETS.items.avernicDefender.id,
+      offhand: null,
       helmet: CACHE_ASSETS.items.torvaFullHelm.id,
       necklace: CACHE_ASSETS.items.amuletOfTorture.id,
       chest: CACHE_ASSETS.items.torvaPlatebody.id,
@@ -57,7 +64,7 @@ function createTrainer() {
   configureSampleCacheRenderer();
   Settings.readFromStorage();
   const regions: Record<string, Region> = {
-    "index.html": new SampleRegion(),
+    "index.html": new SampleRegion(loadoutTemplates),
   };
   const regionName = window.location.pathname.split("/").pop() ?? "index.html";
   const region = regions[regionName] ?? regions["index.html"];
@@ -106,7 +113,11 @@ export function SampleApp() {
     >
       <GameOverlay>
         <TrainerLoadingSplash state={loading} />
-        <LoadoutManager loadouts={loadoutTemplates} open={loadoutOpen} onClose={() => setLoadoutOpen(false)} />
+        <LoadoutManager
+          loadouts={loadoutTemplates}
+          open={loadoutOpen}
+          onClose={() => setLoadoutOpen(false)}
+        />
       </GameOverlay>
       <div id="disclaimer_panel">Work in progress.<br />All assets are property of Jagex.</div>
       <DefaultSidebar>

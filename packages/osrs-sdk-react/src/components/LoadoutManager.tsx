@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { Modal } from "osrs-sdk-react";
-import { CACHE_ASSETS, EQUIPMENT_TYPE_TO_SLOT, Equipment, loadLoadoutRegistry, Settings, Weapon } from "../src";
-import type { Loadout as LoadoutData, LoadoutItemId, UnitEquipment } from "../src";
+import { EQUIPMENT_TYPE_TO_SLOT, Equipment, loadLoadoutRegistry, Settings, Weapon } from "osrs-sdk";
+import type { Loadout as LoadoutData, LoadoutItemId } from "osrs-sdk";
+import { Modal } from "./Modal";
 import { Loadout } from "./Loadout";
-import type { LoadoutRegistry, LoadoutSlot } from "./Loadout";
+import type { GetLoadoutSubstitutes, LoadoutRegistry, LoadoutSlot } from "./Loadout";
 
 export type LoadoutManagerProps = {
+  getSubstitutes?: GetLoadoutSubstitutes;
   loadouts: LoadoutData[];
   onClose: () => void;
   open: boolean;
 };
 
-export function LoadoutManager({ loadouts, onClose, open }: LoadoutManagerProps) {
+export function LoadoutManager({ getSubstitutes, loadouts, onClose, open }: LoadoutManagerProps) {
   const settings = Settings.getSnapshot();
   const savedLoadoutIndex = loadouts.findIndex((template) => template.name === settings.loadout);
   const savedCustomLoadout = settings.customLoadout?.name === loadouts[savedLoadoutIndex]?.name
@@ -40,7 +41,7 @@ export function LoadoutManager({ loadouts, onClose, open }: LoadoutManagerProps)
     };
   }, [open, registry]);
 
-  // selecting something from the dropdown (reset to a base loadout, clear custom)
+  // Selecting something from the dropdown resets to a base loadout and clears custom state.
   const onSelectTemplatedLoadout = (event: React.ChangeEvent<HTMLSelectElement>) => {
     if (event.currentTarget.value === "custom") return;
     const nextIndex = Number(event.currentTarget.value);
@@ -52,7 +53,7 @@ export function LoadoutManager({ loadouts, onClose, open }: LoadoutManagerProps)
     Settings.set({ loadout: nextLoadout.name, customLoadout: null });
   };
 
-  // changed a specific slot
+  // Change a specific slot, including the opposing slot for two-handed weapons.
   const onItemSelect = (slot: LoadoutSlot, itemId: LoadoutItemId) => {
     if (!loadout) return;
 
@@ -90,20 +91,15 @@ export function LoadoutManager({ loadouts, onClose, open }: LoadoutManagerProps)
     Settings.set({ loadout: nextLoadout.name, customLoadout: nextLoadout });
   };
 
-  const getSubstitutes = (slot: keyof UnitEquipment | null): number[] => {
-    if (slot === null) {
-      // inventory slots
-      return [
-        // sarad
-        CACHE_ASSETS.items.saradominBrew.id,
-      ];
-    }
-    if (!registry) return [];
+  const getLoadoutSubstitutes: GetLoadoutSubstitutes = (slot, currentRegistry) => {
+    if (getSubstitutes) return getSubstitutes(slot, currentRegistry);
+    if (!currentRegistry) return [];
+    if (slot === null) return Array.from(currentRegistry.keys());
 
-    return Array.from(registry.entries())
+    return Array.from(currentRegistry.entries())
       .filter(([, item]) => item instanceof Equipment && EQUIPMENT_TYPE_TO_SLOT[item.type] === slot)
       .map(([itemId]) => itemId);
-  }
+  };
 
   return (
     <Modal open={open}>
@@ -132,10 +128,10 @@ export function LoadoutManager({ loadouts, onClose, open }: LoadoutManagerProps)
             </select>
             {loadout && (
               <Loadout
+                getSubstitutes={getLoadoutSubstitutes}
                 loadout={loadout}
                 onItemSelect={onItemSelect}
                 registry={registry}
-                getSubstitutes={getSubstitutes}
               />
             )}
           </>

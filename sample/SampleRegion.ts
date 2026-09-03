@@ -1,44 +1,21 @@
 import {
-  AmuletOfTorture,
-  AbyssalTentacle,
-  ArmadylBrew,
-  BastionPotion,
-  BlackChinchompa,
-  BladeOfSaeldor,
-  Blowpipe,
-  BowOfFaerdhinen,
   CardinalDirection,
-  DizanasQuiver,
-  DragonArrows,
-  FerociousGloves,
-  InfernalCape,
-  MasoriBodyF,
-  MasoriChapsF,
-  MasoriMaskF,
-  NecklaceOfAnguish,
-  NoxiousHalberd,
-  AncientStaff,
-  KodaiWand,
-  PegasianBoots,
   Player,
-  PrimordialBoots,
   Region,
-  SaradominBrew,
-  ScytheOfVitur,
-  StaminaPotion,
-  SuperRestore,
-  TorvaFullhelm,
-  TorvaPlatebody,
-  TorvaPlatelegs,
-  TwistedBow,
-  UltorRing,
+  Settings,
 } from "../src";
+import type { Item, Loadout as LoadoutData, LoadoutItemId, UnitEquipment } from "../src";
+import { LoadoutRegistry } from "../src/content/LoadoutRegistry";
 import { SampleNpc } from "./SampleNpc";
 import { SampleDummy } from "./SampleDummy";
 import { SampleAnimayaNpc } from "./SampleAnimayaNpc";
 import { SampleScene } from "./SampleScene";
 
 export class SampleRegion extends Region {
+  constructor(private readonly loadouts: LoadoutData[]) {
+    super();
+  }
+
   get initialFacing() {
     return CardinalDirection.NORTH;
   }
@@ -61,57 +38,40 @@ export class SampleRegion extends Region {
     return 57;
   }
 
+  private createItem(itemId: LoadoutItemId): Item | null {
+    if (itemId === null) return null;
+
+    const registeredItem = LoadoutRegistry.get(itemId);
+    if (!registeredItem) return null;
+
+    const ItemType = registeredItem.constructor as new () => Item;
+    return new ItemType();
+  }
+
+  private constructLoadout(loadout: LoadoutData): { equipment: UnitEquipment; inventory: (Item | null)[] } {
+    const equipment = {} as Record<keyof UnitEquipment, Item | null>;
+    (Object.keys(loadout.equipment) as (keyof UnitEquipment)[]).forEach((slot) => {
+      equipment[slot] = this.createItem(loadout.equipment[slot]);
+    });
+
+    return {
+      equipment: equipment as UnitEquipment,
+      inventory: loadout.inventory.map((itemId) => this.createItem(itemId)),
+    };
+  }
+
   initialiseRegion(): { player: Player } {
     const player = new Player(this, {
       x: 25,
       y: 25,
     });
     this.addPlayer(player);
-    const loadout = {
-      equipment: {
-        weapon: new ScytheOfVitur(),
-        offhand: null,
-        helmet: new TorvaFullhelm(),
-        necklace: new AmuletOfTorture(),
-        cape: new InfernalCape(),
-        ammo: new DragonArrows(),
-        chest: new TorvaPlatebody(),
-        legs: new TorvaPlatelegs(),
-        feet: new PrimordialBoots(),
-        gloves: new FerociousGloves(),
-        ring: new UltorRing(),
-      },
-      inventory: [
-        // Every cache-backed weapon currently implemented by the SDK.
-        new AbyssalTentacle(),
-        new AncientStaff(),
-        new BlackChinchompa(),
-        new BladeOfSaeldor(),
-        new Blowpipe(),
-        new BowOfFaerdhinen(),
-        new KodaiWand(),
-        new NoxiousHalberd(),
-        new TwistedBow(),
-        // Cache-backed armour and equipment.
-        new MasoriBodyF(),
-        new DizanasQuiver(),
-        new PegasianBoots(),
-        new NecklaceOfAnguish(),
-        new MasoriChapsF(),
-        new MasoriMaskF(),
-        new SaradominBrew(),
-        new SaradominBrew(),
-        new SuperRestore(),
-        new SuperRestore(),
-        new BastionPotion(),
-        new StaminaPotion(),
-        new ArmadylBrew(),
-        new BastionPotion(),
-        new StaminaPotion(),
-        new ArmadylBrew(),
-      ],
-    };
-    player.setUnitOptions(loadout);
+    const selectedLoadout = this.loadouts.find(({ name }) => name === Settings.loadout);
+    const customLoadout = Settings.customLoadout?.name === selectedLoadout?.name
+      ? Settings.customLoadout
+      : null;
+    const loadout = customLoadout ?? selectedLoadout ?? this.loadouts[0];
+    if (loadout) player.setUnitOptions(this.constructLoadout(loadout));
 
     this.addMob(new SampleNpc(this, { x: 25, y: 20 }, {}));
     this.addMob(new SampleDummy(this, { x: 34, y: 28 }, {}));

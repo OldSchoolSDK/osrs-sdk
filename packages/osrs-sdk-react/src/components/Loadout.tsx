@@ -1,7 +1,6 @@
 import React from "react";
-import { Dropdown } from "osrs-sdk-react";
-import type { Item, Loadout as LoadoutData, UnitEquipment } from "../src";
-import type { LoadoutItemId } from "../src";
+import { Dropdown } from "./Dropdown";
+import type { Item, Loadout as LoadoutData, LoadoutItemId, UnitEquipment } from "osrs-sdk";
 
 export type LoadoutRegistry = Map<number, Item>;
 
@@ -9,12 +8,17 @@ export type LoadoutSlot =
   | { kind: "equipment"; slot: keyof UnitEquipment }
   | { index: number; kind: "inventory" };
 
+export type GetLoadoutSubstitutes = (
+  slot: keyof UnitEquipment | null,
+  registry?: LoadoutRegistry,
+) => number[];
+
 export type LoadoutProps = {
   loadout: LoadoutData;
   onItemSelect: (slot: LoadoutSlot, itemId: LoadoutItemId) => void;
   registry?: LoadoutRegistry;
-  // return appropriate substitutes for the given slot (slot is null for inventory slots)
-  getSubstitutes: (slot: keyof UnitEquipment | null) => number[];
+  // Return appropriate substitutes for the given slot (slot is null for inventory slots).
+  getSubstitutes: GetLoadoutSubstitutes;
 };
 
 const equipmentSlotCoordinates: { key: keyof UnitEquipment; label: string; left: number; top: number }[] = [
@@ -48,7 +52,8 @@ const equipmentSlots = scaledEquipmentSlots.map((slot) => ({
 }));
 const equipmentWidth = Math.max(...equipmentSlots.map((slot) => slot.left + slotSize));
 const equipmentHeight = Math.max(...equipmentSlots.map((slot) => slot.top + slotSize));
-// we currently don't have 'empty' models for this so prevent naked characters for this for now
+
+// We currently do not have empty models for these slots, so prevent naked characters for now.
 const equipmentSlotsRequiringItems = new Set<keyof UnitEquipment>([
   "helmet",
   "chest",
@@ -138,7 +143,7 @@ function ItemSlot({
               gap: 4,
               gridColumn: "1 / -1",
               gridTemplateColumns: "24px 1fr",
-              height: "32px"
+              height: "32px",
             }}
           >
             <img
@@ -177,7 +182,7 @@ export function Loadout({ loadout, onItemSelect, registry, getSubstitutes }: Loa
                 itemId={loadout.equipment[slot.key]}
                 onItemSelect={(itemId) => onItemSelect({ kind: "equipment", slot: slot.key }, itemId)}
                 registry={registry}
-                substituteItemIds={getSubstitutes(slot.key)}
+                substituteItemIds={getSubstitutes(slot.key, registry)}
               />
             </div>
           ))}
@@ -193,7 +198,7 @@ export function Loadout({ loadout, onItemSelect, registry, getSubstitutes }: Loa
                 itemId={itemId}
                 onItemSelect={(selectedItemId) => onItemSelect({ index, kind: "inventory" }, selectedItemId)}
                 registry={registry}
-                substituteItemIds={getSubstitutes(null)}
+                substituteItemIds={getSubstitutes(null, registry)}
               />
             </div>
           ))}
