@@ -9,6 +9,7 @@ import {
 } from "../src";
 import { DefaultSidebar, GameOverlay, TrainerApp, TrainerLoadingSplash, useSettingsSnapshot, useTrainerContext } from "osrs-sdk-react";
 import { configureSampleCacheRenderer } from "./cache-render";
+import { Loadout } from "./Loadout";
 import { SampleRegion } from "./SampleRegion";
 
 function createTrainer() {
@@ -22,7 +23,7 @@ function createTrainer() {
   return new TrainerInstance(region, { readyTimer: 6 });
 }
 
-function SampleSidebarContents() {
+function SampleSidebarContents({ onLoadoutToggle }: { onLoadoutToggle: () => void }) {
   const trainer = useTrainerContext();
   const settings = useSettingsSnapshot();
 
@@ -30,6 +31,7 @@ function SampleSidebarContents() {
     <>
       <button type="button" onClick={() => trainer.reset()}>Reset</button>
       <button type="button" onClick={() => ControlPanelController.controller.setActiveControl("SETTINGS")}>Settings</button>
+      <button type="button" onClick={onLoadoutToggle}>Loadout</button>
       <hr />
       <span>More settings:</span>
       <div>
@@ -54,6 +56,7 @@ function SampleSidebarContents() {
 export function SampleApp() {
   const [trainer] = useState(createTrainer);
   const [loading, setLoading] = useState<TrainerLoadingState>();
+  const [loadoutOpen, setLoadoutOpen] = useState(false);
 
   return (
     <TrainerApp
@@ -62,10 +65,11 @@ export function SampleApp() {
     >
       <GameOverlay>
         <TrainerLoadingSplash state={loading} />
+        <Loadout open={loadoutOpen} onClose={() => setLoadoutOpen(false)} />
       </GameOverlay>
       <div id="disclaimer_panel">Work in progress.<br />All assets are property of Jagex.</div>
       <DefaultSidebar>
-        <SampleSidebarContents />
+        <SampleSidebarContents onLoadoutToggle={() => setLoadoutOpen((open) => !open)} />
       </DefaultSidebar>
     </TrainerApp>
   );

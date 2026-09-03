@@ -101,6 +101,16 @@ context and state, but absolute positioning is relative to the playable area:
 </GameOverlay>
 ```
 
+`Modal` is a controlled modal surface. Set `open` to `false` to render nothing.
+Render it directly under `TrainerApp` for an app-wide modal, or inside
+`GameOverlay` when it should cover only the playable area:
+
+```tsx
+<Modal open={showSettings}>
+  <SettingsPanel />
+</Modal>
+```
+
 ## Layout and overlays
 
 Keep the canvas inside `PlayableArea`, which is a flex item. `TrainerApp`
