@@ -2,6 +2,9 @@
 
 import { BasePrayer, PrayerGroups } from "../../sdk/BasePrayer";
 import { Settings } from "../../sdk/Settings";
+import { cacheSound } from "../../sdk/audio/CacheSoundEffects";
+import { CACHE_ASSETS } from "../../assets/CacheAssets";
+import { Sound, SoundCache } from "../../sdk/utils/SoundCache";
 
 export class Rigour extends BasePrayer {
   get name() {
@@ -29,13 +32,13 @@ export class Rigour extends BasePrayer {
 
   playOnSound() {
     if (Settings.playsAudio) {
-      // new Audio(OnSound).play();
+      SoundCache.play(new Sound(cacheSound(CACHE_ASSETS.sounds.rigour.id), 0.2));
     }
   }
 
   playOffSound() {
     if (Settings.playsAudio) {
-      // new Audio(OffSound).play();
+      SoundCache.play(new Sound(cacheSound(CACHE_ASSETS.sounds.prayerDeactivated.id), 0.2));
     }
   }
 }

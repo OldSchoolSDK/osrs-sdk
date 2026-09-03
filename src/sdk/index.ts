@@ -95,6 +95,7 @@ export * from './Viewport3d';
 export * from './World';
 export * from './XpDrop';
 export * from './XpDropController';
+export * from './audio/CacheSoundEffects';
 
 export * from './testing/TestNpc';
 export * from './testing/TestRegion';
