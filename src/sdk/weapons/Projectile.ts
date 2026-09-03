@@ -251,6 +251,7 @@ export class Projectile extends Renderable {
       SoundCache.play({
         src: sound.src,
         volume: volumeRatio * sound.volume,
+        delayMs: 0,
       });
     }
   }

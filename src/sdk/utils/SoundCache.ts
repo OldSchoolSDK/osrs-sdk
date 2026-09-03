@@ -8,6 +8,7 @@ export class Sound {
   constructor(
     public src,
     public volume = 1,
+    public delayMs = 0,
   ) {}
 }
 
@@ -56,7 +57,7 @@ export class SoundCache {
     return audioBuffer;
   }
 
-  static play({ src, volume }: Sound, isAreaSound = false) {
+  static play({ src, volume, delayMs }: Sound, isAreaSound = false) {
     if (!SoundCache.context) {
       return null;
     }
@@ -65,7 +66,7 @@ export class SoundCache {
         const sound = await this.preload(src);
         // play after loading
         if (sound) {
-          SoundCache.play({ src, volume });
+          SoundCache.play({ src, volume, delayMs });
         }
       })();
       return;
@@ -74,6 +75,12 @@ export class SoundCache {
       return;
     }
     if ((!isAreaSound && !Settings.playsAudio) || (isAreaSound && !Settings.playsAreaAudio)) {
+      return;
+    }
+    if (delayMs > 0) {
+      setTimeout(() => {
+        SoundCache.play({ src, volume, delayMs: 0 }, isAreaSound);
+      }, delayMs);
       return;
     }
     const source = SoundCache.context.createBufferSource();
