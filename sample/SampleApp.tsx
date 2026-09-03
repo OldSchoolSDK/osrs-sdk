@@ -9,7 +9,7 @@ import {
 } from "../src";
 import { DefaultSidebar, GameOverlay, TrainerApp, TrainerLoadingSplash, useSettingsSnapshot, useTrainerContext } from "osrs-sdk-react";
 import { configureSampleCacheRenderer } from "./cache-render";
-import { Loadout } from "./Loadout";
+import { LoadoutManager } from "./LoadoutManager";
 import { SampleRegion } from "./SampleRegion";
 
 function createTrainer() {
@@ -65,7 +65,7 @@ export function SampleApp() {
     >
       <GameOverlay>
         <TrainerLoadingSplash state={loading} />
-        <Loadout open={loadoutOpen} onClose={() => setLoadoutOpen(false)} />
+        <LoadoutManager open={loadoutOpen} onClose={() => setLoadoutOpen(false)} />
       </GameOverlay>
       <div id="disclaimer_panel">Work in progress.<br />All assets are property of Jagex.</div>
       <DefaultSidebar>

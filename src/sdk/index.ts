@@ -4,6 +4,7 @@
 export * from './LineOfSight';
 export * from './Pathing';
 export * from './Collision';
+export * from './Loadout';
 
 export * from './Entity';
 export * from './Unit';
