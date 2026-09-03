@@ -43,7 +43,7 @@ describe("pathfinding tests", () => {
     region.addEntity(new Wall(region, { x: 29, y: 1 }));
     region.addEntity(new Wall(region, { x: 29, y: 0 }));
 
-    Viewport.setupViewport(region, true);
+    Viewport.setupViewport(region, document.createElement("canvas"), document.createElement("div"), true);
   });
 
   test("can path in a straight line", () => {

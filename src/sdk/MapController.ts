@@ -236,7 +236,7 @@ export class MapController {
   cursorMovedTo(event: MouseEvent) {
     const { width } = Chrome.size();
     const scale = Settings.minimapScale;
-    const offset = width - this.width - (Settings.menuVisible ? 232 : 0);
+    const offset = width - this.width;
     const x = (event.offsetX - offset) / scale;
     const y = event.offsetY / scale;
 
@@ -261,7 +261,7 @@ export class MapController {
 
     const { width } = Chrome.size();
     const scale = Settings.minimapScale;
-    const offset = width - this.width - (Settings.menuVisible ? 232 : 0);
+    const offset = width - this.width;
     const x = (event.offsetX - offset) / scale;
     const y = event.offsetY / scale;
 
@@ -361,7 +361,7 @@ export class MapController {
     let intercepted = false;
     const { width } = Chrome.size();
     const scale = Settings.minimapScale;
-    const offset = width - this.width - (Settings.menuVisible ? 232 : 0);
+    const offset = width - this.width;
     const x = (event.offsetX - offset) / scale;
     const y = event.offsetY / scale;
 
@@ -422,7 +422,7 @@ export class MapController {
     const scale = Settings.minimapScale;
     this.width = INITIAL_WIDTH * scale;
     this.height = INITIAL_HEIGHT * scale;
-    const offset = width - this.width - (Settings.menuVisible ? 232 : 0);
+    const offset = width - this.width;
 
     ctx.font = 16 * scale + "px Stats_11";
     ctx.textAlign = "center";

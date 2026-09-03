@@ -68,13 +68,13 @@ export class TrainerInstance {
     this.unsubscribeSettings = Settings.subscribe(() => this.notifyChanged());
   }
 
-  mount(canvas: HTMLCanvasElement) {
+  mount(canvas: HTMLCanvasElement, resizeTarget: Element) {
     if (this.canvas && this.canvas !== canvas) throw new Error("TrainerInstance is already mounted to another canvas");
     if (this.player) return this.player;
     this.canvas = canvas;
     this.player = this.region.initialiseRegion().player;
-    Viewport.setupViewport(this.region, this.options.force2d ?? false, canvas);
-    Viewport.viewport.setPlayer(this.player, canvas);
+    Viewport.setupViewport(this.region, canvas, resizeTarget, this.options.force2d ?? false);
+    Viewport.viewport.setPlayer(this.player);
     TileMarker.loadAll(this.region);
     this.player.perceivedLocation = this.player.location;
     this.player.destinationLocation = this.player.location;
@@ -131,6 +131,7 @@ export class TrainerInstance {
 
   dispose() {
     if (!this.world.isPaused) this.world.stopTicking();
+    Viewport.viewport?.dispose();
     this.unsubscribeSettings();
     this.listeners.clear();
     this.loadingListeners.clear();

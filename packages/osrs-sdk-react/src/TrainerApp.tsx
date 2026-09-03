@@ -1,5 +1,6 @@
-import React, { CanvasHTMLAttributes, HTMLAttributes, useCallback, useEffect, useRef } from "react";
+import React, { CanvasHTMLAttributes, HTMLAttributes, useLayoutEffect, useRef } from "react";
 import { TrainerInstance, TrainerLoadingState } from "osrs-sdk";
+import { PlayableArea } from "./components";
 import { TrainerProvider } from "./TrainerContext";
 
 export type TrainerAppProps = HTMLAttributes<HTMLDivElement> & {
@@ -19,13 +20,16 @@ export function TrainerApp({
   ...props
 }: TrainerAppProps) {
   const activeTrainer = useRef<TrainerInstance | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const playableAreaRef = useRef<HTMLDivElement | null>(null);
   const loadingListener = useRef(onLoadingStateChange);
   loadingListener.current = onLoadingStateChange;
 
-  const mountCanvas = useCallback((canvas: HTMLCanvasElement | null) => {
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
     if (!canvas || activeTrainer.current === trainer) return;
     activeTrainer.current = trainer;
-    trainer.mount(canvas);
+    trainer.mount(canvas, playableAreaRef.current!);
     void trainer.load({
       onStateChange: (state) => {
         if (activeTrainer.current === trainer) loadingListener.current?.(state);
@@ -33,26 +37,35 @@ export function TrainerApp({
     }).then(() => {
       if (autoStart && activeTrainer.current === trainer) trainer.start();
     }).catch(() => undefined);
-  }, [autoStart, trainer]);
 
-  useEffect(() => () => {
-    if (activeTrainer.current === trainer) activeTrainer.current = null;
-    trainer.dispose();
-  }, [trainer]);
+    return () => {
+      if (activeTrainer.current === trainer) activeTrainer.current = null;
+      trainer.dispose();
+    };
+  }, [autoStart, trainer]);
 
   return (
     <TrainerProvider trainer={trainer}>
       <div
         {...props}
-        style={{ inset: 0, overflow: "hidden", position: "fixed", ...style }}
+        style={{ display: "flex", inset: 0, overflow: "hidden", position: "fixed", ...style }}
       >
-        <canvas
-          id="world"
-          {...canvasProps}
-          ref={mountCanvas}
-          onContextMenu={canvasProps?.onContextMenu ?? ((event) => event.preventDefault())}
-          style={{ imageRendering: "pixelated", inset: 0, position: "absolute", ...canvasProps?.style }}
-        />
+        <PlayableArea ref={playableAreaRef}>
+          <canvas
+            id="world"
+            {...canvasProps}
+            ref={canvasRef}
+            onContextMenu={canvasProps?.onContextMenu ?? ((event) => event.preventDefault())}
+            style={{
+              height: "100%",
+              imageRendering: "pixelated",
+              inset: 0,
+              position: "absolute",
+              width: "100%",
+              ...canvasProps?.style,
+            }}
+          />
+        </PlayableArea>
         {children}
       </div>
     </TrainerProvider>

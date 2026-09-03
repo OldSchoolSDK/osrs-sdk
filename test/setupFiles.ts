@@ -28,6 +28,18 @@ jest.mock("three", () => ({
     setMeshoptDecoder() {}
   },
 }));
+Object.defineProperty(globalThis, "ResizeObserver", {
+  configurable: true,
+  value: class ResizeObserverMock {
+    constructor(private readonly callback: (entries: Array<{ contentRect: { width: number; height: number } }>) => void) {}
+
+    observe() {
+      this.callback([{ contentRect: { width: window.innerWidth, height: window.innerHeight } }]);
+    }
+
+    disconnect() {}
+  },
+});
 jest.spyOn(document, "getElementById").mockImplementation((elementId: string) => {
   const c = document.createElement("canvas");
   c.ariaLabel = elementId;

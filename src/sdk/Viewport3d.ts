@@ -6,7 +6,6 @@ import { CardinalDirection, Region } from "./Region";
 import * as THREE from "three";
 import Stats from "three/examples/jsm/libs/stats.module";
 
-import { Chrome } from "./Chrome";
 import { Settings } from "./Settings";
 import { Player } from "./Player";
 import { Mob } from "./Mob";
@@ -36,7 +35,7 @@ export class Viewport3d implements ViewportDelegate {
   private uiCanvas: OffscreenCanvas;
   private uiCanvasContext: OffscreenCanvasRenderingContext2D;
 
-  private canvasDimensions: { width: number; height: number } = this.calculateCanvasDimensions();
+  private canvasDimensions: { width: number; height: number } = { width: 1, height: 1 };
 
   public scene: THREE.Scene;
   private renderer: THREE.WebGLRenderer;
@@ -68,7 +67,7 @@ export class Viewport3d implements ViewportDelegate {
   private renderingSuspended = false;
   private renderFailureLogged = false;
 
-  constructor(faceCameraSouth = true, worldCanvas?: HTMLCanvasElement) {
+  constructor(faceCameraSouth: boolean, worldCanvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
 
     this.canvas = new OffscreenCanvas(this.canvasDimensions.width, this.canvasDimensions.height);
@@ -82,9 +81,7 @@ export class Viewport3d implements ViewportDelegate {
     this.raycaster.params.Points.threshold = 0.1;
     this.raycaster.params.Line.threshold = 0.1;
 
-    const inputCanvas = worldCanvas ?? document.getElementById("world") as HTMLCanvasElement;
-    this.initCameraEvents(inputCanvas);
-    window.addEventListener("resize", () => this.updateCanvasSize());
+    this.initCameraEvents(worldCanvas);
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") {
         this.renderingSuspended = true;
@@ -309,12 +306,16 @@ export class Viewport3d implements ViewportDelegate {
     window.addEventListener("keyup", this.onKeyUp.bind(this), false);
   }
 
-  calculateCanvasDimensions() {
-    const { width, height } = Chrome.size();
-
-    const visibleWidth = width - (Settings.menuVisible ? 232 : 0);
-
-    return { width: visibleWidth, height };
+  resize(width: number, height: number) {
+    if (width === this.canvasDimensions.width && height === this.canvasDimensions.height) return;
+    this.canvas.width = width;
+    this.canvas.height = height;
+    this.uiCanvas.width = width;
+    this.uiCanvas.height = height;
+    this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(width, height, false);
+    this.canvasDimensions = { width, height };
   }
 
   render() {
@@ -391,23 +392,7 @@ export class Viewport3d implements ViewportDelegate {
     this.knownActors = new Map();
   }
 
-  private updateCanvasSize() {
-    // update canvas if necessary
-    const newDimensions = this.calculateCanvasDimensions();
-    if (newDimensions.width !== this.canvasDimensions.width || newDimensions.height !== this.canvasDimensions.height) {
-      this.canvas.width = newDimensions.width;
-      this.canvas.height = newDimensions.height;
-      this.uiCanvas.width = newDimensions.width;
-      this.uiCanvas.height = newDimensions.height;
-      this.camera.aspect = newDimensions.width / newDimensions.height;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(newDimensions.width, newDimensions.height, false);
-      this.canvasDimensions = newDimensions;
-    }
-  }
-
   draw(world: World, region: Region) {
-    this.updateCanvasSize();
     this.draw3dScene(world, region);
     this.draw2dScene(world, region);
 

@@ -55,7 +55,9 @@ export function MyTrainerApp() {
   return (
     <TrainerApp trainer={trainer} onLoadingStateChange={setLoading}>
       <TrainerLoading state={loading} />
-      <Sidebar />
+      <DefaultSidebar>
+        <Sidebar />
+      </DefaultSidebar>
     </TrainerApp>
   );
 }
@@ -64,16 +66,33 @@ export function MyTrainerApp() {
 `TrainerApp` is the root layout and lifecycle boundary. It creates and mounts
 the world canvas, loads assets, starts the trainer by default, provides the
 trainer through React context, and disposes it on unmount. Its children are
-ordinary DOM siblings rendered over or alongside the absolutely positioned
-canvas. It is valid to render `TrainerApp` with no children.
+rendered as siblings of the playable area and canvas. This means a
+`DefaultSidebar` is optional; clients can render any UI as a sibling. Both
+children and the sidebar are optional, so an empty `TrainerApp` is valid.
+
+```tsx
+<TrainerApp trainer={trainer}>
+  <LoadingOverlay />
+  <WorldOverlay />
+  <DefaultSidebar>
+    <Sidebar />
+  </DefaultSidebar>
+</TrainerApp>
+```
+
+`DefaultSidebar` owns the standard sidebar layout and styling. It renders its
+children first, followed by shared rendering settings including Render FPS and
+Smooth Cache Animations. Use it as the sidebar wrapper for client-specific
+controls.
 
 ## Layout and overlays
 
-Keep the canvas inside the React-owned root. This gives the canvas, sidebar,
-modals, loading state, and overlays one positioning context and one lifecycle.
-Prefer normal CSS layout for sidebars and absolute positioning relative to the
-root for overlays; do not calculate document coordinates manually when CSS can
-express the relationship.
+Keep the canvas inside `PlayableArea`, which is a flex item. `TrainerApp`
+children are siblings of that area, so a sidebar can participate in the root
+flex layout without a special prop or wrapper. Position overlays absolutely so
+they do not become additional flex items; use normal CSS layout for sidebars
+and avoid calculating document coordinates manually when CSS can express the
+relationship.
 
 For a non-interactive overlay layer, use `pointer-events: none` and restore
 `pointer-events: auto` only on interactive descendants. This prevents empty
@@ -86,6 +105,34 @@ bounding rectangle and scale. World-to-screen and picking capabilities should
 be exposed through `TrainerInstance` APIs and React hooks; client UI should not
 reach into renderer globals or private Three.js objects. Until such an API is
 added, keep world-anchored UI in the existing renderer.
+
+`TrainerApp` passes the `PlayableArea` element to the trainer. The viewport
+uses a `ResizeObserver` on that element to update its logical viewport, canvas
+backing resolution, and camera. The canvas is a rendering surface inside the
+area, not the source of layout dimensions.
+
+## Component styling
+
+SDK React components use inline styles by default. This keeps small reusable
+components self-contained, avoids global class-name collisions, and does not
+require client bundlers to configure CSS imports. Components should still
+accept normal `className` and `style` props where appropriate so trainer
+applications can adjust layout.
+
+Use inline styles for values supplied by component props, such as colors, fill
+percentages, positions, and dimensions. Keep the styling close to the element
+that consumes the value:
+
+```tsx
+<div style={{ backgroundColor, border: `1px solid ${borderColor}` }}>
+  <div style={{ backgroundColor: fillColor, width: `${percentage}%` }} />
+</div>
+```
+
+Do not add a CSS-in-JS dependency for this. A package stylesheet or CSS module
+may be introduced later if several components share substantial static styles,
+but that requires an explicit npm packaging and client-bundler strategy first.
+Until then, prefer inline styles and native CSS layout properties.
 
 ## React and game state
 

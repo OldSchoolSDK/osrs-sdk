@@ -239,10 +239,6 @@ export abstract class Region {
     this.world.stopTicking();
   }
 
-  getSidebarContent(): string {
-    return "Nothing to see here";
-  }
-
   // calls preload on all renderable children
   async preload() {
     await Promise.all(this.entities.map((entity) => entity.preload()));

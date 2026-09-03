@@ -1,7 +1,6 @@
 "use strict";
 import { Settings } from "./Settings";
 import { ClickController } from "./ClickController";
-import { Chrome } from "./Chrome";
 import { Player } from "./Player";
 import { ContextMenu } from "./ContextMenu";
 import { World } from "./World";
@@ -57,16 +56,19 @@ export interface ViewportDelegate {
   getMapRotation(): number;
 
   setMapRotation(direction: CardinalDirection);
+
+  resize?(width: number, height: number): void;
 }
 
 export class Viewport {
   static viewport: Viewport;
-  static setupViewport(region: Region, force2d = false, canvas?: HTMLCanvasElement) {
+  static setupViewport(region: Region, canvas: HTMLCanvasElement, resizeTarget: Element, force2d = false) {
     const faceInitialSouth = region.initialFacing === CardinalDirection.SOUTH;
     // called after Settings have been initialized
     Viewport.viewport = new Viewport(
       Settings.use3dView && !force2d ? new Viewport3d(faceInitialSouth, canvas) : new Viewport2d(),
       canvas,
+      resizeTarget,
     );
   }
 
@@ -74,15 +76,25 @@ export class Viewport {
   contextMenu: ContextMenu = new ContextMenu();
 
   private clickController: ClickController;
-  canvas: HTMLCanvasElement;
+  private resizeObserver: ResizeObserver | null = null;
   width: number;
   height: number;
 
 
   public components: Component[] = [];
 
-  constructor(private delegate: ViewportDelegate, canvas?: HTMLCanvasElement) {
-    this.canvas = canvas;
+  constructor(
+    private delegate: ViewportDelegate,
+    readonly canvas: HTMLCanvasElement,
+    private readonly resizeTarget: Element,
+  ) {
+    if (typeof ResizeObserver === "undefined") {
+      throw new Error("ResizeObserver is required to mount a viewport");
+    }
+    this.resizeObserver = new ResizeObserver(([entry]) => {
+      this.resize(entry.contentRect.width, entry.contentRect.height);
+    });
+    this.resizeObserver.observe(this.resizeTarget);
   }
 
   /**
@@ -96,21 +108,28 @@ export class Viewport {
     return this.canvas.getContext("2d") as CanvasRenderingContext2D;
   }
 
-  setPlayer(player: Player, canvas?: HTMLCanvasElement) {
+  setPlayer(player: Player) {
     Trainer.setPlayer(player);
-    window.addEventListener("orientationchange", () => this.calculateViewport());
-    window.addEventListener("resize", () => this.calculateViewport());
-    window.addEventListener("wheel", () => this.calculateViewport());
-    window.addEventListener("resize", () => this.calculateViewport());
-    this.canvas = canvas ?? this.canvas ?? document.getElementById("world") as HTMLCanvasElement;
-    this.calculateViewport();
-    this.canvas.width = Settings._tileSize * 2 * this.width;
-    this.canvas.height = Settings._tileSize * 2 * this.height;
     if (!this.clickController) {
       this.clickController = new ClickController(this);
       this.clickController.registerClickActions();
     }
     Trainer.setClickController(this.clickController);
+  }
+
+  /** Recalculate viewport and backing-canvas dimensions from the playable area. */
+  resize(width: number, height: number) {
+    width = Math.max(1, Math.round(width));
+    height = Math.max(1, Math.round(height));
+    if (!Trainer.player?.region) return;
+    Settings._tileSize = width / Trainer.player.region.width;
+    this.width = width / Settings.tileSize;
+    this.height = height / Settings.tileSize;
+    if (width !== this.canvas.width || height !== this.canvas.height) {
+      this.canvas.width = width;
+      this.canvas.height = height;
+    }
+    this.delegate.resize?.(width, height);
   }
 
   // called after all graphics have loaded
@@ -125,15 +144,9 @@ export class Viewport {
     this.components = [];
   }
 
-  calculateViewport() {
-    const { width, height } = Chrome.size();
-    Settings._tileSize = width / Trainer.player.region.width;
-    this.width = width / Settings.tileSize;
-    this.height = height / Settings.tileSize;
-    if (width !== this.canvas.width || height !== this.canvas.height) {
-      this.canvas.width = width;
-      this.canvas.height = height;
-    }
+  dispose() {
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
   }
 
   getViewport(tickPercent: number) {
@@ -186,7 +199,7 @@ export class Viewport {
     this.context.restore();
     this.context.save();
     this.context.fillStyle = "black";
-    const { width, height } = Chrome.size();
+    const { width, height } = this.canvas;
     this.context.fillRect(0, 0, width, height);
     const { canvas, uiCanvas, flip, offsetX, offsetY } = this.delegate.draw(world, Trainer.player.region);
     if (flip) {
@@ -204,7 +217,7 @@ export class Viewport {
     ControlPanelController.controller.draw(this.context);
     XpDropController.controller.draw(
       this.context,
-      width - 140 - MapController.controller.width - (Settings.menuVisible ? 232 : 0),
+      width - 140 - MapController.controller.width,
       0,
       world.tickPercent,
     );

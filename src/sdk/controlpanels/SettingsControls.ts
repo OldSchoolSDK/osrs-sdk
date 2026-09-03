@@ -23,7 +23,6 @@ import { Settings } from "../Settings";
 import { BrowserUtils } from "../utils/BrowserUtils";
 import { ControlPanelController } from "../ControlPanelController";
 import { ImageLoader } from "../utils/ImageLoader";
-import { Viewport } from "../Viewport";
 import { ToggleButton } from "../ui/ToggleButton";
 import { KeyBindingButton } from "../ui/KeyBindingButton";
 import { Component } from "../ui/Component";
@@ -135,7 +134,6 @@ export class SettingsControls extends BaseControls {
       () => Settings.menuVisible,
       () => {
         Settings.setMenuVisible(!Settings.menuVisible);
-        Viewport.viewport.calculateViewport();
       },
     ),
   ];

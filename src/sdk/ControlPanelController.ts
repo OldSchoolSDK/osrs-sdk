@@ -146,7 +146,7 @@ export class ControlPanelController {
       return { x: 15, y: mapHeight + spacer };
     } else {
       return {
-        x: width - 231 * scale - (Settings.menuVisible ? 232 : 0) + 28,
+        x: width - 231 * scale + 28,
         y: height - 72 * scale,
       };
     }
@@ -164,7 +164,7 @@ export class ControlPanelController {
         return { x: 15, y: mapHeight + spacer + i * 36 * scale };
       } else {
         return {
-          x: width - 33 * scale - 15 - (Settings.menuVisible ? 232 : 0),
+          x: width - 33 * scale - 15,
           y: mapHeight + spacer + (i - 7) * 36 * scale,
         };
       }
@@ -172,7 +172,7 @@ export class ControlPanelController {
       const x = i % 7;
       const y = Math.floor(i / 7);
       return {
-        x: width - 231 * scale + x * 33 * scale - (Settings.menuVisible ? 232 : 0),
+        x: width - 231 * scale + x * 33 * scale,
         y: height - 72 * scale + y * 36 * scale,
       };
     }
@@ -327,14 +327,14 @@ export class ControlPanelController {
       } else {
         // right side mobile
         return {
-          x: width - 33 * scale - 15 - 200 * Settings.controlPanelScale - (Settings.menuVisible ? 232 : 0),
+          x: width - 33 * scale - 15 - 200 * Settings.controlPanelScale,
           y: mapHeight + spacer,
         };
       }
     } else {
       // desktop compact
       return {
-        x: width - 188 * scale - (Settings.menuVisible ? 232 : 0),
+          x: width - 188 * scale,
         y: height - 72 * scale - 251 * scale,
       };
     }

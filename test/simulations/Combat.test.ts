@@ -21,7 +21,7 @@ describe("basic combat scenario", () => {
     world.addRegion(region);
     const player = new Player(region, { x: 30, y: 60 });
     region.addPlayer(player);
-    Viewport.setupViewport(region, true);
+    Viewport.setupViewport(region, document.createElement("canvas"), document.createElement("div"), true);
     Viewport.viewport.setPlayer(player);
 
     new TwistedBow().inventoryLeftClick(player);
@@ -68,7 +68,7 @@ describe("basic combat scenario", () => {
     // player is under the jalxil
     const player = new Player(region, { x: 26, y: 25 });
     region.addPlayer(player);
-    Viewport.setupViewport(region, true);
+    Viewport.setupViewport(region, document.createElement("canvas"), document.createElement("div"), true);
     Viewport.viewport.setPlayer(player);
 
     new TwistedBow().inventoryLeftClick(player);
