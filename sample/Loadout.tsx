@@ -48,6 +48,14 @@ const equipmentSlots = scaledEquipmentSlots.map((slot) => ({
 }));
 const equipmentWidth = Math.max(...equipmentSlots.map((slot) => slot.left + slotSize));
 const equipmentHeight = Math.max(...equipmentSlots.map((slot) => slot.top + slotSize));
+// we currently don't have 'empty' models for this so prevent naked characters for this for now
+const equipmentSlotsRequiringItems = new Set<keyof UnitEquipment>([
+  "helmet",
+  "chest",
+  "legs",
+  "gloves",
+  "feet",
+]);
 
 const slotStyle: React.CSSProperties = {
   alignItems: "center",
@@ -64,10 +72,12 @@ const slotStyle: React.CSSProperties = {
 
 function ItemSlot({
   itemId,
+  allowEmpty,
   onItemSelect,
   registry,
   substituteItemIds,
 }: {
+  allowEmpty: boolean;
   itemId: LoadoutItemId;
   onItemSelect: (itemId: LoadoutItemId) => void;
   registry?: LoadoutRegistry;
@@ -97,20 +107,22 @@ function ItemSlot({
       }}
       trigger={trigger}
     >
-      <div
-        onClick={() => onItemSelect(null)}
-        style={{
-          alignItems: "center",
-          cursor: "pointer",
-          display: "grid",
-          gridColumn: "1 / -1",
-          gridTemplateColumns: "24px 1fr",
-          height: "32px",
-        }}
-      >
-        <span />
-        <span>Empty</span>
-      </div>
+      {allowEmpty && (
+        <div
+          onClick={() => onItemSelect(null)}
+          style={{
+            alignItems: "center",
+            cursor: "pointer",
+            display: "grid",
+            gridColumn: "1 / -1",
+            gridTemplateColumns: "24px 1fr",
+            height: "32px",
+          }}
+        >
+          <span />
+          <span>Empty</span>
+        </div>
+      )}
       {substituteItemIds.map((substituteId) => {
         const substitute = registry?.get(substituteId);
         if (!substitute) return null;
@@ -161,6 +173,7 @@ export function Loadout({ loadout, onItemSelect, registry, getSubstitutes }: Loa
               }}
             >
               <ItemSlot
+                allowEmpty={!equipmentSlotsRequiringItems.has(slot.key)}
                 itemId={loadout.equipment[slot.key]}
                 onItemSelect={(itemId) => onItemSelect({ kind: "equipment", slot: slot.key }, itemId)}
                 registry={registry}
@@ -176,6 +189,7 @@ export function Loadout({ loadout, onItemSelect, registry, getSubstitutes }: Loa
           {loadout.inventory.map((itemId, index) => (
             <div key={index} style={{ ...slotStyle, height: slotSize, width: slotSize }}>
               <ItemSlot
+                allowEmpty
                 itemId={itemId}
                 onItemSelect={(selectedItemId) => onItemSelect({ index, kind: "inventory" }, selectedItemId)}
                 registry={registry}
