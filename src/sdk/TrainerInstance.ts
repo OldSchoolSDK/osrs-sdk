@@ -1,4 +1,3 @@
-import { TileMarker } from "../content/TileMarker";
 import { Player } from "./Player";
 import { Region } from "./Region";
 import { Settings, SettingsSnapshot } from "./Settings";
@@ -72,10 +71,8 @@ export class TrainerInstance {
     if (this.canvas && this.canvas !== canvas) throw new Error("TrainerInstance is already mounted to another canvas");
     if (this.player) return this.player;
     this.canvas = canvas;
-    this.player = this.region.initialiseRegion().player;
     Viewport.setupViewport(this.region, canvas, resizeTarget, this.options.force2d ?? false);
-    Viewport.viewport.setPlayer(this.player);
-    TileMarker.loadAll(this.region);
+    this.player = this.region.reset(false).player;
     this.player.perceivedLocation = this.player.location;
     this.player.destinationLocation = this.player.location;
     this.notifyChanged();

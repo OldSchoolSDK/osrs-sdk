@@ -12,9 +12,12 @@ import type { World } from "./World";
 import type { Projectile } from "./weapons/Projectile";
 import { DelayedAction } from "./DelayedAction";
 import { TileMarker } from "../content";
+import { LoadoutRegistry } from "../content/LoadoutRegistry";
 import { Viewport } from "./Viewport";
 import { Trainer } from "./Trainer";
 import { Button } from "./ui/Button";
+import type { Loadout as LoadoutData, LoadoutItemId } from "./Loadout";
+import type { UnitEquipment } from "./Unit";
 
 interface GroundYItems {
   [key: number]: Item[];
@@ -31,6 +34,8 @@ export enum CardinalDirection {
 
 // Base class for any trainer region.
 export abstract class Region {
+  constructor(protected readonly loadoutTemplates: LoadoutData[] = []) {}
+
   canvas: OffscreenCanvas;
 
   players: Player[] = [];
@@ -205,7 +210,40 @@ export abstract class Region {
 
   abstract initialiseRegion(): { player: Player };
 
-  reset() {
+  private createLoadoutItem(itemId: LoadoutItemId): Item | null {
+    if (itemId === null) return null;
+
+    const registeredItem = LoadoutRegistry.get(itemId);
+    if (!registeredItem) return null;
+
+    const ItemType = registeredItem.constructor as new () => Item;
+    return new ItemType();
+  }
+
+  private constructLoadout(loadout: LoadoutData): { equipment: UnitEquipment; inventory: (Item | null)[] } {
+    const equipment = {} as Record<keyof UnitEquipment, Item | null>;
+    (Object.keys(loadout.equipment) as (keyof UnitEquipment)[]).forEach((slot) => {
+      equipment[slot] = this.createLoadoutItem(loadout.equipment[slot]);
+    });
+
+    return {
+      equipment: equipment as UnitEquipment,
+      inventory: loadout.inventory.map((itemId) => this.createLoadoutItem(itemId)),
+    };
+  }
+
+  private applyConfiguredLoadout(player: Player) {
+    if (this.loadoutTemplates.length === 0) return;
+
+    const selectedLoadout = this.loadoutTemplates.find(({ name }) => name === Settings.loadout);
+    const customLoadout = Settings.customLoadout?.name === selectedLoadout?.name
+      ? Settings.customLoadout
+      : null;
+    const loadout = customLoadout ?? selectedLoadout ?? this.loadoutTemplates[0];
+    if (loadout) player.setUnitOptions(this.constructLoadout(loadout));
+  }
+
+  reset(startWorld = true) {
     if (!this.world.isPaused) {
       this.world.stopTicking();
     }
@@ -225,11 +263,12 @@ export abstract class Region {
     this.world.getReadyTimer = 6;
 
     const reset = this.initialiseRegion();
+    this.applyConfiguredLoadout(reset.player);
     for (const unit of [...this.players, ...this.mobs]) {
       unit.setStats();
     }
     Viewport.viewport.setPlayer(reset.player);
-    this.world.startTicking();
+    if (startWorld) this.world.startTicking();
     return reset;
   }
 

@@ -1,5 +1,6 @@
 import { Settings } from "../Settings";
 import { isCacheSound, synthesizeCacheSound } from "../audio/CacheSoundEffects";
+import { CacheRender } from "../rendering/CacheRenderBundle";
 
 const LOADING_SOUND = null;
 
@@ -30,6 +31,10 @@ export class SoundCache {
 
   static async preload(src: string): Promise<AudioBuffer> {
     if (!SoundCache.context) {
+      return null;
+    }
+    // Do not try to load cache sounds until the cache renderer is configured.
+    if (isCacheSound(src) && !CacheRender.isConfigured()) {
       return null;
     }
     if (SoundCache.cachedSounds[src] === LOADING_SOUND) {
