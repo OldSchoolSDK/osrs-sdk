@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Modal } from "osrs-sdk-react";
-import { CACHE_ASSETS, loadLoadoutRegistry, Settings } from "../src";
+import { CACHE_ASSETS, loadLoadoutRegistry, Settings, Weapon } from "../src";
 import type { Loadout as LoadoutData, LoadoutItemId, UnitEquipment } from "../src";
 import { Loadout } from "./Loadout";
 import type { LoadoutRegistry, LoadoutSlot } from "./Loadout";
@@ -53,8 +53,21 @@ export function LoadoutManager({ loadouts, onClose, open }: LoadoutManagerProps)
   };
 
   // changed a specific slot
-  const onItemSelect = (slot: LoadoutSlot, itemId: number) => {
+  const onItemSelect = (slot: LoadoutSlot, itemId: LoadoutItemId) => {
     if (!loadout) return;
+
+    const selectedItem = itemId === null ? undefined : registry?.get(itemId);
+    const currentWeapon = loadout.equipment.weapon === null
+      ? undefined
+      : registry?.get(loadout.equipment.weapon);
+    const equipsTwoHandedWeapon = slot.kind === "equipment"
+      && slot.slot === "weapon"
+      && selectedItem instanceof Weapon
+      && selectedItem.isTwoHander;
+    const replacesTwoHandedWeapon = slot.kind === "equipment"
+      && slot.slot === "offhand"
+      && currentWeapon instanceof Weapon
+      && currentWeapon.isTwoHander;
 
     const nextLoadout = slot.kind === "equipment"
       ? {
@@ -62,6 +75,8 @@ export function LoadoutManager({ loadouts, onClose, open }: LoadoutManagerProps)
         equipment: {
           ...loadout.equipment,
           [slot.slot]: itemId,
+          ...(equipsTwoHandedWeapon ? { offhand: null } : {}),
+          ...(replacesTwoHandedWeapon ? { weapon: null } : {}),
         },
       }
       : (() => {

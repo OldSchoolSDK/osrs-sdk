@@ -11,7 +11,7 @@ export type LoadoutSlot =
 
 export type LoadoutProps = {
   loadout: LoadoutData;
-  onItemSelect: (slot: LoadoutSlot, itemId: number) => void;
+  onItemSelect: (slot: LoadoutSlot, itemId: LoadoutItemId) => void;
   registry?: LoadoutRegistry;
   // return appropriate substitutes for the given slot (slot is null for inventory slots)
   getSubstitutes: (slot: keyof UnitEquipment | null) => number[];
@@ -54,9 +54,9 @@ const slotStyle: React.CSSProperties = {
   backgroundColor: "#111",
   border: "1px solid #8f8f8f",
   boxSizing: "border-box",
-  color: "#8f8f8f",
+  color: "#ffffff",
   display: "flex",
-  fontSize: 10,
+  fontSize: 12,
   justifyContent: "center",
   position: "relative",
   textAlign: "center",
@@ -69,28 +69,48 @@ function ItemSlot({
   substituteItemIds,
 }: {
   itemId: LoadoutItemId;
-  onItemSelect: (itemId: number) => void;
+  onItemSelect: (itemId: LoadoutItemId) => void;
   registry?: LoadoutRegistry;
   substituteItemIds: number[];
 }) {
   const item = itemId === null ? undefined : registry?.get(itemId);
 
-  if (!item) {
-    return <>{itemId ?? "-"}</>;
-  }
+  const trigger = item ? (
+    <img
+      src={item.inventoryImage}
+      alt={item.itemName}
+      title={`${item.itemName} (${itemId})`}
+      style={{ maxHeight: "90%", maxWidth: "90%", imageRendering: "pixelated" }}
+    />
+  ) : (
+    <span>{itemId ?? "-"}</span>
+  );
+
+  if (substituteItemIds.length === 0) return trigger;
 
   return (
     <Dropdown
-      menuStyle={{ width: slotSize * 2 }}
-      trigger={
-        <img
-          src={item.inventoryImage}
-          alt={item.itemName}
-          title={`${item.itemName} (${itemId})`}
-          style={{ maxHeight: "90%", maxWidth: "90%", imageRendering: "pixelated" }}
-        />
-      }
+      menuStyle={{
+        display: "grid",
+        gridTemplateColumns: "24px 1fr",
+        width: slotSize * 2,
+      }}
+      trigger={trigger}
     >
+      <div
+        onClick={() => onItemSelect(null)}
+        style={{
+          alignItems: "center",
+          cursor: "pointer",
+          display: "grid",
+          gridColumn: "1 / -1",
+          gridTemplateColumns: "24px 1fr",
+          height: "32px",
+        }}
+      >
+        <span />
+        <span>Empty</span>
+      </div>
       {substituteItemIds.map((substituteId) => {
         const substitute = registry?.get(substituteId);
         if (!substitute) return null;
@@ -102,17 +122,19 @@ function ItemSlot({
             style={{
               alignItems: "center",
               cursor: "pointer",
-              display: "flex",
+              display: "grid",
               gap: 4,
-              minHeight: slotSize,
+              gridColumn: "1 / -1",
+              gridTemplateColumns: "24px 1fr",
+              height: "32px"
             }}
           >
             <img
               src={substitute.inventoryImage}
               alt={substitute.itemName}
-              style={{ maxHeight: slotSize - 4, maxWidth: slotSize - 4, imageRendering: "pixelated" }}
+              style={{ maxHeight: "24px", imageRendering: "pixelated" }}
             />
-            <span style={{ fontSize: 10 }}>{substitute.itemName}</span>
+            <span>{substitute.itemName}</span>
           </div>
         );
       })}
