@@ -254,6 +254,7 @@ export class CacheRenderModel implements Model, RenderableListener {
   private vertexGroups: number[][] = [];
   private alphaGroups: number[][] = [];
   private sourceVertices: number[] = [];
+  private logicalHeight: number | null = null;
   private animayaGroups: number[][] = [];
   private animayaScales: number[][] = [];
   private spotAnims: SpotAnimRuntime[] = [];
@@ -327,6 +328,7 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.vertexGroups = [];
     this.alphaGroups = [];
     this.sourceVertices = [];
+    this.logicalHeight = null;
     this.animayaGroups = [];
     this.animayaScales = [];
     this.spotAnims = [];
@@ -396,6 +398,7 @@ export class CacheRenderModel implements Model, RenderableListener {
       const mesh = new THREE.Mesh(geometry, materials.length > 1 ? materials : materials[0]);
       const modelScale = payload.scale ?? 1;
       this.root.scale.set(modelScale, modelScale, modelScale);
+      this.updateLogicalHeight(geometry.getAttribute("position") as THREE.BufferAttribute);
       this.basePositions = new Float32Array(payload.positions);
       this.baseAlphas = new Float32Array(rawAlphas);
       this.vertexGroups = payload.vertexGroups ?? [];
@@ -631,6 +634,7 @@ export class CacheRenderModel implements Model, RenderableListener {
           for (let i = 0; i < vertices.length; i++) position.array[i] = vertices[i] + (nextVertices[i] - vertices[i]) * blend;
         }
         position.needsUpdate = true;
+        this.updateLogicalHeight(position);
         const cacheAlpha = this.mesh?.geometry.getAttribute("cacheAlpha") as THREE.BufferAttribute | undefined;
         if (cacheAlpha && transformedAlphas) {
           for (let i = 0; i < transformedAlphas.length; i++) cacheAlpha.array[i] = 1 - Math.max(0, Math.min(255, transformedAlphas[i])) / 255;
@@ -706,6 +710,12 @@ export class CacheRenderModel implements Model, RenderableListener {
       // the new payload arrives.
       if (this.mesh && this.meshGeneration === this.modelGeneration) this.lastPose = pose;
   }
+  private updateLogicalHeight(position: THREE.BufferAttribute) {
+    let maxY = -Infinity;
+    for (let vertex = 0; vertex < position.count; vertex++) maxY = Math.max(maxY, position.getY(vertex));
+    this.logicalHeight = Number.isFinite(maxY) ? Math.max(0, maxY * this.root.scale.y) : null;
+  }
+  getLogicalHeight() { return this.logicalHeight; }
   destroy(scene: THREE.Scene) {
     if (this.root.parent === scene) scene.remove(this.root);
     if (this.outline?.parent === scene) scene.remove(this.outline);

@@ -10,6 +10,12 @@ export interface RenderableListener {
   spotAnimChanged?(spotAnims: CacheRenderSpotAnim[]);
 }
 
+/** Projects heights above a renderable's origin into UI-canvas coordinates. */
+export interface UILayerProjector {
+  readonly logicalHeight: number;
+  atHeight(height: number): Location;
+}
+
 const NIL_OFFSET: Location3[] = [{ x: 0, y: 0, z: 0 }];
 
 export abstract class Renderable {
@@ -71,6 +77,17 @@ export abstract class Renderable {
     return this.size;
   }
 
+  /**
+   * Height above the actor origin used to anchor overhead UI in 3d.
+   *
+   * This is separate from height because gameplay also uses height for model
+   * dimensions and projectile trajectories. Cache-backed actors can override
+   * it with the logical/model height used by the game client.
+   */
+  get logicalHeight(): number {
+    return this.height;
+  }
+
   get clickboxHeight(): number | null {
     return null;
   }
@@ -108,10 +125,9 @@ export abstract class Renderable {
   
   drawUILayer(
     tickPercent: number,
-    screenPosition: Location,
+    projector: UILayerProjector,
     context: OffscreenCanvasRenderingContext2D,
     scale: number,
-    hitsplatAbove = true,
   ) {
     // Override me
   }

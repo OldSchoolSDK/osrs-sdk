@@ -6,7 +6,7 @@ import { Region } from "./Region";
 import { clamp } from "lodash";
 import { CollisionType } from "./Collision";
 import { LineOfSightMask } from "./LineOfSight";
-import { Renderable } from "./Renderable";
+import { Renderable, UILayerProjector } from "./Renderable";
 
 export class Entity extends Renderable {
   region: Region;
@@ -104,10 +104,9 @@ export class Entity extends Renderable {
 
   drawUILayer(
     tickPercent: number,
-    screenPosition: Location,
+    projector: UILayerProjector,
     context: OffscreenCanvasRenderingContext2D,
     scale: number,
-    hitsplatAbove = true,
   ) {
     // Override me
   }

@@ -4,7 +4,7 @@ import { World } from "./World";
 import { Viewport, ViewportDelegate } from "./Viewport";
 import { CardinalDirection, GroundItems, Region } from "./Region";
 import { Settings } from "./Settings";
-import { Renderable } from "./Renderable";
+import { Renderable, UILayerProjector } from "./Renderable";
 import { Unit } from "./Unit";
 import { Pathing } from "./Pathing";
 import { Mob } from "./Mob";
@@ -52,14 +52,30 @@ export class Viewport2d implements ViewportDelegate {
       };
     };
 
-    region.entities.forEach((entity) => entity.drawUILayer(world.tickPercent, getOffset(entity), entity.region.context, Settings.tileSize, true));
+    // The legacy top-down viewport has no elevation projection. Keep its UI
+    // anchored to the top of the renderable's footprint for compatibility.
+    const getUILayerProjector = (r: Renderable): UILayerProjector => {
+      const offset = getOffset(r);
+      const screenPosition = {
+        x: offset.x,
+        y: offset.y - (r.size * Settings.tileSize) / 2,
+      };
+      return {
+        logicalHeight: r.logicalHeight,
+        atHeight: () => screenPosition,
+      };
+    };
+
+    region.entities.forEach((entity) =>
+      entity.drawUILayer(world.tickPercent, getUILayerProjector(entity), entity.region.context, Settings.tileSize),
+    );
     if (world.getReadyTimer <= 0) {
       region.mobs.forEach((mob) =>
-        mob.drawUILayer(world.tickPercent, getOffset(mob), mob.region.context, Settings.tileSize, true),
+        mob.drawUILayer(world.tickPercent, getUILayerProjector(mob), mob.region.context, Settings.tileSize),
       );
 
       region.players.forEach((player: Player) => {
-        player.drawUILayer(world.tickPercent, getOffset(player), player.region.context, Settings.tileSize, true);
+        player.drawUILayer(world.tickPercent, getUILayerProjector(player), player.region.context, Settings.tileSize);
       });
 
       units.forEach((unit) => {

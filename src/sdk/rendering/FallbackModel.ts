@@ -27,5 +27,6 @@ export class FallbackModel implements Model {
   }
   destroy(scene: THREE.Scene) { this.primary.destroy(scene); this.fallback.destroy(scene); }
   getWorldPosition(): THREE.Vector3 { return (this.active ?? this.fallback).getWorldPosition(); }
+  getLogicalHeight(): number | null { return (this.active ?? this.primary).getLogicalHeight?.() ?? null; }
   async preload() { this.select(); await (this.active ?? this.fallback).preload(); }
 }

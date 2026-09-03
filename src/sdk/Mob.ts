@@ -17,6 +17,7 @@ import { InputController } from "./Input";
 import { parseText } from "./utils/Text";
 import { UnitStats } from "./UnitStats";
 import { Trainer } from "./Trainer";
+import { UILayerProjector } from "./Renderable";
 
 export enum AttackIndicators {
   NONE = 0,
@@ -533,18 +534,29 @@ export class Mob extends Unit {
     });*/
   }
 
-  override drawUILayer(tickPercent, offset, context, scale, hitsplatsAbove) {
+  override drawUILayer(
+    tickPercent: number,
+    projector: UILayerProjector,
+    context: OffscreenCanvasRenderingContext2D,
+    scale: number,
+  ) {
+    const overheadPosition = projector.atHeight(projector.logicalHeight);
     context.save();
-    context.translate(offset.x, offset.y);
+    context.translate(overheadPosition.x, overheadPosition.y);
     if (Settings.rotated === "south") {
       context.rotate(Math.PI);
     }
 
-    this.drawHPBar(context, scale);
+    this.drawHPBar(context, scale, 0);
     this.drawOverheadText(context, scale);
-    this.drawHitsplats(context, scale, hitsplatsAbove);
     this.drawOverheadPrayers(context, scale);
+    context.restore();
 
+    const hitsplatPosition = projector.atHeight(projector.logicalHeight * 0.5);
+    context.save();
+    context.translate(hitsplatPosition.x, hitsplatPosition.y);
+    if (Settings.rotated === "south") context.rotate(Math.PI);
+    this.drawHitsplats(context, scale);
     context.restore();
   }
 

@@ -787,9 +787,9 @@ export abstract class Unit extends Renderable {
     return true;
   }
 
-  drawHPBar(context: OffscreenCanvasRenderingContext2D, scale: number) {
+  drawHPBar(context: OffscreenCanvasRenderingContext2D, scale: number, verticalOffset = -(this.size / 2) * scale) {
     context.fillStyle = "red";
-    context.fillRect((-this.size / 2) * scale, -(this.size / 2) * scale, scale * this.size, 5);
+    context.fillRect((-this.size / 2) * scale, verticalOffset, scale * this.size, 5);
 
     const healthRatio = Math.min(
       1,
@@ -797,10 +797,14 @@ export abstract class Unit extends Renderable {
     );
     context.fillStyle = "lime";
     const w = healthRatio * (scale * this.size);
-    context.fillRect((-this.size / 2) * scale, (-this.size / 2) * scale, w, 5);
+    context.fillRect((-this.size / 2) * scale, verticalOffset, w, 5);
   }
 
-  drawHitsplats(context: OffscreenCanvasRenderingContext2D, scale: number, above: boolean) {
+  drawHitsplats(
+    context: OffscreenCanvasRenderingContext2D,
+    scale: number,
+    verticalOffset = 0,
+  ) {
     let projectileOffsets = [
       [0, 10],
       [0, 30],
@@ -809,10 +813,6 @@ export abstract class Unit extends Renderable {
     ];
 
     let projectileCounter = 0;
-    let verticalOffset = -((this.size + 1) * scale) / 2;
-    if (!above) {
-      verticalOffset *= -1;
-    }
     this.incomingProjectiles.forEach((projectile) => {
       if (projectile.remainingDelay > 0) {
         return;
@@ -860,7 +860,7 @@ export abstract class Unit extends Renderable {
     if (overhead) {
       const overheadImg = overhead.overheadImage();
       if (overheadImg) {
-        context.drawImage(overheadImg, -scale / 2, -scale * 3, scale, scale);
+        context.drawImage(overheadImg, -scale / 2, -scale * 2, scale, scale);
       }
     }
   }

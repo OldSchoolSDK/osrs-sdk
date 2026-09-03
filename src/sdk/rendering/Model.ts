@@ -18,5 +18,8 @@ export interface Model {
 
   getWorldPosition(): THREE.Vector3;
 
+  /** Current posed height above the model origin, when available. */
+  getLogicalHeight?(): number | null;
+
   preload(): Promise<void>;
 }

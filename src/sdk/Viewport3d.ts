@@ -9,7 +9,7 @@ import Stats from "three/examples/jsm/libs/stats.module";
 import { Settings } from "./Settings";
 import { Player } from "./Player";
 import { Mob } from "./Mob";
-import { Renderable } from "./Renderable";
+import { Renderable, UILayerProjector } from "./Renderable";
 import { Location } from "./Location";
 import { Actor } from "./rendering/Actor";
 import _ from "lodash";
@@ -456,23 +456,25 @@ export class Viewport3d implements ViewportDelegate {
     this.uiCanvasContext.clearRect(0, 0, this.uiCanvas.width, this.uiCanvas.height);
     const translator = (pos: Location, z = 0) => this.projectToScreen(new THREE.Vector3(pos.x, z, pos.y));
 
-    const get2dOffset = (r: Renderable) => {
+    const getUILayerProjector = (r: Renderable): UILayerProjector => {
       const perceivedLocation = r.getPerceivedLocation(world.tickPercent);
-      const { x, y } = translator(
-        {
-          x: perceivedLocation.x + r.size / 2,
-          y: perceivedLocation.y - r.size / 2,
-        },
-        r.height,
-      );
-      return { x, y };
+      const modelLogicalHeight = this.knownActors.get(r)?.getModel()?.getLogicalHeight?.();
+      const logicalHeight = modelLogicalHeight ?? r.logicalHeight;
+      const center = {
+        x: perceivedLocation.x + r.size / 2,
+        y: perceivedLocation.y - r.size / 2,
+      };
+      return {
+        logicalHeight,
+        atHeight: (height) => translator(center, perceivedLocation.z + height),
+      };
     };
     const units: Unit[] = [...region.players, ...(world.getReadyTimer <= 0 ? region.mobs : [])];
 
     const renderables: Renderable[] = (units as Renderable[]).concat(region.entities);
 
     renderables.forEach((r) => {
-      r.drawUILayer(world.tickPercent, get2dOffset(r), this.uiCanvasContext, SPRITE_SCALE, false);
+      r.drawUILayer(world.tickPercent, getUILayerProjector(r), this.uiCanvasContext, SPRITE_SCALE);
     });
   }
 

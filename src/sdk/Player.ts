@@ -37,6 +37,7 @@ import { CacheRenderModel } from "./rendering/CacheRenderModel";
 import { CacheRenderReferences } from "./rendering/CacheRenderReference";
 import { FallbackModel } from "./rendering/FallbackModel";
 import { Trainer } from "./Trainer";
+import { UILayerProjector } from "./Renderable";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -985,24 +986,29 @@ export class Player extends Unit {
 
   drawUILayer(
     tickPercent: number,
-    offset: Location,
+    projector: UILayerProjector,
     context: OffscreenCanvasRenderingContext2D,
     scale: number,
-    hitsplatsAbove: boolean,
   ) {
     if (this.dying > -1) {
       return;
     }
+    const overheadPosition = projector.atHeight(projector.logicalHeight);
     context.save();
-
-    context.translate(offset.x, offset.y);
+    context.translate(overheadPosition.x, overheadPosition.y);
 
     if (Settings.rotated === "south") {
-      this.region.context.rotate(Math.PI);
+      context.rotate(Math.PI);
     }
-    this.drawHPBar(context, scale);
-    this.drawHitsplats(context, scale, hitsplatsAbove);
+    this.drawHPBar(context, scale, 0);
     this.drawOverheadPrayers(context, scale);
+    context.restore();
+
+    const hitsplatPosition = projector.atHeight(projector.logicalHeight * 0.5);
+    context.save();
+    context.translate(hitsplatPosition.x, hitsplatPosition.y);
+    if (Settings.rotated === "south") context.rotate(Math.PI);
+    this.drawHitsplats(context, scale);
     context.restore();
   }
 
