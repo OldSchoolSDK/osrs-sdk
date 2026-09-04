@@ -11,6 +11,8 @@ import { MeleeWeapon } from "../../src/sdk/weapons/MeleeWeapon";
 import { DelayedAction } from "../../src/sdk/DelayedAction";
 import { ScytheOfVitur } from "../../src/content/weapons/ScytheOfVitur";
 import { DragonClaws } from "../../src/content/weapons/DragonClaws";
+import { CACHE_ASSETS } from "../../src/assets/CacheAssets";
+import { GraphicsObject } from "../../src/sdk/GraphicsObject";
 
 describe("basic combat scenario", () => {
   test("when player tries to kill a fake jalxil...", () => {
@@ -116,6 +118,24 @@ describe("basic combat scenario", () => {
     DelayedAction.tick();
     expect(attacker.forceMaxDamageRollsOnNextAttack).toBe(false);
     Random.setRandom(originalRandom);
+  });
+
+  test.each([
+    ["north", { x: 4, y: 3 }, { x: 4, y: 3 }, CACHE_ASSETS.spotAnims.scytheNorth.id],
+    ["east", { x: 5, y: 4 }, { x: 5, y: 4 }, CACHE_ASSETS.spotAnims.scytheEast.id],
+    ["south", { x: 4, y: 7 }, { x: 4, y: 5 }, CACHE_ASSETS.spotAnims.scytheSouth.id],
+    ["west", { x: 1, y: 4 }, { x: 3, y: 4 }, CACHE_ASSETS.spotAnims.scytheWest.id],
+  ])("spawns the %s Scythe GraphicsObject one tile ahead", (_direction, targetLocation, expectedLocation, spotAnimId) => {
+    const region = new TestRegion(10, 10);
+    const attacker = new Player(region, { x: 4, y: 4 });
+    const target = new TestNpc(region, targetLocation, {});
+
+    new ScytheOfVitur().attack(attacker, target, {});
+
+    expect(region.entities).toHaveLength(1);
+    expect(region.entities[0]).toBeInstanceOf(GraphicsObject);
+    expect(region.entities[0].location).toEqual(expectedLocation);
+    expect((region.entities[0] as GraphicsObject).spotAnimId).toBe(spotAnimId);
   });
 
   test("Dragon Claws special attack creates four linked hitsplats after its first successful accuracy roll", () => {

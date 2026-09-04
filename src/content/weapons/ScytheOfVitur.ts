@@ -12,6 +12,7 @@ import { Collision } from "../../sdk/Collision";
 import { AttackBonuses } from "../../sdk/gear/Weapon";
 import { Unit } from "../../sdk/Unit";
 import { Player } from "../../sdk/Player";
+import { GraphicsObject } from "../../sdk/GraphicsObject";
 
 const EXTRA_HIT_LOCATIONS = [
   [
@@ -125,14 +126,20 @@ export class ScytheOfVitur extends MeleeWeapon {
       direction = 0; // North
     }
     if (from instanceof Player) {
-    const spotAnimByDirection = [
-      CACHE_ASSETS.spotAnims.scytheNorth.id,
-      CACHE_ASSETS.spotAnims.scytheEast.id,
-      CACHE_ASSETS.spotAnims.scytheSouth.id,
-      CACHE_ASSETS.spotAnims.scytheWest.id,
-    ];
-      const offsetByDirection = [{ x: 0, y: -0.5 }, { x: 0.5, y: 0 }, { x: 0, y: 0.5 }, { x: -0.5, y: 0 }];
-      from.addSpotAnim({ id: spotAnimByDirection[direction], channel: "scythe-swing", animation: PlayerAnimationIndices.ScytheSwing, height: 0.49 + 96 / 128, delay: 20, offset: offsetByDirection[direction], recolor: { "960": 0xffffff } });
+      const spotAnimByDirection = [
+        CACHE_ASSETS.spotAnims.scytheNorth.id,
+        CACHE_ASSETS.spotAnims.scytheEast.id,
+        CACHE_ASSETS.spotAnims.scytheSouth.id,
+        CACHE_ASSETS.spotAnims.scytheWest.id,
+      ];
+      const offsetByDirection = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
+      const offset = offsetByDirection[direction];
+      region.addEntity(new GraphicsObject(
+        region,
+        { x: from.location.x + offset.x, y: from.location.y + offset.y },
+        spotAnimByDirection[direction],
+        { height: 0.49 + 96 / 128, delay: 20, recolor: { "960": 0xffffff } },
+      ));
     }
     // Full damage attack, but each subsequent hit does half of the last.
     let multiplier = 1.0;

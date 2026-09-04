@@ -7,6 +7,7 @@ export * from './Collision';
 export * from './Loadout';
 
 export * from './Entity';
+export * from './GraphicsObject';
 export * from './Unit';
 export * from './UnitStats';
 export * from './Mob';

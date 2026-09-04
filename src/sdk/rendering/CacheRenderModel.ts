@@ -244,6 +244,8 @@ export function advanceAnimationTimeForDraw(animationTime: number, clockDelta: n
 export type CacheRenderModelOptions = {
   /** Delay applied to every cache-authored animation frame sound. */
   frameSoundDelayMs?: number;
+  /** Called once when a spotanim-only renderable reaches the end of its sequence. */
+  onSpotAnimComplete?: () => void;
 };
 
 /** Three.js implementation for decoded cache geometry. Cache extraction owns the conversion from OSRS frames to this payload. */
@@ -273,6 +275,7 @@ export class CacheRenderModel implements Model, RenderableListener {
   private animayaScales: number[][] = [];
   private spotAnims: SpotAnimRuntime[] = [];
   private activeSpotAnims: CacheRenderSpotAnim[] = [];
+  private spotAnimCompletionNotified = false;
   private outline: THREE.LineSegments | null = null;
   private trueTile: THREE.LineSegments;
   private clickbox: THREE.Mesh | null = null;
@@ -360,6 +363,7 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.animayaScales = [];
     this.spotAnims = [];
     this.activeSpotAnims = this.currentSpotAnims(this.reference.kind === "model" || this.reference.kind === "asset" ? undefined : this.reference.spotAnims);
+    this.spotAnimCompletionNotified = false;
   }
   async preload() {
     await this.ensureLoaded();
@@ -556,7 +560,11 @@ export class CacheRenderModel implements Model, RenderableListener {
     if (this.outline) this.outline.visible = visible && this.renderable.drawOutline;
     this.root.position.set(location.x + size / 2, location.z - 0.49, location.y - size / 2);
     this.root.rotation.order = "YXZ";
-    this.root.rotation.set(pitch, rotation + Math.PI / 2, 0);
+    // The client submits standalone GraphicsObjects to the scene with yaw 0.
+    // Actor/model renderables use the SDK's west-zero facing convention and
+    // need the quarter-turn cache-basis correction.
+    const basisRotation = this.reference.kind === "spotAnim" ? 0 : Math.PI / 2;
+    this.root.rotation.set(pitch, rotation + basisRotation, 0);
     if (this.outline) {
       if (this.outline.parent !== scene) scene.add(this.outline);
       this.outline.position.set(location.x, -0.49, location.y);
@@ -720,6 +728,15 @@ export class CacheRenderModel implements Model, RenderableListener {
           spotSoundPlayer = new AnimationFrameSoundPlayer(this.options.frameSoundDelayMs);
           this.spotFrameSoundPlayers.set(spotAnimationId, spotSoundPlayer);
         }
+        if (
+          this.reference.kind === "spotAnim" &&
+          !this.spotAnimCompletionNotified &&
+          effectTime >= 0 &&
+          (!animation || !hasFrames || total <= 0 || effectTime >= total)
+        ) {
+          this.spotAnimCompletionNotified = true;
+          this.options.onSpotAnimComplete?.();
+        }
         if (!spot.mesh.visible || !animation) {
           spotSoundPlayer.reset();
           continue;
@@ -768,10 +785,10 @@ export class CacheRenderModel implements Model, RenderableListener {
           const cos = Math.cos(yaw), sin = Math.sin(yaw);
           spot.mesh.position.set(cos * offset.x - sin * offset.y, placement?.height ?? spot.height, sin * offset.x + cos * offset.y);
         } else spot.mesh.position.set(0, placement?.height ?? spot.height, 0);
-        // Directional scythe meshes are authored in world orientation. The
-        // player root is yaw-rotated, so cancel that yaw to avoid rotating the
-        // slash a second time with the character.
-        spot.mesh.rotation.y = -this.root.rotation.y + ((placement?.rotation ?? spot.rotation) * Math.PI / 1024);
+        // Actor spotanims are merged into the actor model by the client and
+        // inherit its yaw. Spotanim-only renderables use the same cache-space
+        // basis correction as every other world renderable.
+        spot.mesh.rotation.y = (placement?.rotation ?? spot.rotation) * Math.PI / 1024;
       }
       // Do not mark the pose as handled until the replacement mesh exists.
       // During an equipment swap ensureLoaded() is asynchronous; recording the

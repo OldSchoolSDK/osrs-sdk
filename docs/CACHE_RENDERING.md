@@ -50,6 +50,11 @@ preserve. It intentionally omits discarded implementation experiments.
 - A spotanim definition supplies a model, sequence, scale, and cache rotation.
   Gameplay supplies actor-specific height, delay, offset, and optional colour
   replacement.
+- `GraphicsObject` is the reusable SDK entity for a standalone world instance
+  of one definition. It owns an independent animation clock and removes itself
+  when its one-shot sequence ends.
+- Spotanims attached with `Unit.addSpotAnim(...)` instead inherit the actor's
+  position and facing, matching the client's `ActorSpotAnim`.
 - Spotanims may be rendered without base geometry via
   `CacheRenderReferences.spotAnim(...)`.
 - Spotanim face alpha is distinct from vertex colour. Preserve alpha groups and

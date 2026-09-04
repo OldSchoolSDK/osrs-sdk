@@ -183,7 +183,8 @@ export class CacheRenderInstancedModel implements Model {
       this.transform.position.copy(this.worldPosition);
       this.transform.position.y += placement?.height ?? 0;
       this.transform.rotation.order = "YXZ";
-      this.transform.rotation.set(pitch, rotation + Math.PI / 2 + (placement?.rotation ?? 0) * Math.PI / 1024, 0);
+      const basisRotation = this.reference.kind === "spotAnim" ? 0 : Math.PI / 2;
+      this.transform.rotation.set(pitch, rotation + basisRotation + (placement?.rotation ?? 0) * Math.PI / 1024, 0);
       this.transform.scale.set(pool.scaleX, pool.scaleY, pool.scaleX);
       this.transform.updateMatrix();
       const animationTotal = pool.lengths.reduce((sum, n) => sum + n, 0) / 50;
