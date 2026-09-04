@@ -21,9 +21,9 @@ export class MeleeWeapon extends Weapon {
     return EquipmentTypes.WEAPON;
   }
 
-  attack(from: Unit, to: Unit, bonuses: AttackBonuses = {}): boolean {
+  attack(from: Unit, to: Unit, bonuses: AttackBonuses = {}, options: ProjectileOptions = {}): boolean {
     bonuses.attackStyle = bonuses.attackStyle || "slash";
-    return super.attack(from, to, bonuses);
+    return super.attack(from, to, bonuses, options);
   }
 
   _calculatePrayerEffects(from: Unit, to: Unit, bonuses: AttackBonuses) {

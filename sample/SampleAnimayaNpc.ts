@@ -45,8 +45,10 @@ export class SampleAnimayaNpc extends Mob {
   override get size() { return 5; }
   override get height() { return 6; }
   override canAttack() { return false; }
+  override get attackRange() { return 10; }
 
   override timerStep() {
+    return;
     if (this.attackTick === 0) {
       this.currentStats.hitpoint = this.stats.hitpoint;
       this.playAnimation(ACTIVE_SOL_ATTACK.animation);

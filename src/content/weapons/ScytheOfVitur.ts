@@ -154,9 +154,9 @@ export class ScytheOfVitur extends MeleeWeapon {
         overallMultiplier: multiplier,
       };
       if (collision) {
-        super.attack(from, collision, extraHitBonuses);
+        super.attack(from, collision, extraHitBonuses, { hitSound: null });
       } else {
-        super.attack(from, to, extraHitBonuses);
+        super.attack(from, to, extraHitBonuses, { hitSound: null });
       }
     });
     return true;
@@ -175,6 +175,6 @@ export class ScytheOfVitur extends MeleeWeapon {
   }
 
   get attackSound() {
-    return new Sound(cacheSound(CACHE_ASSETS.sounds.meleeAttack.id), 0.1);
+    return new Sound(cacheSound(CACHE_ASSETS.sounds.meleeAttack.id), 0.05);
   }
 }
