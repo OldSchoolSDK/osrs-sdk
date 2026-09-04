@@ -24,18 +24,11 @@ const TRIPLE_HITS = new Map([
   [9, 35],
 ]);
 
-const SPEAR_ATTACK = 2; // Cache asset pose "attack" (sequence 10883).
-const SPEAR_ATTACK_TICKS = 6; // Sequence 10883 is 180 client frames.
-const SPEAR_HITS = new Map([
-  [4, 35],
-]);
-
-// Keep the triple-attack fixture above available while using the spear attack
-// as the active timing fixture for sound comparison.
 const ACTIVE_SOL_ATTACK = {
-  animation: SPEAR_ATTACK,
-  ticks: SPEAR_ATTACK_TICKS,
-  hits: SPEAR_HITS,
+  animation: TRIPLE_ATTACK_SHORT,
+  ticks: TRIPLE_ATTACK_TICKS,
+  hits: TRIPLE_HITS,
+  spotAnim: CACHE_ASSETS.spotAnims.solTripleAttackShort.id,
 };
 const SOL_FRAME_SOUND_DELAY_MS = 240;
 
@@ -57,6 +50,12 @@ export class SampleAnimayaNpc extends Mob {
     if (this.attackTick === 0) {
       this.currentStats.hitpoint = this.stats.hitpoint;
       this.playAnimation(ACTIVE_SOL_ATTACK.animation);
+      this.addSpotAnim({
+        id: ACTIVE_SOL_ATTACK.spotAnim,
+        channel: "sol-triple-attack",
+        animation: ACTIVE_SOL_ATTACK.animation,
+        height: 0,
+      });
       DelayedAction.registerDelayedAction(
         new DelayedAction(() => this.spawnDamageDustClouds(), 3),
       );

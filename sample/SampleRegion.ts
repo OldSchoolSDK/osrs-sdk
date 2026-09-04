@@ -46,7 +46,7 @@ export class SampleRegion extends Region {
 
     this.addMob(new SampleNpc(this, { x: 25, y: 20 }, {}));
     this.addMob(new SampleDummy(this, { x: 34, y: 28 }, {}));
-    this.addMob(new SampleAnimayaNpc(this, { x: 15, y: 25 }, {}));
+    this.addMob(new SampleAnimayaNpc(this, { x: 15, y: 25 }, { aggro: player }));
 
     // The cache scene uses raw region-local tile coordinates. Retain the
     // legacy GLB anchor only when explicitly requested for comparison.

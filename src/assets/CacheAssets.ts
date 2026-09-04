@@ -71,6 +71,8 @@ export const CACHE_ASSETS = {
     scytheEast: { id: 1172 },
     scytheSouth: { id: 478 },
     scytheWest: { id: 1231 },
+    solTripleAttackLong: { id: 2667 },
+    solTripleAttackShort: { id: 2668 },
     solDust: { id: 2669 },
   },
   playerAnimations: {

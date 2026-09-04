@@ -511,7 +511,15 @@ export class CacheRenderModel implements Model, RenderableListener {
         effect.userData.cacheBaseColors = spotPayload.colors ?? [];
         effect.userData.cacheFaceColors = spotPayload.faceColors ?? [];
         effect.visible = false;
-        effect.scale.set((metadata.resizeX ?? 128) / 128, (metadata.resizeY ?? 128) / 128, (metadata.resizeX ?? 128) / 128);
+        // Actor roots already carry the NPC definition's model scale. Cache
+        // spotanim resize values are world-space scales in the client, so
+        // compensate for the inherited root scale instead of multiplying the
+        // two definitions together (Sol uses 300 for both).
+        effect.scale.set(
+          (metadata.resizeX ?? 128) / 128 / this.root.scale.x,
+          (metadata.resizeY ?? 128) / 128 / this.root.scale.y,
+          (metadata.resizeX ?? 128) / 128 / this.root.scale.z,
+        );
         effect.rotation.y = ((placement?.rotation ?? metadata.rotation) ?? 0) * Math.PI / 1024;
         this.root.add(effect);
         this.spotAnims.push({ mesh: effect, basePositions: new Float32Array(spotPayload.positions), vertexGroups: spotPayload.vertexGroups ?? [], sourceVertices: spotPayload.sourceVertices ?? [], baseAlphas: new Float32Array(spotPayload.alphas ?? Array(spotPayload.positions.length / 3).fill(0)), alphaGroups: spotPayload.alphaGroups ?? [], animationId: metadata.animationId, animation: metadata.animationId >= 0 ? spotPayload.animations?.[String(metadata.animationId)] : undefined, scaleX: metadata.resizeX ?? 128, scaleY: metadata.resizeY ?? 128, rotation: metadata.rotation ?? 0, height: placement?.height ?? 0, delay: placement?.delay ?? 0 });
