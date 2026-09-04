@@ -3,12 +3,12 @@ import {
   Player,
   Region,
 } from "../src";
-import { CACHE_ASSETS } from "../src";
 import type { Loadout as LoadoutData } from "../src";
 import { SampleNpc } from "./SampleNpc";
 import { SampleDummy } from "./SampleDummy";
 import { SampleAnimayaNpc } from "./SampleAnimayaNpc";
 import { SampleScene } from "./SampleScene";
+import { Manticore } from "./Manticore";
 
 export class SampleRegion extends Region {
   constructor(loadouts: LoadoutData[]) {
@@ -47,6 +47,7 @@ export class SampleRegion extends Region {
     this.addMob(new SampleNpc(this, { x: 25, y: 20 }, {}));
     this.addMob(new SampleDummy(this, { x: 34, y: 28 }, {}));
     this.addMob(new SampleAnimayaNpc(this, { x: 15, y: 25 }, { aggro: player }));
+    this.addMob(new Manticore(this, { x: 25, y: 24 }));
 
     // The cache scene uses raw region-local tile coordinates. Retain the
     // legacy GLB anchor only when explicitly requested for comparison.

@@ -9,6 +9,8 @@ import { Renderable } from "../Renderable";
 import { Pathing } from "../Pathing";
 import { BasicModel } from "../rendering/BasicModel";
 import { GLTFModel } from "../rendering/GLTFModel";
+import { CacheRenderModel } from "../rendering/CacheRenderModel";
+import { CacheRenderReferences, CacheRenderSpotAnim } from "../rendering/CacheRenderReference";
 import { Settings } from "../Settings";
 import { Viewport } from "../Viewport";
 import { Trainer } from "../Trainer";
@@ -49,6 +51,8 @@ export interface ProjectileOptions {
   hitSound?: Sound;
   model?: string;
   modelScale?: number;
+  /** Cache spotanim to use as the projectile model. */
+  spotAnim?: CacheRenderSpotAnim;
   // if there are multiple models
   models?: string[];
   offsetsInterpolator?: MultiModelProjectileOffsetInterpolator;
@@ -341,6 +345,17 @@ export class Projectile extends Renderable {
     }
     if (this.options.models) {
       return GLTFModel.forRenderableMulti(this, this.options.models, { scale: this.options.modelScale });
+    }
+    if (this.options.spotAnim) {
+      // Projectile spotanims are directional cache models. Unlike a
+      // standalone GraphicsObject, their cache basis is the same quarter-turn
+      // used by actor/model renderables, so the projectile's computed yaw
+      // points the model at its target.
+      return CacheRenderModel.forRenderable(
+        this,
+        CacheRenderReferences.spotAnim([this.options.spotAnim]),
+        { basisRotation: Math.PI / 2 },
+      );
     }
     if (this.options.model) {
       return GLTFModel.forRenderable(this, this.options.model, { scale: this.options.modelScale });

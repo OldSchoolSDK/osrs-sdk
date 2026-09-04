@@ -21,6 +21,10 @@ type TexturePayload = CacheRenderTexture;
 type Payload = CacheRenderPayload;
 type SpotAnimRuntime = { mesh: THREE.Mesh; basePositions: Float32Array; vertexGroups: number[][]; sourceVertices: number[]; baseAlphas: Float32Array; alphaGroups: number[][]; animationId?: number; animation?: AnimationPayload; scaleX: number; scaleY: number; rotation: number; height: number; delay: number };
 
+function spotAnimChannel(spotAnim: CacheRenderSpotAnim) {
+  return spotAnim.channel ?? String(spotAnim.id);
+}
+
 // Decoded payloads are immutable bundle data, so retain them across model
 // invalidations and rapid equipment swaps. Cache promises too, allowing
 // concurrent swaps to share one fetch/decode operation. Failed loads are
@@ -246,6 +250,12 @@ export type CacheRenderModelOptions = {
   frameSoundDelayMs?: number;
   /** Called once when a spotanim-only renderable reaches the end of its sequence. */
   onSpotAnimComplete?: () => void;
+  /**
+   * Optional additional root yaw in radians. Cache spotanims used as
+   * standalone world graphics use a zero-degree basis, while spotanims used
+   * as projectile models share the actor/model cache basis.
+   */
+  basisRotation?: number;
 };
 
 /** Three.js implementation for decoded cache geometry. Cache extraction owns the conversion from OSRS frames to this payload. */
@@ -275,6 +285,12 @@ export class CacheRenderModel implements Model, RenderableListener {
   private animayaScales: number[][] = [];
   private spotAnims: SpotAnimRuntime[] = [];
   private activeSpotAnims: CacheRenderSpotAnim[] = [];
+  // Attached spotanims have their own one-shot clock. They follow the actor's
+  // world transform, but must not depend on whether the actor is currently
+  // playing an idle, walk, or one-shot animation.
+  private spotAnimClock = 0;
+  private spotAnimStarts = new Map<string, number>();
+  private spotAnimPlacements = new Map<string, CacheRenderSpotAnim>();
   private spotAnimCompletionNotified = false;
   private outline: THREE.LineSegments | null = null;
   private trueTile: THREE.LineSegments;
@@ -288,7 +304,7 @@ export class CacheRenderModel implements Model, RenderableListener {
     private options: CacheRenderModelOptions = {},
   ) {
     this.frameSoundPlayer = new AnimationFrameSoundPlayer(options.frameSoundDelayMs);
-    this.activeSpotAnims = this.currentSpotAnims(reference.kind === "model" || reference.kind === "asset" ? undefined : reference.spotAnims);
+    this.setActiveSpotAnims(this.currentSpotAnims(reference.kind === "model" || reference.kind === "asset" ? undefined : reference.spotAnims));
     // A spotanim-only renderable has no actor animation transition to start
     // playback. Its own graphic timeline begins as soon as it is created.
     if (reference.kind === "spotAnim") {
@@ -315,7 +331,20 @@ export class CacheRenderModel implements Model, RenderableListener {
   static forRenderable(renderable: Renderable, reference: CacheRenderReference, options?: CacheRenderModelOptions) {
     return new CacheRenderModel(renderable, reference, options);
   }
-  spotAnimChanged(spotAnims: CacheRenderSpotAnim[]) { this.activeSpotAnims = spotAnims.slice(); }
+  spotAnimChanged(spotAnims: CacheRenderSpotAnim[]) { this.setActiveSpotAnims(spotAnims); }
+  private setActiveSpotAnims(spotAnims: CacheRenderSpotAnim[]) {
+    const starts = new Map<string, number>();
+    const placements = new Map<string, CacheRenderSpotAnim>();
+    spotAnims.forEach((spotAnim) => {
+      const channel = spotAnimChannel(spotAnim);
+      const previous = this.spotAnimPlacements.get(channel);
+      starts.set(channel, previous === spotAnim ? (this.spotAnimStarts.get(channel) ?? this.spotAnimClock) : this.spotAnimClock);
+      placements.set(channel, spotAnim);
+    });
+    this.activeSpotAnims = spotAnims.slice();
+    this.spotAnimStarts = starts;
+    this.spotAnimPlacements = placements;
+  }
   private currentSpotAnims(fallback?: CacheRenderSpotAnim[]) {
     const attached = this.renderable.spotAnims;
     return attached.length ? attached.slice() : (fallback ?? []).slice();
@@ -362,7 +391,7 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.animayaGroups = [];
     this.animayaScales = [];
     this.spotAnims = [];
-    this.activeSpotAnims = this.currentSpotAnims(this.reference.kind === "model" || this.reference.kind === "asset" ? undefined : this.reference.spotAnims);
+    this.setActiveSpotAnims(this.currentSpotAnims(this.reference.kind === "model" || this.reference.kind === "asset" ? undefined : this.reference.spotAnims));
     this.spotAnimCompletionNotified = false;
   }
   async preload() {
@@ -551,6 +580,7 @@ export class CacheRenderModel implements Model, RenderableListener {
       // was skipped (bad URL, integrity failure, or an absent loadout reference).
       console.error("[osrs-sdk] Cache render preload failed; using GLTF fallback", error);
     });
+    this.spotAnimClock += Math.max(0, clockDelta);
     if (this.root.parent !== scene) {
       scene.add(this.root);
       this.renderable.setAnimationListener(this);
@@ -563,7 +593,7 @@ export class CacheRenderModel implements Model, RenderableListener {
     // The client submits standalone GraphicsObjects to the scene with yaw 0.
     // Actor/model renderables use the SDK's west-zero facing convention and
     // need the quarter-turn cache-basis correction.
-    const basisRotation = this.reference.kind === "spotAnim" ? 0 : Math.PI / 2;
+    const basisRotation = this.options.basisRotation ?? (this.reference.kind === "spotAnim" ? 0 : Math.PI / 2);
     this.root.rotation.set(pitch, rotation + basisRotation, 0);
     if (this.outline) {
       if (this.outline.parent !== scene) scene.add(this.outline);
@@ -714,14 +744,15 @@ export class CacheRenderModel implements Model, RenderableListener {
         const animation = spot.animation;
         const placement = this.activeSpotAnims.filter((spotAnim) => spotAnim.id === spot.mesh.userData.spotAnimId)[0];
         const delay = placement?.delay ?? spot.delay;
-        const effectTime = this.animationTime - delay / 50;
+        const placementStart = placement == null ? this.spotAnimClock : this.spotAnimStarts.get(spotAnimChannel(placement)) ?? this.spotAnimClock;
+        const effectTime = this.spotAnimClock - placementStart - delay / 50;
         const activationAnimation = placement?.animation == null ? true : (this.poseMap[String(placement.animation)] ?? placement.animation) === this.activeAnimation;
         // Attached spotanims are one-shot graphics. Ground effects often live
         // for several ticks, so wrapping with `% total` would replay the
         // graphic before the entity is destroyed.
         const total = animation?.lengths.reduce((sum, length) => sum + length, 0) / 50 || 0;
         const hasFrames = Boolean(animation?.frames.length || animation?.rawFrames?.length || animation?.mayaFrames?.length);
-        spot.mesh.visible = this.animationPlaying && activationAnimation && Boolean(placement) && effectTime >= 0 && effectTime < total && hasFrames;
+        spot.mesh.visible = activationAnimation && Boolean(placement) && effectTime >= 0 && effectTime < total && hasFrames;
         const spotAnimationId = spot.animationId ?? -1;
         let spotSoundPlayer = this.spotFrameSoundPlayers.get(spotAnimationId);
         if (!spotSoundPlayer) {

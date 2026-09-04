@@ -40,6 +40,14 @@ type CacheAssets = {
 
 export const CACHE_ASSETS = {
   npcs: {
+    manticore: {
+      id: 12818,
+      animations: {
+        tripleCharge: 10868,
+        tripleThrow: 10869,
+        death: 10866,
+      },
+    },
     verzik: {
       id: 8373,
     },
@@ -74,6 +82,9 @@ export const CACHE_ASSETS = {
     solTripleAttackLong: { id: 2667 },
     solTripleAttackShort: { id: 2668 },
     solDust: { id: 2669 },
+    mageOrb: { id: 2681 },
+    rangeOrb: { id: 2683 },
+    meleeOrb: { id: 2685 },
   },
   playerAnimations: {
     idle: { id: 808 },

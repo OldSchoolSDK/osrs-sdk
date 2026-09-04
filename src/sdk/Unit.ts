@@ -139,6 +139,16 @@ export abstract class Unit extends Renderable {
     this.notifySpotAnimChanged(this.cacheRenderSpotAnims);
   }
 
+  /** Remove the temporary cache-derived graphic currently occupying a channel. */
+  clearSpotAnim(channel: string) {
+    const next = this.cacheRenderSpotAnims.filter(
+      (existing) => (existing.channel ?? String(existing.id)) !== channel,
+    );
+    if (next.length === this.cacheRenderSpotAnims.length) return;
+    this.cacheRenderSpotAnims = next;
+    this.notifySpotAnimChanged(this.cacheRenderSpotAnims);
+  }
+
   overheadText: string | null = null;
   overheadTextTimer = 0;
 
@@ -214,7 +224,7 @@ export abstract class Unit extends Renderable {
     return colorScale[10 - difference];
   }
 
-  constructor(region: Region, location: Location, options?: UnitOptions) {
+  constructor(region: Region, location: Location, options: UnitOptions = {}) {
     super();
     this.region = region;
     this.aggro = options.aggro || null;
