@@ -3,7 +3,17 @@ export const CACHE_RENDER_PAYLOAD_MAGIC = "OSRB";
 export const CACHE_RENDER_PAYLOAD_VERSION = 1 as const;
 
 export type CacheRenderRawFrame = { baseId?: number; types: number[]; maps: number[][]; indexFrameIds: number[]; x: number[]; y: number[]; z: number[] };
-export type CacheRenderAnimation = { frames: number[][]; lengths: number[]; rawFrames?: CacheRenderRawFrame[]; interleaveLeave?: number[]; mayaFrames?: number[][][] };
+export type CacheRenderFrameSound = { id: number; loops: number; location: number; retain: number; weight: number };
+export type CacheRenderAnimation = {
+  frames: number[][];
+  lengths: number[];
+  rawFrames?: CacheRenderRawFrame[];
+  interleaveLeave?: number[];
+  mayaFrames?: number[][][];
+  /** Frame index to one or more weighted sound variants from the sequence definition. */
+  frameSounds?: Record<string, CacheRenderFrameSound[]>;
+  soundsCrossWorldView?: boolean;
+};
 export type CacheRenderTexture = { width: number; height: number; pixels: number[] };
 export type CacheRenderPayload = {
   version: typeof CACHE_RENDER_PAYLOAD_VERSION;

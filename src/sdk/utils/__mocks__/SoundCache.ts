@@ -2,6 +2,7 @@ export class Sound {
   constructor(
     public src,
     public volume = 1,
+    public delayMs = 0,
   ) {}
 }
 

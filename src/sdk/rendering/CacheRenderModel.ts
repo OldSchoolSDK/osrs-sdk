@@ -9,6 +9,7 @@ import { drawLineOnTop, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./Ren
 import { Settings } from "../Settings";
 import { CACHE_RENDER_PAYLOAD_MAGIC, CACHE_RENDER_PAYLOAD_VERSION } from "../../cache-render-format";
 import type { CacheRenderAnimation, CacheRenderPayload, CacheRenderRawFrame, CacheRenderTexture } from "../../cache-render-format";
+import { AnimationFrameSoundPlayer, preloadAnimationFrameSounds } from "./AnimationFrameSounds";
 
 // CPU-side frame-map animation is used for standard sequences. Animaya
 // sequences continue to use the extracted baked-frame fallback.
@@ -18,7 +19,7 @@ type RawFrame = CacheRenderRawFrame;
 type AnimationPayload = CacheRenderAnimation;
 type TexturePayload = CacheRenderTexture;
 type Payload = CacheRenderPayload;
-type SpotAnimRuntime = { mesh: THREE.Mesh; basePositions: Float32Array; vertexGroups: number[][]; sourceVertices: number[]; baseAlphas: Float32Array; alphaGroups: number[][]; animation?: AnimationPayload; scaleX: number; scaleY: number; rotation: number; height: number; delay: number };
+type SpotAnimRuntime = { mesh: THREE.Mesh; basePositions: Float32Array; vertexGroups: number[][]; sourceVertices: number[]; baseAlphas: Float32Array; alphaGroups: number[][]; animationId?: number; animation?: AnimationPayload; scaleX: number; scaleY: number; rotation: number; height: number; delay: number };
 
 // Decoded payloads are immutable bundle data, so retain them across model
 // invalidations and rapid equipment swaps. Cache promises too, allowing
@@ -87,10 +88,10 @@ export function mergePayloads(payloads: Payload[]): Payload {
   payloads.forEach((payload) => Object.entries(payload.animations ?? {}).forEach(([id, animation]) => {
     const existing = animations[id];
     if (!existing) {
-      animations[id] = { frames: animation.frames.map((frame) => frame.slice()), lengths: animation.lengths.slice(), rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave, mayaFrames: animation.mayaFrames };
+      animations[id] = { frames: animation.frames.map((frame) => frame.slice()), lengths: animation.lengths.slice(), rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave, mayaFrames: animation.mayaFrames, frameSounds: animation.frameSounds, soundsCrossWorldView: animation.soundsCrossWorldView };
     } else if (animation.rawFrames?.length && !existing.rawFrames?.length) {
       // Prefer the shared frame-map representation when it is available.
-      animations[id] = { frames: animation.frames.map((frame) => frame.slice()), lengths: animation.lengths.slice(), rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave, mayaFrames: animation.mayaFrames };
+      animations[id] = { frames: animation.frames.map((frame) => frame.slice()), lengths: animation.lengths.slice(), rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave, mayaFrames: animation.mayaFrames, frameSounds: animation.frameSounds, soundsCrossWorldView: animation.soundsCrossWorldView };
     } else if (!existing.rawFrames?.length && !animation.rawFrames?.length) {
       // Legacy bundles stored baked frames in every item; retain their old
       // composition behavior for those bundles.
@@ -236,6 +237,15 @@ export function decodeCacheRenderPayload(bytes: ArrayBuffer): Payload {
   return payload;
 }
 
+export function advanceAnimationTimeForDraw(animationTime: number, clockDelta: number, startsOnThisDraw: boolean) {
+  return startsOnThisDraw ? animationTime : animationTime + clockDelta;
+}
+
+export type CacheRenderModelOptions = {
+  /** Delay applied to every cache-authored animation frame sound. */
+  frameSoundDelayMs?: number;
+};
+
 /** Three.js implementation for decoded cache geometry. Cache extraction owns the conversion from OSRS frames to this payload. */
 export class CacheRenderModel implements Model, RenderableListener {
   private root = new THREE.Group();
@@ -246,9 +256,13 @@ export class CacheRenderModel implements Model, RenderableListener {
   private animations: Record<string, AnimationPayload> = {};
   private poseMap: Record<string, number> = {};
   private animationTime = 0;
+  private animationStartsOnNextDraw = false;
   private poseAnimationTime = 0;
   private animationPlaying = false;
   private animationCanBlend = false;
+  private frameSoundPlayer: AnimationFrameSoundPlayer;
+  private spotFrameSoundPlayers = new Map<number, AnimationFrameSoundPlayer>();
+  private frameSoundsReady: Promise<void> = Promise.resolve();
   private basePositions: Float32Array | null = null;
   private baseAlphas: Float32Array | null = null;
   private vertexGroups: number[][] = [];
@@ -265,14 +279,19 @@ export class CacheRenderModel implements Model, RenderableListener {
   private modelGeneration = 0;
   private meshGeneration = -1;
 
-  constructor(private renderable: Renderable, private reference: CacheRenderReference) {
+  constructor(
+    private renderable: Renderable,
+    private reference: CacheRenderReference,
+    private options: CacheRenderModelOptions = {},
+  ) {
+    this.frameSoundPlayer = new AnimationFrameSoundPlayer(options.frameSoundDelayMs);
     this.activeSpotAnims = this.currentSpotAnims(reference.kind === "model" || reference.kind === "asset" ? undefined : reference.spotAnims);
     // A spotanim-only renderable has no actor animation transition to start
     // playback. Its own graphic timeline begins as soon as it is created.
-    if (reference.kind === "spotAnim") this.animationPlaying = true;
-    // A spotanim-only renderable has no base actor animation to trigger its
-    // effect. Start its local animation clock immediately when it is created.
-    if (reference.kind === "spotAnim") this.animationPlaying = true;
+    if (reference.kind === "spotAnim") {
+      this.animationPlaying = true;
+      this.animationStartsOnNextDraw = true;
+    }
     // Viewport3d filters scene roots before recursively raycasting children.
     // Mark this group as belonging to the renderable so its box hitbox is
     // considered as a click target.
@@ -290,7 +309,9 @@ export class CacheRenderModel implements Model, RenderableListener {
       new THREE.LineBasicMaterial({ color: 0x00ffff }),
     );
   }
-  static forRenderable(renderable: Renderable, reference: CacheRenderReference) { return new CacheRenderModel(renderable, reference); }
+  static forRenderable(renderable: Renderable, reference: CacheRenderReference, options?: CacheRenderModelOptions) {
+    return new CacheRenderModel(renderable, reference, options);
+  }
   spotAnimChanged(spotAnims: CacheRenderSpotAnim[]) { this.activeSpotAnims = spotAnims.slice(); }
   private currentSpotAnims(fallback?: CacheRenderSpotAnim[]) {
     const attached = this.renderable.spotAnims;
@@ -302,8 +323,10 @@ export class CacheRenderModel implements Model, RenderableListener {
       // bundle is keyed by the actual cache sequence ID (e.g. 426).
       this.activeAnimation = this.poseMap[String(id)] ?? id;
       this.animationTime = 0;
+      this.animationStartsOnNextDraw = true;
       this.animationPlaying = true;
       this.animationCanBlend = blend;
+      this.frameSoundPlayer.reset();
     }
     return Promise.resolve();
   }
@@ -320,9 +343,13 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.lastPose = -1;
     this.activeAnimation = -1;
     this.animationTime = 0;
+    this.animationStartsOnNextDraw = false;
     this.poseAnimationTime = 0;
     this.animationPlaying = false;
     this.animationCanBlend = false;
+    this.frameSoundPlayer.reset();
+    this.spotFrameSoundPlayers.clear();
+    this.frameSoundsReady = Promise.resolve();
     this.basePositions = null;
     this.baseAlphas = null;
     this.vertexGroups = [];
@@ -334,7 +361,10 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.spotAnims = [];
     this.activeSpotAnims = this.currentSpotAnims(this.reference.kind === "model" || this.reference.kind === "asset" ? undefined : this.reference.spotAnims);
   }
-  async preload() { await this.ensureLoaded(); }
+  async preload() {
+    await this.ensureLoaded();
+    await this.frameSoundsReady;
+  }
 
   private async ensureLoaded() {
     if (this.ready) return this.ready;
@@ -359,6 +389,10 @@ export class CacheRenderModel implements Model, RenderableListener {
       const payload = mergePayloads(payloads);
       Object.assign(this.animations, payload.animations ?? {});
       Object.assign(this.poseMap, payload.poseMap ?? {});
+      this.frameSoundsReady = preloadAnimationFrameSounds([
+        ...Object.values(this.animations),
+        ...spotPayloads.reduce<AnimationPayload[]>((all, spotPayload) => all.concat(Object.values(spotPayload.animations ?? {})), []),
+      ]).catch((error) => console.error("[osrs-sdk] Cache animation sound preload failed", error));
       if (this.animationPlaying && !this.animations[String(this.activeAnimation)]) {
         this.activeAnimation = this.poseMap[String(this.activeAnimation)] ?? this.activeAnimation;
       }
@@ -480,12 +514,17 @@ export class CacheRenderModel implements Model, RenderableListener {
         effect.scale.set((metadata.resizeX ?? 128) / 128, (metadata.resizeY ?? 128) / 128, (metadata.resizeX ?? 128) / 128);
         effect.rotation.y = ((placement?.rotation ?? metadata.rotation) ?? 0) * Math.PI / 1024;
         this.root.add(effect);
-        this.spotAnims.push({ mesh: effect, basePositions: new Float32Array(spotPayload.positions), vertexGroups: spotPayload.vertexGroups ?? [], sourceVertices: spotPayload.sourceVertices ?? [], baseAlphas: new Float32Array(spotPayload.alphas ?? Array(spotPayload.positions.length / 3).fill(0)), alphaGroups: spotPayload.alphaGroups ?? [], animation: metadata.animationId >= 0 ? spotPayload.animations?.[String(metadata.animationId)] : undefined, scaleX: metadata.resizeX ?? 128, scaleY: metadata.resizeY ?? 128, rotation: metadata.rotation ?? 0, height: placement?.height ?? 0, delay: placement?.delay ?? 0 });
+        this.spotAnims.push({ mesh: effect, basePositions: new Float32Array(spotPayload.positions), vertexGroups: spotPayload.vertexGroups ?? [], sourceVertices: spotPayload.sourceVertices ?? [], baseAlphas: new Float32Array(spotPayload.alphas ?? Array(spotPayload.positions.length / 3).fill(0)), alphaGroups: spotPayload.alphaGroups ?? [], animationId: metadata.animationId, animation: metadata.animationId >= 0 ? spotPayload.animations?.[String(metadata.animationId)] : undefined, scaleX: metadata.resizeX ?? 128, scaleY: metadata.resizeY ?? 128, rotation: metadata.rotation ?? 0, height: placement?.height ?? 0, delay: placement?.delay ?? 0 });
       });
       // A queued actor animation may have begun while its cache geometry was
       // loading. Start it once the mesh is ready so short spawn sequences are
       // not skipped.
-      if (this.animationPlaying || this.reference.kind === "spotAnim") this.animationTime = 0;
+      if (this.animationPlaying || this.reference.kind === "spotAnim") {
+        this.animationTime = 0;
+        this.animationStartsOnNextDraw = true;
+      }
+      this.frameSoundPlayer.reset();
+      this.spotFrameSoundPlayers.clear();
       previousChildren.forEach((child) => {
         if (child.parent === this.root) this.root.remove(child);
       });
@@ -545,19 +584,31 @@ export class CacheRenderModel implements Model, RenderableListener {
     if (!this.animationPlaying && pose !== this.lastPose) {
       this.activeAnimation = this.poseMap[String(pose)] ?? pose;
       this.animationTime = 0;
+      this.animationStartsOnNextDraw = true;
     }
-    this.animationTime += clockDelta;
-    const animation = this.animations[String(this.activeAnimation)];
+    // animationChanged can run between draws. The supplied delta includes
+    // time from before that transition, so render the newly-started animation
+    // at t=0 once instead of giving it a render-frame head start.
+    this.animationTime = advanceAnimationTimeForDraw(this.animationTime, clockDelta, this.animationStartsOnNextDraw);
+    this.animationStartsOnNextDraw = false;
+    const animationId = this.activeAnimation;
+    const animation = this.animations[String(animationId)];
     if (animation && (animation.frames.length || animation.rawFrames?.length || animation.mayaFrames?.length) && this.root.children.length) {
       const total = animation.lengths.reduce((sum, length) => sum + length, 0) / 50;
       let time = this.animationTime;
+      let animationEnded = false;
       if (this.animationPlaying && time >= total) {
+        this.frameSoundPlayer.advance(animationId, animation, total, false);
+        this.frameSoundPlayer.reset();
         this.animationPlaying = false;
         this.animationCanBlend = false;
         this.activeAnimation = this.poseMap[String(pose)] ?? pose;
         this.animationTime = 0;
+        this.animationStartsOnNextDraw = true;
         time = 0;
+        animationEnded = true;
       } else if (total > 0) time %= total;
+      if (!animationEnded) this.frameSoundPlayer.advance(animationId, animation, this.animationTime, !this.animationPlaying);
       let elapsed = 0;
       let frame = 0;
       for (; frame < animation.lengths.length - 1 && time >= elapsed + animation.lengths[frame] / 50; frame++) elapsed += animation.lengths[frame] / 50;
@@ -655,7 +706,17 @@ export class CacheRenderModel implements Model, RenderableListener {
         const total = animation?.lengths.reduce((sum, length) => sum + length, 0) / 50 || 0;
         const hasFrames = Boolean(animation?.frames.length || animation?.rawFrames?.length || animation?.mayaFrames?.length);
         spot.mesh.visible = this.animationPlaying && activationAnimation && Boolean(placement) && effectTime >= 0 && effectTime < total && hasFrames;
-        if (!spot.mesh.visible || !animation) continue;
+        const spotAnimationId = spot.animationId ?? -1;
+        let spotSoundPlayer = this.spotFrameSoundPlayers.get(spotAnimationId);
+        if (!spotSoundPlayer) {
+          spotSoundPlayer = new AnimationFrameSoundPlayer(this.options.frameSoundDelayMs);
+          this.spotFrameSoundPlayers.set(spotAnimationId, spotSoundPlayer);
+        }
+        if (!spot.mesh.visible || !animation) {
+          spotSoundPlayer.reset();
+          continue;
+        }
+        spotSoundPlayer.advance(spotAnimationId, animation, effectTime, false);
         const time = Math.max(0, Math.min(effectTime, Math.max(0, total - 1e-6)));
         let elapsed = 0, frame = 0;
         for (; frame < animation.lengths.length - 1 && time >= elapsed + animation.lengths[frame] / 50; frame++) elapsed += animation.lengths[frame] / 50;

@@ -4,7 +4,9 @@ import { Renderable } from "../Renderable";
 import { CacheRender } from "./CacheRenderBundle";
 import { CacheRenderReference } from "./CacheRenderReference";
 import { applyRawFrame, cachedPayload, mergePayloads } from "./CacheRenderModel";
+import { AnimationFrameSoundPlayer, preloadAnimationFrameSounds } from "./AnimationFrameSounds";
 import { Model } from "./Model";
+import type { CacheRenderAnimation } from "../../cache-render-format";
 
 // Repeated cache models (such as the wall men) share one GPU geometry and are
 // drawn with a single instanced draw call. Synchronized CPU animation updates
@@ -17,6 +19,8 @@ type Pool = {
   mesh: THREE.InstancedMesh; ready: Promise<void>; next: number; free: number[]; active: Set<number>;
   scaleX: number; scaleY: number; positions: Float32Array; groups: number[][]; sources: number[];
   baseAlphas: Float32Array; alphaGroups: number[][]; frames: any[]; lengths: number[]; elapsed: number; delay: number;
+  animationId: number; animation?: CacheRenderAnimation; frameSoundPlayer: AnimationFrameSoundPlayer;
+  frameSoundsReady: Promise<void>;
 };
 const pools = new Map<string, Pool>();
 const hiddenMatrix = () => new THREE.Matrix4().makeScale(0, 0, 0);
@@ -57,7 +61,7 @@ export class CacheRenderInstancedModel implements Model {
     let pool = pools.get(key);
     if (!pool) {
       const placement = this.reference.kind === "spotAnim" ? this.reference.spotAnims[0] : undefined;
-      pool = { next: 0, free: [], active: new Set(), mesh: null as any, ready: Promise.resolve(), scaleX: 1, scaleY: 1, positions: new Float32Array(), groups: [], sources: [], baseAlphas: new Float32Array(), alphaGroups: [], frames: [], lengths: [], elapsed: 0, delay: (placement?.delay ?? 0) / 50 };
+      pool = { next: 0, free: [], active: new Set(), mesh: null as any, ready: Promise.resolve(), scaleX: 1, scaleY: 1, positions: new Float32Array(), groups: [], sources: [], baseAlphas: new Float32Array(), alphaGroups: [], frames: [], lengths: [], elapsed: 0, delay: (placement?.delay ?? 0) / 50, animationId: -1, animation: undefined, frameSoundPlayer: new AnimationFrameSoundPlayer(), frameSoundsReady: Promise.resolve() };
       pool.ready = Promise.all(ids.map((id) => cachedPayload(bundle, id))).then((payloads) => {
         const payload = mergePayloads(payloads);
         const spotPayload = payloads[0];
@@ -71,8 +75,12 @@ export class CacheRenderInstancedModel implements Model {
         pool!.alphaGroups = payload.alphaGroups ?? [];
         const animationId = this.reference.kind === "spotAnim" ? metadata.animationId : payload.poseMap?.["0"] ?? 0;
         const animation = payload.animations?.[String(animationId)];
+        pool!.animationId = animationId;
+        pool!.animation = animation;
         pool!.frames = animation?.rawFrames ?? [];
         pool!.lengths = animation?.lengths ?? [];
+        pool!.frameSoundsReady = preloadAnimationFrameSounds(animation ? [animation] : [])
+          .catch((error) => console.error("[osrs-sdk] Cache animation sound preload failed", error));
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute("position", new THREE.Float32BufferAttribute(payload.positions, 3));
         if (payload.colors && payload.colors.length * 3 === payload.positions.length) {
@@ -116,7 +124,10 @@ export class CacheRenderInstancedModel implements Model {
     if (this.destroyed) return pool;
     this.pool = pool;
     if (this.slot < 0) {
-      if (!pool.active.size) pool.elapsed = 0;
+      if (!pool.active.size) {
+        pool.elapsed = 0;
+        pool.frameSoundPlayer.reset();
+      }
       const reused = pool.free.pop();
       if (reused == null && pool.next >= this.maxInstances) throw new Error("Cache render instance capacity exceeded");
       this.slot = reused ?? pool.next++;
@@ -139,6 +150,11 @@ export class CacheRenderInstancedModel implements Model {
         pool.elapsed += _clockDelta;
       }
       const effectTime = pool.elapsed - pool.delay;
+      if (this.slot === leader && pool.animation && effectTime >= 0) {
+        const total = pool.lengths.reduce((sum, n) => sum + n, 0) / 50;
+        const oneShot = this.reference.kind === "spotAnim";
+        pool.frameSoundPlayer.advance(pool.animationId, pool.animation, oneShot ? Math.min(effectTime, total) : effectTime, !oneShot);
+      }
       if (this.slot === leader && pool.frames.length && effectTime >= 0) {
         const total = pool.lengths.reduce((sum, n) => sum + n, 0) / 50;
         const oneShot = this.reference.kind === "spotAnim";
@@ -189,5 +205,8 @@ export class CacheRenderInstancedModel implements Model {
   }
 
   getWorldPosition() { return this.worldPosition; }
-  async preload() { await this.ensurePool(); }
+  async preload() {
+    const pool = await this.ensurePool();
+    await pool.frameSoundsReady;
+  }
 }

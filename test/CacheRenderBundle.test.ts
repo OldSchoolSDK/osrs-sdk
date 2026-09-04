@@ -1,4 +1,4 @@
-import { applyBlendedRawFrames, applyRawFrame, decodeCacheRenderPayload, mergePayloads } from "../src/sdk/rendering/CacheRenderModel";
+import { advanceAnimationTimeForDraw, applyBlendedRawFrames, applyRawFrame, decodeCacheRenderPayload, mergePayloads } from "../src/sdk/rendering/CacheRenderModel";
 import { validateCacheRenderBundleManifest } from "../src/sdk/rendering/CacheRenderBundle";
 import { TextDecoder, TextEncoder } from "util";
 import { gzipSync } from "fflate";
@@ -33,6 +33,11 @@ test("decodes gzip-compressed binary render payloads", () => {
   const compressed = gzipSync(json);
   const bytes = new Uint8Array(8 + compressed.length); bytes.set([79, 83, 82, 66]); new DataView(bytes.buffer).setUint32(4, compressed.length, true); bytes.set(compressed, 8);
   expect(decodeCacheRenderPayload(bytes.buffer).positions).toEqual([0, 0, 0]);
+});
+
+test("starts a cache animation at zero before consuming render deltas", () => {
+  expect(advanceAnimationTimeForDraw(0, 0.016, true)).toBe(0);
+  expect(advanceAnimationTimeForDraw(0, 0.016, false)).toBe(0.016);
 });
 
 test("retains an authored geometry clickbox when composing cache payloads", () => {

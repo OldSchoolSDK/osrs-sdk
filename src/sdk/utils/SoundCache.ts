@@ -2,8 +2,6 @@ import { Settings } from "../Settings";
 import { isCacheSound, synthesizeCacheSound } from "../audio/CacheSoundEffects";
 import { CacheRender } from "../rendering/CacheRenderBundle";
 
-const LOADING_SOUND = null;
-
 export class Sound {
   constructor(
     public src,
@@ -17,6 +15,7 @@ export class SoundCache {
 
   static context = window.AudioContext ? new AudioContext() : null;
   static cachedSounds: { [src: string]: AudioBuffer } = {};
+  static loadingSounds: { [src: string]: Promise<AudioBuffer> } = {};
 
   static getCachedSound(src: string): HTMLAudioElement {
     if (!src) {
@@ -38,23 +37,29 @@ export class SoundCache {
     if (isCacheSound(src) && !CacheRender.isConfigured()) {
       return null;
     }
-    if (SoundCache.cachedSounds[src] === LOADING_SOUND) {
-      return null;
+    if (SoundCache.cachedSounds[src]) return SoundCache.cachedSounds[src];
+    if (SoundCache.loadingSounds[src]) return SoundCache.loadingSounds[src];
+    const pending = (async () => {
+      let audioBuffer: AudioBuffer;
+      if (isCacheSound(src)) {
+        const raw = await synthesizeCacheSound(src);
+        audioBuffer = SoundCache.context.createBuffer(1, raw.samples.length, raw.sampleRate);
+        const channel = audioBuffer.getChannelData(0);
+        for (let i = 0; i < raw.samples.length; i++) channel[i] = raw.samples[i] / 128;
+      } else {
+        const response = await window.fetch(src);
+        const buffer = await response.arrayBuffer();
+        audioBuffer = await SoundCache.context.decodeAudioData(buffer);
+      }
+      SoundCache.cachedSounds[src] = audioBuffer;
+      return audioBuffer;
+    })();
+    SoundCache.loadingSounds[src] = pending;
+    try {
+      return await pending;
+    } finally {
+      if (SoundCache.loadingSounds[src] === pending) delete SoundCache.loadingSounds[src];
     }
-    SoundCache.cachedSounds[src] = LOADING_SOUND;
-    let audioBuffer: AudioBuffer;
-    if (isCacheSound(src)) {
-      const raw = await synthesizeCacheSound(src);
-      audioBuffer = SoundCache.context.createBuffer(1, raw.samples.length, raw.sampleRate);
-      const channel = audioBuffer.getChannelData(0);
-      for (let i = 0; i < raw.samples.length; i++) channel[i] = raw.samples[i] / 128;
-    } else {
-      const response = await window.fetch(src);
-      const buffer = await response.arrayBuffer();
-      audioBuffer = await SoundCache.context.decodeAudioData(buffer);
-    }
-    SoundCache.cachedSounds[src] = audioBuffer;
-    return audioBuffer;
   }
 
   static play({ src, volume, delayMs }: Sound, isAreaSound = false) {
@@ -66,7 +71,7 @@ export class SoundCache {
         const sound = await this.preload(src);
         // play after loading
         if (sound) {
-          SoundCache.play({ src, volume, delayMs });
+          SoundCache.play({ src, volume, delayMs }, isAreaSound);
         }
       })();
       return;

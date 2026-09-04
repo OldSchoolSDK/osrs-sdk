@@ -395,6 +395,26 @@ async function attachTextures(cache, result) {
   return result;
 }
 
+function sequenceFrameSounds(sequence) {
+  return Object.fromEntries(
+    Object.entries(sequence.frameSounds ?? []).flatMap(([frame, value]) => {
+      if (!value) return [];
+      // Accept both the released reader's single-Sound shape and the newer
+      // array shape, where a frame can contain weighted sound variants.
+      const sounds = (Array.isArray(value) ? value : [value])
+        .filter((sound) => sound && Number.isInteger(sound.id) && sound.id > 0)
+        .map(({ id, loops, location, retain, weight }) => ({
+          id,
+          loops: Number.isInteger(loops) && loops > 0 ? loops : 1,
+          location: Number.isInteger(location) && location >= 0 ? location : 0,
+          retain: Number.isInteger(retain) && retain >= 0 ? retain : 0,
+          weight: Number.isFinite(weight) && weight >= 0 ? weight : 1,
+        }));
+      return sounds.length ? [[frame, sounds]] : [];
+    }),
+  );
+}
+
 async function animations(cache, group, sequenceIds) {
   const result = {};
   for (const id of [...new Set(sequenceIds.filter((value) => Number.isInteger(value) && value >= 0))]) {
@@ -420,11 +440,14 @@ async function animations(cache, group, sequenceIds) {
         });
       }
     }
+    const frameSounds = sequenceFrameSounds(sequence);
     result[id] = {
       frames: animation.vertexData.map((frame) => frame.flatMap(([x, y, z]) => [x / 128, y / 128, z / 128])),
       lengths: animation.lengths,
       ...(rawFrames.length ? { rawFrames } : {}),
       interleaveLeave: sequence.interleaveLeave ?? [],
+      ...(Object.keys(frameSounds).length ? { frameSounds } : {}),
+      ...(sequence.soundsCrossWorldView ? { soundsCrossWorldView: true } : {}),
     };
     if (sequence.animMayaID != null && sequence.animMayaID !== -1) {
       const index = group.getMergedModel().rev229 ? IndexType.KEYFRAMES : IndexType.FRAMES;
@@ -550,7 +573,13 @@ export async function decodeAllAssets({ cachePath, revision }) {
       const shared = {};
       const itemSpecific = {};
       for (const [sequenceId, animation] of Object.entries(itemAnimations)) {
-        if (animation.rawFrames?.length || animation.mayaFrames?.length) shared[sequenceId] = { lengths: animation.lengths, ...(animation.rawFrames?.length ? { rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave ?? [] } : { mayaFrames: animation.mayaFrames }), frames: [] };
+        if (animation.rawFrames?.length || animation.mayaFrames?.length) shared[sequenceId] = {
+          lengths: animation.lengths,
+          ...(animation.rawFrames?.length ? { rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave ?? [] } : { mayaFrames: animation.mayaFrames }),
+          ...(animation.frameSounds ? { frameSounds: animation.frameSounds } : {}),
+          ...(animation.soundsCrossWorldView ? { soundsCrossWorldView: true } : {}),
+          frames: [],
+        };
         else itemSpecific[sequenceId] = animation;
       }
       sharedPlayerAnimations ??= { positions: [], animations: shared, poseMap: playerPoseMap };
@@ -587,8 +616,19 @@ export async function decodeAllAssets({ cachePath, revision }) {
     const id = assets[index].id;
     if ([...sceneInputPrefix].some((prefix) => id.startsWith(prefix)) && !id.includes("-compiled-")) assets.splice(index, 1);
   }
+  // Keep every sound referenced by an extracted sequence in the matching
+  // runtime pack. This covers implicit idle/walk poses, explicit animations,
+  // and spotanim sequences without a second manually-maintained registry.
+  const soundEffectIds = new Set(CACHE_SOUND_EFFECT_IDS);
+  for (const asset of assets) {
+    for (const animation of Object.values(asset.payload.animations ?? {})) {
+      for (const sounds of Object.values(animation.frameSounds ?? {})) {
+        for (const sound of sounds) soundEffectIds.add(sound.id);
+      }
+    }
+  }
   const soundEffects = [];
-  for (const id of CACHE_SOUND_EFFECT_IDS) {
+  for (const id of [...soundEffectIds].sort((a, b) => a - b)) {
     const file = await cache.getFile(IndexType.SOUNDEFFECTS, id, 0, { cacheResults: false });
     soundEffects.push({ id, bytes: Uint8Array.from(file.def.bytes) });
   }
