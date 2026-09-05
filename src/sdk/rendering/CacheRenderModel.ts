@@ -586,6 +586,9 @@ export class CacheRenderModel implements Model, RenderableListener {
       this.renderable.setAnimationListener(this);
     }
     const size = this.renderable.size;
+    // Cache area sounds use the actor's centre tile, while SDK locations are
+    // the south-west/base tile for multi-tile actors.
+    const soundLocation = { x: location.x + (size - 1) / 2, y: location.y - (size - 1) / 2 };
     this.root.visible = visible && (this.mesh !== null || this.spotAnims.length > 0);
     if (this.outline) this.outline.visible = visible && this.renderable.drawOutline;
     this.root.position.set(location.x + size / 2, location.z - 0.49, location.y - size / 2);
@@ -644,7 +647,7 @@ export class CacheRenderModel implements Model, RenderableListener {
       let time = this.animationTime;
       let animationEnded = false;
       if (this.animationPlaying && time >= total) {
-        this.frameSoundPlayer.advance(animationId, animation, total, false);
+        this.frameSoundPlayer.advance(animationId, animation, total, false, soundLocation);
         this.frameSoundPlayer.reset();
         this.animationPlaying = false;
         this.animationCanBlend = false;
@@ -654,7 +657,7 @@ export class CacheRenderModel implements Model, RenderableListener {
         time = 0;
         animationEnded = true;
       } else if (total > 0) time %= total;
-      if (!animationEnded) this.frameSoundPlayer.advance(animationId, animation, this.animationTime, !this.animationPlaying);
+      if (!animationEnded) this.frameSoundPlayer.advance(animationId, animation, this.animationTime, !this.animationPlaying, soundLocation);
       let elapsed = 0;
       let frame = 0;
       for (; frame < animation.lengths.length - 1 && time >= elapsed + animation.lengths[frame] / 50; frame++) elapsed += animation.lengths[frame] / 50;
@@ -772,7 +775,7 @@ export class CacheRenderModel implements Model, RenderableListener {
           spotSoundPlayer.reset();
           continue;
         }
-        spotSoundPlayer.advance(spotAnimationId, animation, effectTime, false);
+        spotSoundPlayer.advance(spotAnimationId, animation, effectTime, false, soundLocation);
         const time = Math.max(0, Math.min(effectTime, Math.max(0, total - 1e-6)));
         let elapsed = 0, frame = 0;
         for (; frame < animation.lengths.length - 1 && time >= elapsed + animation.lengths[frame] / 50; frame++) elapsed += animation.lengths[frame] / 50;

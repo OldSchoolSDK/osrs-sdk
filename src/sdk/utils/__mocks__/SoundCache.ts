@@ -3,10 +3,14 @@ export class Sound {
     public src,
     public volume = 1,
     public delayMs = 0,
+    public area?,
   ) {}
 }
 
 export class SoundCache {
+  static setAudioListener() {
+    return;
+  }
   static preload() {
     return;
   }

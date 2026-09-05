@@ -1,4 +1,5 @@
 import type { CacheRenderAnimation, CacheRenderFrameSound } from "../../cache-render-format";
+import type { Location } from "../Location";
 import { cacheSound } from "../audio/CacheSoundEffects";
 import { Sound, SoundCache } from "../utils/SoundCache";
 
@@ -92,14 +93,18 @@ export class AnimationFrameSoundPlayer {
     this.elapsed = null;
   }
 
-  advance(animationId: number, animation: CacheRenderAnimation, elapsed: number, looping: boolean) {
+  advance(animationId: number, animation: CacheRenderAnimation, elapsed: number, looping: boolean, sourceLocation?: Location) {
     const previous = this.animationId === animationId ? this.elapsed : null;
     for (const variants of frameSoundsBetween(animation, previous, elapsed, looping)) {
       const sound = chooseFrameSound(variants);
       if (sound) {
+        const isAreaSound = (sound.location & 31) > 0;
+        const area = isAreaSound && sourceLocation
+          ? { location: sourceLocation, range: sound.location & 255, retain: sound.retain & 31 }
+          : undefined;
         SoundCache.play(
-          new Sound(cacheSound(sound.id), CACHE_ANIMATION_SOUND_VOLUME, this.delayMs),
-          sound.location > 0,
+          new Sound(cacheSound(sound.id), CACHE_ANIMATION_SOUND_VOLUME, this.delayMs, area),
+          isAreaSound,
         );
       }
     }

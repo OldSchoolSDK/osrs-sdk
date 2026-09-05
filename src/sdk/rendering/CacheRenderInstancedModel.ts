@@ -150,10 +150,14 @@ export class CacheRenderInstancedModel implements Model {
         pool.elapsed += _clockDelta;
       }
       const effectTime = pool.elapsed - pool.delay;
+      const soundLocation = {
+        x: location.x + (this.renderable.size - 1) / 2,
+        y: location.y - (this.renderable.size - 1) / 2,
+      };
       if (this.slot === leader && pool.animation && effectTime >= 0) {
         const total = pool.lengths.reduce((sum, n) => sum + n, 0) / 50;
         const oneShot = this.reference.kind === "spotAnim";
-        pool.frameSoundPlayer.advance(pool.animationId, pool.animation, oneShot ? Math.min(effectTime, total) : effectTime, !oneShot);
+        pool.frameSoundPlayer.advance(pool.animationId, pool.animation, oneShot ? Math.min(effectTime, total) : effectTime, !oneShot, soundLocation);
       }
       if (this.slot === leader && pool.frames.length && effectTime >= 0) {
         const total = pool.lengths.reduce((sum, n) => sum + n, 0) / 50;

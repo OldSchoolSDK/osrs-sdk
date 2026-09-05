@@ -1,17 +1,36 @@
 import { Settings } from "../Settings";
 import { isCacheSound, synthesizeCacheSound } from "../audio/CacheSoundEffects";
 import { CacheRender } from "../rendering/CacheRenderBundle";
+import type { Location } from "../Location";
+
+export type AreaSoundOptions = {
+  /** Emitter position in SDK tile coordinates. */
+  location: Location;
+  /** Cache area range in tiles (the low byte of the sound location field). */
+  range: number;
+  /** Cache retain/minimum range (the low five bits of the retain field). */
+  retain: number;
+};
 
 export class Sound {
   constructor(
     public src,
     public volume = 1,
     public delayMs = 0,
+    public area?: AreaSoundOptions,
   ) {}
 }
 
 export class SoundCache {
   static soundCache = {};
+
+  // Kept as a reference so movement is reflected automatically. Trainer wires
+  // this to Trainer.player when the active viewport player is installed.
+  private static audioListener: { location: Location } | null = null;
+
+  static setAudioListener(listener: { location: Location } | null) {
+    this.audioListener = listener;
+  }
 
   static context = window.AudioContext ? new AudioContext() : null;
   static cachedSounds: { [src: string]: AudioBuffer } = {};
@@ -62,16 +81,17 @@ export class SoundCache {
     }
   }
 
-  static play({ src, volume, delayMs }: Sound, isAreaSound = false) {
+  static play(sound: Sound, isAreaSound = Boolean(sound.area)) {
     if (!SoundCache.context) {
       return null;
     }
+    const { src, volume, delayMs } = sound;
     if (this.cachedSounds[src] === undefined) {
       (async () => {
-        const sound = await this.preload(src);
+        const loadedSound = await this.preload(src);
         // play after loading
-        if (sound) {
-          SoundCache.play({ src, volume, delayMs }, isAreaSound);
+        if (loadedSound) {
+          SoundCache.play(new Sound(src, volume, delayMs, sound.area), isAreaSound);
         }
       })();
       return;
@@ -84,21 +104,45 @@ export class SoundCache {
     }
     if (delayMs > 0) {
       setTimeout(() => {
-        SoundCache.play({ src, volume, delayMs: 0 }, isAreaSound);
+        SoundCache.play(new Sound(src, volume, 0, sound.area), isAreaSound);
       }, delayMs);
       return;
     }
+    const effectiveVolume = isAreaSound ? this.areaVolume(sound) : volume;
+    if (effectiveVolume <= 0) return;
     const source = SoundCache.context.createBufferSource();
     source.buffer = this.cachedSounds[src];
     let connect: AudioNode = SoundCache.context.destination;
-    if (volume !== 1) {
+    if (effectiveVolume !== 1) {
       const gainNode = SoundCache.context.createGain();
-      gainNode.gain.value = volume;
+      gainNode.gain.value = effectiveVolume;
       source.connect(gainNode);
       gainNode.connect(SoundCache.context.destination);
       connect = gainNode;
     }
     source.connect(connect);
     source.start();
+  }
+
+  private static areaVolume(sound: Sound) {
+    const area = sound.area;
+    const listener = this.audioListener?.location;
+    if (!area || !listener) return sound.volume;
+
+    // This is the reference client's Manhattan tile-distance calculation in
+    // its 128-units-per-tile representation. The source range is inclusive;
+    // retain defines the full-volume inner radius.
+    const range = Math.max(0, area.range) * 128;
+    const retain = Math.max(0, (Math.max(0, area.retain) - 1) * 128);
+    const distance = Math.max(
+      (Math.abs(area.location.x - listener.x) + Math.abs(area.location.y - listener.y)) * 128 - 128,
+      0,
+    );
+    if (distance >= range) return 0;
+    const denominator = range - retain;
+    const attenuation = denominator > 0
+      ? Math.min(Math.max((range - distance) / denominator, 0), 1)
+      : 1;
+    return sound.volume * attenuation;
   }
 }

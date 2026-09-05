@@ -2,6 +2,7 @@
 import { ClickController } from "./ClickController";
 import { Player } from "./Player";
 import { Viewport } from "./Viewport";
+import { SoundCache } from "./utils/SoundCache";
 
 // container for globals to prevent circular dependencies. Do NOT import Viewport into this class.
 export class Trainer {
@@ -14,6 +15,7 @@ export class Trainer {
 
     static setPlayer(player: Player) {
         this._player = player;
+        SoundCache.setAudioListener(player);
     }
 
     static get player() {
