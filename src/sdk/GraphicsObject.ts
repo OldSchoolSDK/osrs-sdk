@@ -46,7 +46,11 @@ export class GraphicsObject extends Entity {
     return CacheRenderModel.forRenderable(
       this,
       CacheRenderReferences.spotAnim([{ id: this.spotAnimId, ...this.options }]),
-      { onSpotAnimComplete: () => { this.finished = true; } },
+      { onSpotAnimComplete: () => {
+        this.finished = true;
+        // Region cleanup removes entities whose dying counter reaches zero.
+        this.dying = 0;
+      } },
     );
   }
 
