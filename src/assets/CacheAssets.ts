@@ -48,6 +48,14 @@ export const CACHE_ASSETS = {
         death: 10866,
       },
     },
+    javelinColossus: {
+      id: 12817,
+      animations: {
+        rangeAttack: 10892,
+        artilleryAttack: 10893,
+        death: 10894,
+      },
+    },
     verzik: {
       id: 8373,
     },

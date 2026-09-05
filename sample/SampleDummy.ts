@@ -1,28 +1,11 @@
-import { BasicModel, CacheRender, CacheRenderModel, CacheRenderReferences, FallbackModel, Location, Mob, Region, UnitOptions } from "../src";
+import { BasicModel, CacheRender, CacheRenderModel, CacheRenderReferences, CollisionType, Entity, FallbackModel, LineOfSightMask, Location, Region } from "../src";
 import { CACHE_ASSETS } from "../src/assets/CacheAssets";
 
-/** Passive target dummy based on InfernoTrainer's pillar entity. */
-export class SampleDummy extends Mob {
-  constructor(region: Region, location: Location, options: UnitOptions = {}) {
-    super(region, location, options);
-    this.autoRetaliate = false;
-  }
+/** Static pillar object based on InfernoTrainer's pillar entity. */
+export class SampleDummy extends Entity {
 
-  override mobName() {
-    return "Training Dummy";
-  }
-
-  override setStats() {
-    this.weapons = {};
-    this.stats = {
-      attack: 0,
-      strength: 0,
-      defence: 0,
-      range: 0,
-      magic: 0,
-      hitpoint: 10000,
-    };
-    this.currentStats = JSON.parse(JSON.stringify(this.stats));
+  override entityName() {
+    return "Sample Pillar";
   }
 
   override get size() {
@@ -37,12 +20,16 @@ export class SampleDummy extends Mob {
     return "#333333";
   }
 
-  override canAttack() {
-    return false;
+  override getPerceivedRotation() {
+    return 0;
   }
 
-  override getPerceivedRotation(_tickPercent: number) {
-    return 0;
+  override get collisionType() {
+    return CollisionType.BLOCK_MOVEMENT;
+  }
+
+  override get lineOfSight(): LineOfSightMask {
+    return LineOfSightMask.FULL_MASK;
   }
 
   override create3dModel() {
