@@ -94,9 +94,18 @@ export const CACHE_ASSETS = {
     rangeOrb: { id: 2683 },
     meleeOrb: { id: 2685 },
     sandPool: { id: 2698 },
-    laserFire: { id: 2697 },
-    laserHorizontal: { id: 2694 },
-    laserVertical: { id: 2693 },
+    // Sol's crystal laser has direction-specific charge and firing graphics.
+    // The orientation is baked into the spotanim animation rather than being
+    // supplied as a runtime rotation.
+    laserSouthCharge: { id: 2689 },
+    laserWestCharge: { id: 2690 },
+    laserNorthCharge: { id: 2691 },
+    laserEastCharge: { id: 2692 },
+    laserSouthFire: { id: 2693 },
+    laserWestFire: { id: 2694 },
+    laserNorthFire: { id: 2695 },
+    laserEastFire: { id: 2696 },
+    laserImpact: { id: 2697 },
   },
   playerAnimations: {
     idle: { id: 808 },
