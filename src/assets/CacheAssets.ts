@@ -93,6 +93,10 @@ export const CACHE_ASSETS = {
     mageOrb: { id: 2681 },
     rangeOrb: { id: 2683 },
     meleeOrb: { id: 2685 },
+    sandPool: { id: 2698 },
+    laserFire: { id: 2697 },
+    laserHorizontal: { id: 2694 },
+    laserVertical: { id: 2693 },
   },
   playerAnimations: {
     idle: { id: 808 },
