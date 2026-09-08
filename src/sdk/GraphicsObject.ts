@@ -3,7 +3,7 @@ import { Entity } from "./Entity";
 import { LineOfSightMask } from "./LineOfSight";
 import { Location } from "./Location";
 import { Region } from "./Region";
-import { CacheRenderModel } from "./rendering/CacheRenderModel";
+import { CacheRenderInstancedModel } from "./rendering/CacheRenderInstancedModel";
 import { CacheRenderReferences } from "./rendering/CacheRenderReference";
 
 export interface GraphicsObjectOptions {
@@ -43,7 +43,7 @@ export class GraphicsObject extends Entity {
   override shouldDestroy() { return this.finished; }
 
   override create3dModel() {
-    return CacheRenderModel.forRenderable(
+    return CacheRenderInstancedModel.forRenderable(
       this,
       CacheRenderReferences.spotAnim([{ id: this.spotAnimId, ...this.options }]),
       { onSpotAnimComplete: () => {
