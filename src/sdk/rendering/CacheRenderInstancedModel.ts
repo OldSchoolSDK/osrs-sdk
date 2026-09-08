@@ -168,16 +168,17 @@ export class CacheRenderInstancedModel implements Model {
           .catch((error) => console.error("[osrs-sdk] Cache animation sound preload failed", error));
 
         const terrain = this.reference.kind === "asset" && this.reference.assetId.endsWith("-terrain");
-        const material = new THREE.MeshStandardMaterial({
+        const materialOptions = {
           color: payload.color ?? 0xffffff,
           vertexColors: Boolean(payload.colors?.length),
-          flatShading: true,
           transparent: Boolean(payload.alphas?.some((alpha) => alpha !== 0)),
           alphaTest: 0.01,
           polygonOffset: terrain,
           polygonOffsetFactor: terrain ? 1 : 0,
           polygonOffsetUnits: terrain ? 1 : 0,
-        });
+        };
+        // Cache payload colours already contain the game client's model lighting.
+        const material = new THREE.MeshBasicMaterial(materialOptions);
         const recolor = placement?.recolor ?? {};
         const frameData = posedFrames(
           payload.positions,

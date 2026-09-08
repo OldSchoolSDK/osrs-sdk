@@ -1,5 +1,5 @@
 /** Browser- and Node-neutral contract for a compiled cache-render bundle. */
-export const CACHE_RENDER_BUNDLE_SCHEMA_VERSION = 2;
+export const CACHE_RENDER_BUNDLE_SCHEMA_VERSION = 3;
 
 export type CacheRenderAsset = { file: string; crc32: string; bytes?: number };
 export type CacheRenderScenePlacement = { assetId: string; x: number; y: number; plane: number; width?: number; height?: number };

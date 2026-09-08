@@ -146,7 +146,7 @@ export function mergePayloads(payloads: Payload[]): Payload {
     });
   });
   return {
-    version: 1,
+    version: CACHE_RENDER_PAYLOAD_VERSION,
     positions,
     indices,
     vertexGroups,
@@ -446,7 +446,8 @@ export class CacheRenderModel implements Model, RenderableListener {
       geometry.setIndex(payload.indices ?? []);
       geometry.computeVertexNormals();
       geometry.computeBoundingSphere();
-      const materials: THREE.Material[] = [new THREE.MeshStandardMaterial({ color: payload.color ?? 0xffffff, vertexColors: Boolean(payload.colors?.length), flatShading: true })];
+      // Cache payload colours already contain the game client's model lighting.
+      const materials: THREE.Material[] = [new THREE.MeshBasicMaterial({ color: payload.color ?? 0xffffff, vertexColors: Boolean(payload.colors?.length) })];
       if (hasVertexAlpha) enableVertexAlpha(materials[0]);
       const textureMaterial = new Map<number, number>();
       Object.entries(payload.textures ?? {}).forEach(([id, texture]) => {
@@ -454,7 +455,7 @@ export class CacheRenderModel implements Model, RenderableListener {
         texture.pixels.forEach((pixel, index) => { const value = pixel >>> 0; rgba[index * 4] = value >> 16 & 255; rgba[index * 4 + 1] = value >> 8 & 255; rgba[index * 4 + 2] = value & 255; rgba[index * 4 + 3] = value >> 24 & 255; });
         const image = new THREE.DataTexture(rgba, texture.width, texture.height, THREE.RGBAFormat); image.flipY = false; image.needsUpdate = true;
         textureMaterial.set(Number(id), materials.length);
-        const textureMaterialInstance = new THREE.MeshStandardMaterial({ map: image, vertexColors: false, flatShading: true });
+        const textureMaterialInstance = new THREE.MeshBasicMaterial({ map: image, vertexColors: Boolean(payload.colors?.length) });
         if (hasVertexAlpha) enableVertexAlpha(textureMaterialInstance);
         materials.push(textureMaterialInstance);
       });
@@ -537,7 +538,7 @@ export class CacheRenderModel implements Model, RenderableListener {
         }
         geometry.setIndex(spotPayload.indices ?? []);
         geometry.computeVertexNormals();
-        const effect = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: spotPayload.color ?? 0xffffff, vertexColors: Boolean(spotPayload.colors?.length), flatShading: true, transparent: true }));
+        const effect = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: spotPayload.color ?? 0xffffff, vertexColors: Boolean(spotPayload.colors?.length), transparent: true }));
         const metadata = spotPayload.spotAnim ?? {};
         const placement = this.activeSpotAnims[0];
         effect.userData.spotAnimId = metadata.id;

@@ -70,6 +70,82 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
     return Math.min(max, Math.max(min, value));
   }
 
+  // The game client lights model colours once during model construction.
+  const ACTOR_LIGHTING = { ambient: 64, contrast: 850, x: -30, y: -50, z: -30 };
+  const OBJECT_LIGHTING = { ambient: 64, contrast: 768, x: -50, y: -10, z: -50 };
+
+  function adjustModelBrightness(hsl, brightness) {
+    const luminance = clamp(((hsl & 127) * brightness) >> 7, 2, 126);
+    return (hsl & 65408) + luminance;
+  }
+
+  function effectiveRenderType(model, face) {
+    const alpha = model.faceAlphas?.[face] ?? 0;
+    if (alpha === -2) return 3;
+    if (alpha === -1) return 2;
+    return model.faceRenderTypes?.[face] ?? 0;
+  }
+
+  function modelLighting(model, lighting) {
+    // Smooth faces share accumulated vertex normals; flat faces use one face normal.
+    const vertexNormals = Array.from({ length: model.vertexCount }, () => ({ x: 0, y: 0, z: 0, magnitude: 0 }));
+    const faceNormals = [];
+    for (let face = 0; face < model.faceCount; face++) {
+      const a = model.faceVertexIndices1[face], b = model.faceVertexIndices2[face], c = model.faceVertexIndices3[face];
+      const ab = {
+        x: model.vertexPositionsX[b] - model.vertexPositionsX[a],
+        y: model.vertexPositionsY[b] - model.vertexPositionsY[a],
+        z: model.vertexPositionsZ[b] - model.vertexPositionsZ[a],
+      };
+      const ac = {
+        x: model.vertexPositionsX[c] - model.vertexPositionsX[a],
+        y: model.vertexPositionsY[c] - model.vertexPositionsY[a],
+        z: model.vertexPositionsZ[c] - model.vertexPositionsZ[a],
+      };
+      let x = ab.y * ac.z - ac.y * ab.z;
+      let y = ab.z * ac.x - ac.z * ab.x;
+      let z = ab.x * ac.y - ac.x * ab.y;
+      while (x > 8192 || y > 8192 || z > 8192 || x < -8192 || y < -8192 || z < -8192) {
+        x >>= 1; y >>= 1; z >>= 1;
+      }
+      const length = Math.max(1, Math.floor(Math.hypot(x, y, z)));
+      const normal = { x: Math.trunc(x * 256 / length), y: Math.trunc(y * 256 / length), z: Math.trunc(z * 256 / length) };
+      const renderType = model.faceRenderTypes?.[face] ?? 0;
+      if (renderType === 1) faceNormals[face] = normal;
+      else if (renderType === 0) {
+        for (const vertex of [a, b, c]) {
+          vertexNormals[vertex].x += normal.x;
+          vertexNormals[vertex].y += normal.y;
+          vertexNormals[vertex].z += normal.z;
+          vertexNormals[vertex].magnitude++;
+        }
+      }
+    }
+    const lightMagnitude = Math.floor(Math.hypot(lighting.x, lighting.y, lighting.z));
+    const scaledContrast = (lightMagnitude * lighting.contrast) >> 8;
+    return (face, vertex) => {
+      const renderType = effectiveRenderType(model, face);
+      if (renderType === 3) return 128;
+      const normal = renderType === 1 ? faceNormals[face] : vertexNormals[vertex];
+      if (!normal) return lighting.ambient;
+      const divisor = renderType === 1
+        ? Math.trunc(scaledContrast / 2) + scaledContrast
+        : scaledContrast * Math.max(1, normal.magnitude);
+      const brightness = Math.trunc(
+        (lighting.y * normal.y + lighting.z * normal.z + lighting.x * normal.x) / Math.max(1, divisor),
+      ) + lighting.ambient;
+      return brightness;
+    };
+  }
+
+  function textureBrightnessRgb(brightness) {
+    // Textured faces store the same client brightness as a vertex-colour multiplier.
+    const linear = clamp(brightness, 2, 126) / 128;
+    const srgb = linear <= 0.0031308 ? linear * 12.92 : 1.055 * Math.pow(linear, 1 / 2.4) - 0.055;
+    const channel = clamp(Math.round(srgb * 255), 0, 255);
+    return (channel << 16) | (channel << 8) | channel;
+  }
+
   function multiplyHslBrightness(hsl, brightness = 0x80) {
     const adjustedBrightness = ((hsl & 0x7f) * brightness) / 0x80;
     return (hsl & 0xff80) | clamp(adjustedBrightness, 2, 126);
@@ -509,7 +585,11 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
       // This is distinct from the model-orientation lookup above.
       if (location.type === 11) model.method1206(0x100);
       if (needsContour) contourModel(model, location, width, height, terrain, definition.contouredGround);
-      const result = await attachTextures(cache, payload({ getMergedModel: () => model }));
+      const result = await attachTextures(cache, payload({ getMergedModel: () => model }, undefined, undefined, {
+        ...OBJECT_LIGHTING,
+        ambient: (definition.ambient ?? 0) + 64,
+        contrast: (definition.contrast ?? 0) + 768,
+      }));
       assets.push({ id: assetId, payload: result });
     }
     const available = new Set(assets.map((asset) => asset.id));
@@ -528,9 +608,10 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
     };
   }
 
-  function payload(group, includeFace = (model, face) => true, definition) {
+  function payload(group, includeFace = (model, face) => true, definition, lighting = ACTOR_LIGHTING) {
     const model = group.getMergedModel();
     if (!model || !model.vertexCount) throw new Error("Decoded model has no vertices");
+    const lightBrightness = modelLighting(model, lighting);
     const positions = [],
       indices = [],
       colors = [],
@@ -551,7 +632,8 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
         definition,
       );
       const firstVertex = positions.length / 3;
-      const faceIndices = renderFaceIndices(firstVertex, model.faceRenderTypes?.[face]);
+      const renderType = effectiveRenderType(model, face);
+      const faceIndices = renderFaceIndices(firstVertex, renderType);
       [model.faceVertexIndices1[face], model.faceVertexIndices2[face], model.faceVertexIndices3[face]].forEach(
         (source, corner) => {
           const index = positions.length / 3;
@@ -564,7 +646,10 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
           sourceVertices.push(source);
           animayaGroups.push(model.animayaGroups?.[source] ?? []);
           animayaScales.push(model.animayaScales?.[source] ?? []);
-          colors.push(hslRgb(faceColor));
+          const brightness = lightBrightness(face, source);
+          colors.push(faceTexture >= 0
+            ? textureBrightnessRgb(brightness)
+            : hslRgb(renderType === 3 ? 128 : adjustModelBrightness(faceColor, brightness)));
           faceColors.push(faceColor);
           alphas.push(model.faceAlphas?.[face] ?? 0);
           uvs.push(
@@ -713,7 +798,11 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
     // omits face-label alpha groups, which are required by sequence type-5
     // fade transforms.
     const group = { getMergedModel: () => models.get(definition.modelId) };
-    const result = await attachTextures(cache, payload(group, undefined, definition));
+    const result = await attachTextures(cache, payload(group, undefined, definition, {
+      ...ACTOR_LIGHTING,
+      ambient: (definition.ambient ?? 0) + 64,
+      contrast: (definition.contrast ?? 0) + 850,
+    }));
     result.animations = definition.animationId >= 0 ? await animations(cache, group, [definition.animationId]) : {};
     result.spotAnim = {
       id,
@@ -755,7 +844,11 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
             : undefined);
         const npcPayload = await attachTextures(
           cache,
-          payload(npcGroup, clickboxFilter ? (model, face) => !clickboxFilter(model, face) : undefined, npc),
+          payload(npcGroup, clickboxFilter ? (model, face) => !clickboxFilter(model, face) : undefined, npc, {
+            ...ACTOR_LIGHTING,
+            ambient: (npc.ambient ?? 0) + 64,
+            contrast: (npc.contrast ?? 0) * 5 + 850,
+          }),
         );
         if (clickboxFilter) npcPayload.geometryClickbox = payload(npcGroup, clickboxFilter);
         npcPayload.scale = (npc.heightScale ?? 128) / 128;

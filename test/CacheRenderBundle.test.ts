@@ -8,17 +8,17 @@ import { gzipSync } from "fflate";
 
 const checksum = "1234abcd";
 test("validates a versioned bundle manifest", () => {
-  expect(validateCacheRenderBundleManifest({ schemaVersion: 2, bundleVersion: "test", cache: { revision: 1, source: "fixture", contentHash: checksum }, assets: { body: { file: "body.bin", crc32: checksum } }, references: { "npc:1": ["body"] } }).bundleVersion).toBe("test");
+  expect(validateCacheRenderBundleManifest({ schemaVersion: 3, bundleVersion: "test", cache: { revision: 1, source: "fixture", contentHash: checksum }, assets: { body: { file: "body.bin", crc32: checksum } }, references: { "npc:1": ["body"] } }).bundleVersion).toBe("test");
 });
 test("validates shared animation asset mappings", () => {
-  expect(validateCacheRenderBundleManifest({ schemaVersion: 2, bundleVersion: "test", cache: { revision: 1, source: "fixture", contentHash: checksum }, assets: { animations: { file: "animations.bin", crc32: checksum } }, references: {}, sharedAssets: { playerAnimations: "animations" } }).sharedAssets?.playerAnimations).toBe("animations");
+  expect(validateCacheRenderBundleManifest({ schemaVersion: 3, bundleVersion: "test", cache: { revision: 1, source: "fixture", contentHash: checksum }, assets: { animations: { file: "animations.bin", crc32: checksum } }, references: {}, sharedAssets: { playerAnimations: "animations" } }).sharedAssets?.playerAnimations).toBe("animations");
 });
 test("validates a cache sound-effect pack", () => {
-  expect(validateCacheRenderBundleManifest({ schemaVersion: 2, bundleVersion: "test", cache: { revision: 1, source: "fixture", contentHash: checksum }, assets: {}, references: {}, soundEffects: { file: "cache-sound-effects.fixture.soundpack", crc32: checksum, bytes: 42 } }).soundEffects?.bytes).toBe(42);
+  expect(validateCacheRenderBundleManifest({ schemaVersion: 3, bundleVersion: "test", cache: { revision: 1, source: "fixture", contentHash: checksum }, assets: {}, references: {}, soundEffects: { file: "cache-sound-effects.fixture.soundpack", crc32: checksum, bytes: 42 } }).soundEffects?.bytes).toBe(42);
 });
 test("validates a compiled scene recipe with reusable object assets", () => {
   const manifest = validateCacheRenderBundleManifest({
-    schemaVersion: 2, bundleVersion: "test", cache: { revision: 236, source: "openrs2:2437", contentHash: checksum },
+    schemaVersion: 3, bundleVersion: "test", cache: { revision: 236, source: "openrs2:2437", contentHash: checksum },
     assets: { wall: { file: "wall.bin", crc32: checksum } }, references: {},
     scenes: { "region:9043": { regionId: 9043, compiledAssets: { opaque: "wall" }, placements: [{ assetId: "wall", x: 27, y: 52, plane: 0 }] } },
   });
@@ -28,12 +28,12 @@ test("calculates standard CRC-32 checksums", () => {
   expect(crc32(new TextEncoder().encode("123456789"))).toBe("cbf43926");
 });
 test("decodes binary render payloads", () => {
-  const json = new TextEncoder().encode(JSON.stringify({ version: 1, positions: [0, 0, 0] }));
+  const json = new TextEncoder().encode(JSON.stringify({ version: 2, positions: [0, 0, 0] }));
   const bytes = new Uint8Array(8 + json.length); bytes.set([79, 83, 82, 66]); new DataView(bytes.buffer).setUint32(4, json.length, true); bytes.set(json, 8);
   expect(decodeCacheRenderPayload(bytes.buffer).positions).toEqual([0, 0, 0]);
 });
 test("decodes gzip-compressed binary render payloads", () => {
-  const json = new TextEncoder().encode(JSON.stringify({ version: 1, positions: [0, 0, 0] }));
+  const json = new TextEncoder().encode(JSON.stringify({ version: 2, positions: [0, 0, 0] }));
   const compressed = gzipSync(json);
   const bytes = new Uint8Array(8 + compressed.length); bytes.set([79, 83, 82, 66]); new DataView(bytes.buffer).setUint32(4, compressed.length, true); bytes.set(compressed, 8);
   expect(decodeCacheRenderPayload(bytes.buffer).positions).toEqual([0, 0, 0]);
@@ -46,8 +46,8 @@ test("starts a cache animation at zero before consuming render deltas", () => {
 
 test("retains an authored geometry clickbox when composing cache payloads", () => {
   const merged = mergePayloads([
-    { version: 1, positions: [0, 0, 0], geometryClickbox: { positions: [0, 0, 0, 1, 0, 0, 0, 1, 0], indices: [0, 1, 2] } },
-    { version: 1, positions: [1, 0, 0] },
+    { version: 2, positions: [0, 0, 0], geometryClickbox: { positions: [0, 0, 0, 1, 0, 0, 0, 1, 0], indices: [0, 1, 2] } },
+    { version: 2, positions: [1, 0, 0] },
   ]);
   expect(merged.geometryClickbox).toEqual({ positions: [0, 0, 0, 1, 0, 0, 0, 1, 0], indices: [0, 1, 2] });
 });

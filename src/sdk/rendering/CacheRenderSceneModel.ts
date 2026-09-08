@@ -27,20 +27,19 @@ export class CacheRenderSceneModel implements Model {
         if (!assetId) continue;
         const chunks = (await cachedPayload(bundle, assetId)).chunks ?? [];
         if (!chunks.length) throw new Error(`Compiled scene asset ${assetId} has no chunks`);
-        // Terrain HSL brightness is baked by the cache exporter. Match
-        // rs-map-viewer's unlit terrain shader instead of applying Three.js
-        // scene lighting a second time.
-        const material = kind === "terrain"
-          ? new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true })
-          : new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, flatShading: true, transparent: kind === "transparent", alphaTest: 0.01 });
+        const material = new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          vertexColors: true,
+          transparent: kind === "transparent",
+          alphaTest: 0.01,
+        });
         chunks.forEach((chunk) => {
           const geometry = new THREE.BufferGeometry(); geometry.setAttribute("position", new THREE.Float32BufferAttribute(chunk.positions, 3));
           const colors: number[] = [];
           chunk.colors.forEach((value, index) => {
             // The Kotlin scene exporter writes its terrain palette bytes
             // directly into glTF vertex colours. Retain that convention here
-            // so compiled terrain matches the static arena GLBs; ordinary
-            // cache models continue through Three's colour-managed path.
+            // so compiled terrain matches the static arena GLBs.
             // The cache palette values are display/sRGB colours. Convert them
             // to Three's linear vertex-colour space before rendering.
             const color = new THREE.Color(value);

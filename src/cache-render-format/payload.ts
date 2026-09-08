@@ -1,6 +1,6 @@
 /** Shared JSON payload contract stored inside an OSRB binary asset. */
 export const CACHE_RENDER_PAYLOAD_MAGIC = "OSRB";
-export const CACHE_RENDER_PAYLOAD_VERSION = 1 as const;
+export const CACHE_RENDER_PAYLOAD_VERSION = 2 as const;
 
 export type CacheRenderRawFrame = { baseId?: number; types: number[]; maps: number[][]; indexFrameIds: number[]; x: number[]; y: number[]; z: number[] };
 export type CacheRenderFrameSound = { id: number; loops: number; location: number; retain: number; weight: number };

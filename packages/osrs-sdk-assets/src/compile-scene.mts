@@ -1,4 +1,5 @@
-import type { CacheRenderPayload, CacheRenderStaticChunk } from "../../src/cache-render-format/index.ts";
+import { CACHE_RENDER_PAYLOAD_VERSION } from "../../../src/cache-render-format/index.ts";
+import type { CacheRenderPayload, CacheRenderStaticChunk } from "../../../src/cache-render-format/index.ts";
 
 type SourceAsset = { id: string; payload: CacheRenderPayload };
 type Placement = { assetId: string; x: number; y: number; plane: number; width?: number; height?: number };
@@ -128,7 +129,7 @@ export function compileScene(recipe: Recipe, sourceAssets: SourceAsset[]) {
       Object.assign(target.textures, source.textures ?? {});
   }
   const payload = (results: Map<string, Output>): CacheRenderPayload => ({
-    version: 1,
+    version: CACHE_RENDER_PAYLOAD_VERSION,
     positions: [],
     chunks: Array.from(results.entries()).map(([key, result]) => {
       const [x, y] = key.split(":").map(Number);
