@@ -32,6 +32,7 @@ module.exports = merge(common, {
     }),
     new CopyPlugin({
       patterns: [
+        { from: `cache-render-bundle`, to: "cache-assets", noErrorOnMissing: true },
         { from: `index.html`, to: "", context: `sample/` },
         { from: `assets/fonts/*.woff`, to: "", context: `src/` },
         { from: `assets/fonts/*.woff2`, to: "", context: `src/` },

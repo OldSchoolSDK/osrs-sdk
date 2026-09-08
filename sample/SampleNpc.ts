@@ -1,5 +1,5 @@
 import { Assets, CacheRender, CacheRenderModel, CacheRenderReferences, FallbackModel, GLTFModel, MeleeWeapon, Mob } from "../src";
-import { CACHE_ASSETS } from "../src/assets/CacheAssets";
+import { SAMPLE_ASSETS } from "./assets";
 
 export class SampleNpc extends Mob {
   override mobName() {
@@ -85,7 +85,7 @@ export class SampleNpc extends Mob {
     if (CacheRender.isConfigured()) {
       // Verzik Vitur's phase-3 definition is pinned by the bundle.
       return new FallbackModel(
-        CacheRenderModel.forRenderable(this, CacheRenderReferences.npc(CACHE_ASSETS.npcs.verzik.id)),
+        CacheRenderModel.forRenderable(this, CacheRenderReferences.npc(SAMPLE_ASSETS.npcs.verzik.id)),
         GLTFModel.forRenderable(this, Assets.getAssetUrl("models/verzik.glb")),
       );
     }

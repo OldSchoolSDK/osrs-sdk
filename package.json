@@ -6,11 +6,12 @@
   "types": "lib/index.d.ts",
   "node": "^>=16.0.0",
   "workspaces": [
-    "packages/osrs-sdk-react"
+    "packages/osrs-sdk-react",
+    "packages/osrs-sdk-assets"
   ],
   "scripts": {
     "clean": "rm -rf _bundles lib lib-esm",
-    "build": "npm run build:core && npm run build:react",
+    "build": "npm run build:core && npm run build:asset-manifest && npm run build:react && npm run build:assets-tool",
     "build:core": "npm run clean && webpack --config webpack.production.js",
     "build:react": "npm run build --workspace osrs-sdk-react",
     "lint": "eslint . --ext .ts --fix",
@@ -21,8 +22,10 @@
     "extract:sounds": "tsx scripts/sounds/extract.mts",
     "download:cache-render": "tsx scripts/cache-render/download.mts",
     "assets": "tsx scripts/cache-render/build.mts",
-    "serve:assets": "tsx scripts/cache-render/serve.mts",
-    "test": "npx jest"
+    "test": "npx jest",
+    "build:assets-tool": "npm run build --workspace osrs-sdk-assets",
+    "build:asset-manifest": "node scripts/build-asset-manifest.mjs",
+    "test:assets": "npm run build:asset-manifest && npm run build:assets-tool && npm test --workspace osrs-sdk-assets"
   },
   "repository": {
     "type": "git",
@@ -36,7 +39,9 @@
   },
   "files": [
     "lib",
-    "_bundles"
+    "_bundles",
+    "asset-manifest.js",
+    "asset-manifest.d.ts"
   ],
   "homepage": "https://github.com/OldSchoolSDK/osrs-sdk#readme",
   "devDependencies": {
@@ -68,7 +73,8 @@
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "react": "^18.3.0",
-    "react-dom": "^18.3.0"
+    "react-dom": "^18.3.0",
+    "esbuild": "0.28.2"
   },
   "dependencies": {
     "@types/new-relic-browser": "^0.1118.2",

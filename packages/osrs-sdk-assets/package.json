@@ -1,0 +1,20 @@
+{
+  "name": "osrs-sdk-assets",
+  "version": "0.1.8",
+  "description": "Build statically hosted OSRS cache assets for osrs-sdk clients",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "src/index.d.ts",
+  "bin": { "osrs-sdk-assets": "dist/cli.js" },
+  "files": ["dist", "src/index.d.ts", "README.md"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --import tsx --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "fflate": "0.8.2",
+    "esbuild": "0.28.2"
+  },
+  "license": "ISC"
+}

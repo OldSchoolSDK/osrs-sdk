@@ -20,6 +20,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - run: npm ci
       - run: npm test
+      - run: npm run test:assets
 
   publish-npm:
     needs: build
@@ -35,4 +36,9 @@ jobs:
           registry-url: https://registry.npmjs.org/
       - run: npm ci
       - run: npm run build
+      - name: Verify package versions match the release tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: node -e 'const sdk=require("./package.json"); const assets=require("./packages/osrs-sdk-assets/package.json"); if(sdk.version !== assets.version || process.env.RELEASE_TAG !== sdk.version) throw new Error("Release tag and package versions must match");'
       - run: npm publish --provenance
+      - run: npm publish --workspace osrs-sdk-assets --provenance --access public

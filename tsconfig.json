@@ -12,14 +12,20 @@
     "moduleResolution": "node",
     "esModuleInterop": true,
     "paths": {
-      "osrs-sdk": ["src/index.ts"],
-      "osrs-sdk-react": ["packages/osrs-sdk-react/src/index.ts"]
+      "osrs-sdk": [
+        "src/index.ts"
+      ],
+      "osrs-sdk-react": [
+        "packages/osrs-sdk-react/src/index.ts"
+      ]
     },
     "typeRoots": [
       "node_modules/@types"
     ]
   },
   "exclude": [
-    "scripts"
+    "scripts",
+    "packages/osrs-sdk-assets",
+    "osrs-assets.config.ts"
   ]
 }

@@ -1,27 +1,31 @@
 import { advanceAnimationTimeForDraw, applyBlendedRawFrames, applyRawFrame, decodeCacheRenderPayload, mergePayloads } from "../src/sdk/rendering/CacheRenderModel";
 import { validateCacheRenderBundleManifest } from "../src/sdk/rendering/CacheRenderBundle";
+import { crc32 } from "../src/cache-render-format";
 import { TextDecoder, TextEncoder } from "util";
 import { gzipSync } from "fflate";
 
 (global as any).TextDecoder = TextDecoder;
 
-const sha = "a".repeat(64);
+const checksum = "1234abcd";
 test("validates a versioned bundle manifest", () => {
-  expect(validateCacheRenderBundleManifest({ schemaVersion: 1, bundleVersion: "test", cache: { revision: 1, source: "fixture", contentHash: sha }, assets: { body: { file: "body.bin", sha256: sha } }, references: { "npc:1": ["body"] } }).bundleVersion).toBe("test");
+  expect(validateCacheRenderBundleManifest({ schemaVersion: 2, bundleVersion: "test", cache: { revision: 1, source: "fixture", contentHash: checksum }, assets: { body: { file: "body.bin", crc32: checksum } }, references: { "npc:1": ["body"] } }).bundleVersion).toBe("test");
 });
 test("validates shared animation asset mappings", () => {
-  expect(validateCacheRenderBundleManifest({ schemaVersion: 1, bundleVersion: "test", cache: { revision: 1, source: "fixture", contentHash: sha }, assets: { animations: { file: "animations.bin", sha256: sha } }, references: {}, sharedAssets: { playerAnimations: "animations" } }).sharedAssets?.playerAnimations).toBe("animations");
+  expect(validateCacheRenderBundleManifest({ schemaVersion: 2, bundleVersion: "test", cache: { revision: 1, source: "fixture", contentHash: checksum }, assets: { animations: { file: "animations.bin", crc32: checksum } }, references: {}, sharedAssets: { playerAnimations: "animations" } }).sharedAssets?.playerAnimations).toBe("animations");
 });
 test("validates a cache sound-effect pack", () => {
-  expect(validateCacheRenderBundleManifest({ schemaVersion: 1, bundleVersion: "test", cache: { revision: 1, source: "fixture", contentHash: sha }, assets: {}, references: {}, soundEffects: { file: `cache-sound-effects.${sha}.soundpack`, sha256: sha, bytes: 42 } }).soundEffects?.bytes).toBe(42);
+  expect(validateCacheRenderBundleManifest({ schemaVersion: 2, bundleVersion: "test", cache: { revision: 1, source: "fixture", contentHash: checksum }, assets: {}, references: {}, soundEffects: { file: "cache-sound-effects.fixture.soundpack", crc32: checksum, bytes: 42 } }).soundEffects?.bytes).toBe(42);
 });
 test("validates a compiled scene recipe with reusable object assets", () => {
   const manifest = validateCacheRenderBundleManifest({
-    schemaVersion: 1, bundleVersion: "test", cache: { revision: 236, source: "openrs2:2437", contentHash: sha },
-    assets: { wall: { file: "wall.bin", sha256: sha } }, references: {},
+    schemaVersion: 2, bundleVersion: "test", cache: { revision: 236, source: "openrs2:2437", contentHash: checksum },
+    assets: { wall: { file: "wall.bin", crc32: checksum } }, references: {},
     scenes: { "region:9043": { regionId: 9043, compiledAssets: { opaque: "wall" }, placements: [{ assetId: "wall", x: 27, y: 52, plane: 0 }] } },
   });
   expect(manifest.scenes?.["region:9043"].compiledAssets.opaque).toBe("wall");
+});
+test("calculates standard CRC-32 checksums", () => {
+  expect(crc32(new TextEncoder().encode("123456789"))).toBe("cbf43926");
 });
 test("decodes binary render payloads", () => {
   const json = new TextEncoder().encode(JSON.stringify({ version: 1, positions: [0, 0, 0] }));

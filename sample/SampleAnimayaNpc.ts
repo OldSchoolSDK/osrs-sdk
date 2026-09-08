@@ -14,7 +14,7 @@ import {
   UILayerProjector,
   UnitOptions,
 } from "../src";
-import { CACHE_ASSETS } from "../src/assets/CacheAssets";
+import { SAMPLE_ASSETS } from "./assets";
 
 const TRIPLE_ATTACK_SHORT = 6; // Cache sequence 10887.
 const TRIPLE_ATTACK_TICKS = 11;
@@ -28,7 +28,7 @@ const ACTIVE_SOL_ATTACK = {
   animation: TRIPLE_ATTACK_SHORT,
   ticks: TRIPLE_ATTACK_TICKS,
   hits: TRIPLE_HITS,
-  spotAnim: CACHE_ASSETS.spotAnims.solTripleAttackShort.id,
+  spotAnim: SAMPLE_ASSETS.spotAnims.solTripleAttackShort.id,
 };
 const SOL_FRAME_SOUND_DELAY_MS = 240;
 
@@ -128,7 +128,7 @@ export class SampleAnimayaNpc extends Mob {
         this.region.addEntity(new GraphicsObject(
           this.region,
           { x, y },
-          CACHE_ASSETS.spotAnims.solDust.id,
+          SAMPLE_ASSETS.spotAnims.solDust.id,
           { rotation, delay: ring * 2, height: 0 },
         ));
       }
@@ -146,7 +146,7 @@ export class SampleAnimayaNpc extends Mob {
       return new FallbackModel(
         CacheRenderModel.forRenderable(
           this,
-          CacheRenderReferences.npc(CACHE_ASSETS.npcs.solHeredit.id),
+          CacheRenderReferences.npc(SAMPLE_ASSETS.npcs.solHeredit.id),
           { frameSoundDelayMs: SOL_FRAME_SOUND_DELAY_MS },
         ),
         BasicModel.forRenderable(this),

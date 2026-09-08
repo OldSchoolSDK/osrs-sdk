@@ -112,3 +112,6 @@ typings/
 /packages/osrs-sdk-react/lib/
 /.cache-render/
 /cache-render-bundle/
+/asset-manifest.js
+/packages/osrs-sdk-assets/dist/
+.osrs-assets-config-*.mjs

@@ -1,7 +1,7 @@
 Most legacy Ogg sound effects in this directory were extracted using
 https://github.com/lequietriot/Old-School-RuneScape-Cache-Tools.
 
-Cache-derived sounds use a generated `cache-sound-effects.<sha256>.soundpack`.
+Cache-derived sounds use a generated content-addressed `.soundpack` file.
 It contains the raw index-4 definitions for the selected sound IDs; the SDK
 synthesizes their 22,050 Hz mono PCM on first preload or playback and caches
 the resulting `AudioBuffer`.

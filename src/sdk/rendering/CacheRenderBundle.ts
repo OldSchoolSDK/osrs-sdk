@@ -1,5 +1,5 @@
 import { CacheRenderReference, cacheRenderItemKey } from "./CacheRenderReference";
-import { CACHE_RENDER_BUNDLE_SCHEMA_VERSION, isCacheRenderBundleManifest } from "../../cache-render-format";
+import { CACHE_RENDER_BUNDLE_SCHEMA_VERSION, crc32, isCacheRenderBundleManifest } from "../../cache-render-format";
 import type { CacheRenderAsset, CacheRenderBundleManifest, CacheRenderScene, CacheRenderScenePlacement } from "../../cache-render-format";
 
 export { CACHE_RENDER_BUNDLE_SCHEMA_VERSION } from "../../cache-render-format";
@@ -23,14 +23,6 @@ export function validateCacheRenderBundleManifest(value: any): CacheRenderBundle
   if (reference.kind === "spotAnim") return "spotAnim";
   if (reference.kind === "player") return `player:${reference.loadout.map(cacheRenderItemKey).join(",")}`;
   return "asset";
-}
-
-async function sha256(bytes: ArrayBuffer): Promise<string> {
-  if (!globalThis.crypto || !globalThis.crypto.subtle) {
-    throw new CacheRenderBundleError("integrity", "Web Crypto is required to verify cache render assets");
-  }
-  const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
-  return Array.prototype.map.call(new Uint8Array(digest), (v: number) => v.toString(16).padStart(2, "0")).join("");
 }
 
 export class CacheRenderBundle {
@@ -105,7 +97,7 @@ export class CacheRenderBundle {
     if (!response.ok) throw new CacheRenderBundleError("missing-asset", `Unable to load ${label} (${response.status})`);
     const bytes = await response.arrayBuffer();
     if (asset.bytes !== undefined && bytes.byteLength !== asset.bytes) throw new CacheRenderBundleError("integrity", `Invalid length for ${label}`);
-    if ((await sha256(bytes)).toLowerCase() !== asset.sha256.toLowerCase()) throw new CacheRenderBundleError("integrity", `Integrity check failed for ${label}`);
+    if (crc32(new Uint8Array(bytes)) !== asset.crc32.toLowerCase()) throw new CacheRenderBundleError("integrity", `Integrity check failed for ${label}`);
     return bytes;
   }
 }

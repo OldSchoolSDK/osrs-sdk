@@ -45,16 +45,17 @@ authoritative true-tile and client-side visual movement model.
 
 ### Developing the project from this project (with the "sample" environment):
 
+    npm ci
+    npm run build        # builds the SDK and standalone asset tool
     npm run assets       # builds cache models and runtime sound definitions
-    npm run serve:assets # serves the combined asset bundle at 127.0.0.1:8081
     npm run start
 
 Open up http://localhost:8000 in the browser.
 
-The sample uses the cache-render bundle at `http://127.0.0.1:8081/manifest.json`
-by default. Its manifest covers both model payloads and the runtime soundpack,
-so only `cache-render-bundle` needs to be hosted. To use a hosted or locally
-generated bundle, set the URL before starting the dev server:
+The development server exposes `cache-render-bundle` at `/cache-assets/`, and the
+sample loads `/cache-assets/manifest.json` by default. Its manifest covers both
+model payloads and the runtime soundpack. To use a separately hosted bundle, set
+the URL before starting the dev server:
 
     OSRS_CACHE_RENDER_MANIFEST_URL=https://assets.example.com/osrs-cache-render/manifest.json npm run start
 
@@ -68,10 +69,11 @@ builds can bake a different asset host into the bundle with
 
     OSRS_ASSET_BASE_URL=https://assets-soltrainer.netlify.app npm run build
 
-Cache-derived sample asset IDs are maintained in
-[`src/assets/CacheAssets.ts`](src/assets/CacheAssets.ts). Runtime code and the
-cache extraction pipeline both import that registry, including related model,
-animation, spot-animation, item, object, and sound IDs.
+Base asset IDs are maintained in [`src/assets/CacheAssets.ts`](src/assets/CacheAssets.ts).
+The sample declares its own requirements in [`sample/assets.ts`](sample/assets.ts).
+The standalone [`osrs-sdk-assets`](packages/osrs-sdk-assets/README.md) tool merges
+both using [`osrs-assets.config.ts`](osrs-assets.config.ts). Other clients define
+their own manifest and generate their own hosting directory without SDK edits.
 
 ### Developing the project from a client project:
 
@@ -102,7 +104,7 @@ This creates the version-bump pull request; it does not publish the package.
 
 1. Merge the changes intended for the release into `main`.
 2. In GitHub, open **Actions** → **Prepare release** → **Run workflow** and enter the next version without a `v` prefix, for example `0.1.9`.
-3. The workflow validates the version, creates `release/<version>`, updates `package.json` and `package-lock.json`, and opens a release PR against `main`.
+3. The workflow validates the version, creates `release/<version>`, updates the SDK and asset-tool package versions plus `package-lock.json`, and opens a release PR against `main`.
 4. Review and merge that release PR.
-5. Create a GitHub release with a tag matching the package version, for example `0.1.9`. This runs the `publish-npm` workflow, which tests, builds, and publishes the package to npm.
-6. After the npm publish succeeds, update each client project's `osrs-sdk` dependency and lockfile to the published version.
+5. Create a GitHub release with a tag matching the shared package version, for example `0.1.9`. This runs the publish workflow, which tests, builds, and publishes `osrs-sdk` and `osrs-sdk-assets` to npm.
+6. After both publishes succeed, update each client project's SDK and asset-tool dependencies and lockfile to the same published version.

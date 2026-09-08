@@ -1,4 +1,4 @@
-import { CACHE_ASSETS } from "../src/assets/CacheAssets";
+import { SAMPLE_ASSETS } from "./assets";
 import { CacheRenderModel } from "../src/sdk/rendering/CacheRenderModel";
 import { CacheRenderReferences } from "../src/sdk/rendering/CacheRenderReference";
 import { Mob } from "../src/sdk/Mob";
@@ -17,7 +17,7 @@ export enum JavelinColossusAnimations {
 
 /** The Fortis Colosseum's Javelin Colossus (NPC definition 12817). */
 export class JavelinColossus extends Mob {
-  static readonly NPC_ID = CACHE_ASSETS.npcs.javelinColossus.id;
+  static readonly NPC_ID = SAMPLE_ASSETS.npcs.javelinColossus.id;
 
   override mobName() {
     return "Javelin Colossus";

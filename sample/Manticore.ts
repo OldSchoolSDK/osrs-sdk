@@ -1,4 +1,4 @@
-import { CACHE_ASSETS } from "../src/assets/CacheAssets";
+import { SAMPLE_ASSETS } from "./assets";
 import { CacheRenderModel } from "../src/sdk/rendering/CacheRenderModel";
 import { CacheRenderReferences } from "../src/sdk/rendering/CacheRenderReference";
 import { MagicWeapon } from "../src/sdk/weapons/MagicWeapon";
@@ -27,9 +27,9 @@ enum Orbs {
 };
 
 const ORB_TO_SPOTANIM = {
-  [Orbs.Range]: CACHE_ASSETS.spotAnims.rangeOrb.id,
-  [Orbs.Mage]: CACHE_ASSETS.spotAnims.mageOrb.id,
-  [Orbs.Melee]: CACHE_ASSETS.spotAnims.meleeOrb.id,
+  [Orbs.Range]: SAMPLE_ASSETS.spotAnims.rangeOrb.id,
+  [Orbs.Mage]: SAMPLE_ASSETS.spotAnims.mageOrb.id,
+  [Orbs.Melee]: SAMPLE_ASSETS.spotAnims.meleeOrb.id,
 };
 
 const ORB_HEIGHT_1 = 7;
@@ -44,7 +44,7 @@ const ORB_HEIGHT_3 = 11;
  * so encounters can choose the appropriate one when implementing that cycle.
  */
 export class Manticore extends Mob {
-  static readonly NPC_ID = CACHE_ASSETS.npcs.manticore.id;
+  static readonly NPC_ID = SAMPLE_ASSETS.npcs.manticore.id;
 
   private attackStyles: Orbs[] | null = null;
 

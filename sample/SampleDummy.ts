@@ -1,5 +1,5 @@
 import { BasicModel, CacheRender, CacheRenderModel, CacheRenderReferences, CollisionType, Entity, FallbackModel, LineOfSightMask, Location, Region } from "../src";
-import { CACHE_ASSETS } from "../src/assets/CacheAssets";
+import { SAMPLE_ASSETS } from "./assets";
 
 /** Static pillar object based on InfernoTrainer's pillar entity. */
 export class SampleDummy extends Entity {
@@ -36,7 +36,7 @@ export class SampleDummy extends Entity {
     if (CacheRender.isConfigured()) {
       return new FallbackModel(
         // it's an inferno pillar
-        CacheRenderModel.forRenderable(this, CacheRenderReferences.model(CACHE_ASSETS.models.infernoPillar.id)),
+        CacheRenderModel.forRenderable(this, CacheRenderReferences.model(SAMPLE_ASSETS.models.infernoPillar.id)),
         BasicModel.forRenderable(this),
       );
     }

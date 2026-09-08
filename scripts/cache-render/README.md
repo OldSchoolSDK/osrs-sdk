@@ -1,17 +1,11 @@
-# Cache-render asset pipeline
+# Asset pipeline scripts
 
-This directory is Node-only TypeScript (`.mts`) and is deliberately outside
-the browser SDK bundle.
+The asset tool is in [packages/osrs-sdk-assets](../../packages/osrs-sdk-assets/README.md).
+These entry points provide the SDK repository's npm commands and test imports.
+`npm run assets -- <OpenRS2 cache ID>` explicitly selects a cache; plain
+`npm run assets` uses [osrs-assets.config.ts](../../osrs-assets.config.ts). There
+is no implicit latest.
 
-- `build.mts` is the one-command developer workflow: acquire a cache, then
-  extract the derived browser bundle, including models and sound definitions.
-- `download.mts` owns OpenRS2 download and cache metadata.
-- `extract.mts` serialises model payloads and the soundpack, then writes the
-  versioned manifest.
-- `serve.mts` is the small local development server for that manifest.
-- `adapter.mts` is the revision-sensitive boundary to `osrscachereader`.
-- `scene-touchups.mts` contains presentation edits as declarative recipe data.
-
-The next seams to extract from `adapter.mts` are terrain compilation and model
-payload conversion. Keeping them behind this adapter means the SDK runtime
-never depends on cache-reader implementation details.
+The extractor accepts client-owned requirements and scene rules. It loads the
+local reader checkout at `../osrscachereader` by default; select another path with
+`--reader-path` or `OSRS_CACHE_READER_PATH`. Run `npm ci` in the reader checkout.
