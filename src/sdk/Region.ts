@@ -44,6 +44,7 @@ export abstract class Region {
 
   newMobs: Mob[] = [];
   mobs: Mob[] = [];
+  primaryBoss: Mob | null = null;
   entities: Entity[] = [];
   // free-floating projectiles not associated with a mob/player. TODO maybe they all should be here.
   projectiles: Projectile[] = [];
@@ -109,9 +110,17 @@ export abstract class Region {
     }
   }
 
+  /**
+   * Sets or clears the "boss" for the region, which is the NPC for which we'll render the boss health bar.
+   */
+  setBoss(mob: Mob | null) {
+    this.primaryBoss = mob;
+  }
+
   removeMob(mob: Mob) {
     remove(this.mobs, mob);
     remove(this.newMobs, mob);
+    if (this.primaryBoss === mob) this.primaryBoss = null;
   }
 
   removePlayer(player: Player) {

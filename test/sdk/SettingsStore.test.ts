@@ -34,6 +34,7 @@ describe("Settings legacy migration", () => {
     expect(Settings.tileMarkerColor).toBe("#123456");
     expect(Settings.tile_markers).toEqual([{ x: 12, y: 34 }]);
     expect(Settings.menuVisible).toBe(false);
+    expect(Settings.displayBossHealthBar).toBe(true);
     expect(Settings.use3dView).toBe(false);
     expect(Settings.player_stats.attack).toBe(88);
     expect(Settings.player_stats.prayer).toBe(77);

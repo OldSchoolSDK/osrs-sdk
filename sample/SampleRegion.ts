@@ -45,7 +45,9 @@ export class SampleRegion extends Region {
     });
     this.addPlayer(player);
 
-    this.addMob(new SampleNpc(this, { x: 25, y: 20 }, {}));
+    const sampleNpc = new SampleNpc(this, { x: 25, y: 20 }, {});
+    this.addMob(sampleNpc);
+    this.setBoss(sampleNpc);
     this.addEntity(new SampleDummy(this, { x: 34, y: 28 }));
     this.addMob(new SampleAnimayaNpc(this, { x: 15, y: 25 }, { aggro: player }));
     this.addMob(new Manticore(this, { x: 25, y: 24 }));

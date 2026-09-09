@@ -44,6 +44,12 @@ type ViewportDrawResult = {
   offsetY: number;
 };
 
+const BOSS_BAR_WIDTH = 300;
+const BOSS_BAR_HEIGHT = 50;
+const BOSS_BAR_TOP = 36;
+const BOSS_BAR_HORIZONTAL_OFFSET = -60;
+const BOSS_BAR_INNER_PADDING = 2;
+
 export interface ViewportDelegate {
   initialise(world: World, region: Region): Promise<void>;
   reset();
@@ -213,6 +219,8 @@ export class Viewport {
     this.context.restore();
     this.context.save();
 
+    this.drawBossHealthBar(Trainer.player.region, width);
+
     // draw control panel
     ControlPanelController.controller.draw(this.context);
     XpDropController.controller.draw(
@@ -239,6 +247,59 @@ export class Viewport {
       this.context.textAlign = "center";
       this.drawText(`GET READY...${world.getReadyTimer}`, width / 2, height / 2 - 50);
     }
+    this.context.restore();
+  }
+
+  private drawBossHealthBar(region: Region, viewportWidth: number) {
+    const boss = region.primaryBoss;
+    if (!boss || !Settings.displayBossHealthBar) return;
+
+    const width = Math.min(BOSS_BAR_WIDTH, viewportWidth - 16);
+    const centeredX = (viewportWidth - width) / 2 + BOSS_BAR_HORIZONTAL_OFFSET;
+    const x = Math.round(Math.max(8, Math.min(centeredX, viewportWidth - width - 8)));
+    const y = BOSS_BAR_TOP;
+    const current = Math.max(0, boss.currentStats.hitpoint);
+    const maximum = Math.max(1, boss.stats.hitpoint);
+    const healthRatio = Math.min(1, current / maximum);
+
+    this.context.save();
+    this.context.fillStyle = "#090806";
+    this.context.fillRect(x, y, width, BOSS_BAR_HEIGHT);
+    this.context.fillStyle = "#211e18";
+    this.context.fillRect(x + 4, y + 4, width - 8, BOSS_BAR_HEIGHT - 8);
+
+    this.context.font = "18px Stats_11";
+    this.context.textAlign = "center";
+    this.context.fillStyle = "black";
+    this.context.fillText(boss.mobName(), x + width / 2 + 1, y + 18 + 1);
+    this.context.fillStyle = "#d87532";
+    this.context.fillText(boss.mobName(), x + width / 2, y + 18);
+
+    const barX = x + BOSS_BAR_INNER_PADDING;
+    const barY = y + 24;
+    const barWidth = width - BOSS_BAR_INNER_PADDING * 2;
+    const barHeight = 24;
+    this.context.fillStyle = "#050403";
+    this.context.fillRect(barX, barY, barWidth, barHeight);
+    this.context.fillStyle = "#e00000";
+    this.context.fillRect(barX + BOSS_BAR_INNER_PADDING, barY + BOSS_BAR_INNER_PADDING, barWidth - BOSS_BAR_INNER_PADDING * 2, barHeight - BOSS_BAR_INNER_PADDING * 2);
+    this.context.fillStyle = "#00d900";
+    this.context.fillRect(barX + BOSS_BAR_INNER_PADDING, barY + BOSS_BAR_INNER_PADDING, Math.round((barWidth - BOSS_BAR_INNER_PADDING * 2) * healthRatio), barHeight - BOSS_BAR_INNER_PADDING * 2);
+
+    const textX = x + width / 2;
+    const textY = barY + 17;
+    this.context.fillStyle = "black";
+    this.context.fillText(
+      `${current} / ${maximum} (${(healthRatio * 100).toFixed(1)}%)`,
+      textX + 1,
+      textY + 1,
+    );
+    this.context.fillStyle = "white";
+    this.context.fillText(
+      `${current} / ${maximum} (${(healthRatio * 100).toFixed(1)}%)`,
+      textX,
+      textY,
+    );
     this.context.restore();
   }
 }
