@@ -40,3 +40,45 @@ test("mob movement queues and consumes a visual tile step", () => {
   mob.movementStep();
   expect(mob.animationIndex).toBe(mob.idlePoseId);
 });
+
+test("an active sequence stalls a pre-existing visual path, then catches up", async () => {
+  const region = new TestRegion(20, 20);
+  const mob = new Mob(region, { x: 2, y: 2 });
+  let animationActive = true;
+  mob.visualPath = [
+    { x: 3, y: 2, run: false },
+    { x: 4, y: 2, run: false },
+  ];
+  mob.setAnimationListener({
+    animationChanged: async () => undefined,
+    modelChanged: () => undefined,
+    getActiveAnimationMetadata: () => animationActive
+      ? { precedenceAnimating: 0, priority: 2 }
+      : undefined,
+  });
+
+  await mob.playAnimation(2);
+  for (let cycle = 1; cycle <= 5; cycle++) mob.clientTick(0, cycle * 20);
+  expect(mob.perceivedLocation).toEqual({ x: 2, y: 2 });
+
+  animationActive = false;
+  mob.clientTick(0, 6 * 20);
+  expect(mob.perceivedLocation.x).toBeCloseTo(2 + 2 / 30);
+});
+
+test("sequence priority stalls movement queued after the animation starts", async () => {
+  const region = new TestRegion(20, 20);
+  const mob = new Mob(region, { x: 2, y: 2 });
+  mob.setAnimationListener({
+    animationChanged: async () => undefined,
+    modelChanged: () => undefined,
+    getActiveAnimationMetadata: () => ({ precedenceAnimating: 2, priority: 0 }),
+  });
+
+  await mob.playAnimation(2);
+  mob.visualPath.push({ x: 3, y: 2, run: false });
+  mob.clientTick(0, 20);
+
+  expect(mob.perceivedLocation).toEqual({ x: 2, y: 2 });
+  expect(mob.visualPath).toHaveLength(1);
+});

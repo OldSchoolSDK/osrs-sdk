@@ -16,6 +16,7 @@ export class Interpolation {
     path: readonly QueuedPathStep[],
     baseMovementSpeed: number,
     movementSpeed = baseMovementSpeed,
+    catchUpMovementSpeed?: number,
   ): PathInterpolationResult {
     if (path.length === 0) {
       return { location: { ...location }, reachedStep: false };
@@ -25,6 +26,9 @@ export class Interpolation {
     let resolvedMovementSpeed = movementSpeed;
     if (path.length > 3) resolvedMovementSpeed = baseMovementSpeed * 2;
     else if (path.length > 2) resolvedMovementSpeed = baseMovementSpeed * 1.5;
+    if (catchUpMovementSpeed !== undefined) {
+      resolvedMovementSpeed = Math.max(resolvedMovementSpeed, catchUpMovementSpeed);
+    }
     if (run) resolvedMovementSpeed *= 2;
 
     let { x, y } = location;

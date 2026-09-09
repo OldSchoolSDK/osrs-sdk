@@ -760,11 +760,21 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
         }
       }
       const frameSounds = sequenceFrameSounds(sequence);
+      // The game client's SequenceDefinition.postDecode() derives movement
+      // precedence when opcodes 9/10 are absent. The reader preserves -1, so
+      // normalize it here before serializing the runtime payload.
+      const hasInterleave = Boolean(sequence.interleaveLeave?.length || sequence.animMayaMasks?.length);
+      const precedenceAnimating = sequence.precedenceAnimating === -1
+        ? (hasInterleave ? 2 : 0)
+        : sequence.precedenceAnimating;
+      const priority = sequence.priority === -1
+        ? (hasInterleave ? 2 : 0)
+        : sequence.priority;
       result[id] = {
         frames: animation.vertexData.map((frame) => frame.flatMap(([x, y, z]) => [x / 128, y / 128, z / 128])),
         lengths: animation.lengths,
-        precedenceAnimating: sequence.precedenceAnimating,
-        priority: sequence.priority,
+        precedenceAnimating,
+        priority,
         ...(rawFrames.length ? { rawFrames } : {}),
         interleaveLeave: sequence.interleaveLeave ?? [],
         ...(Object.keys(frameSounds).length ? { frameSounds } : {}),

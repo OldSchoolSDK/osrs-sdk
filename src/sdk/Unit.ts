@@ -102,6 +102,8 @@ export abstract class Unit extends Renderable {
   private renderFromLocation: Location = { x: 0, y: 0 };
   private renderPositionTimestamp = 0;
   protected visualMovementActive = false;
+  private visualPathLengthAtAnimationStart = 0;
+  private delayedMovementTicks = 0;
   protected cacheRenderSpotAnims: CacheRenderSpotAnim[] = [];
 
   /** Snapshot of the spotanims currently attached to this unit. */
@@ -298,16 +300,38 @@ export abstract class Unit extends Renderable {
     movementSpeed = baseMovementSpeed,
     tickTimestamp = window.performance.now(),
   ) {
+    if (this.visualPath.length === 0) {
+      this.delayedMovementTicks = 0;
+      return null;
+    }
+
+    const animation = this.getActiveAnimationMetadata();
+    const movementPrecedence = this.visualPathLengthAtAnimationStart > 0
+      ? animation?.precedenceAnimating
+      : animation?.priority;
+    if (movementPrecedence === 0) {
+      this.delayedMovementTicks++;
+      return null;
+    }
+
+    const recoveringDelayedMovement = this.delayedMovementTicks > 0 && this.visualPath.length > 1;
     const interpolation = Interpolation.resolvePath(
       this.perceivedLocation,
       this.visualPath,
       baseMovementSpeed,
       movementSpeed,
+      recoveringDelayedMovement ? baseMovementSpeed * 2 : undefined,
     );
+    if (recoveringDelayedMovement) this.delayedMovementTicks--;
     this.renderFromLocation = { ...this.perceivedLocation };
     this.perceivedLocation = interpolation.location;
     this.renderPositionTimestamp = tickTimestamp;
     return interpolation.reachedStep ? this.visualPath.shift() ?? null : null;
+  }
+
+  override async playAnimation(index: number, blend = false) {
+    this.visualPathLengthAtAnimationStart = this.visualPath.length;
+    return super.playAnimation(index, blend);
   }
 
   attackStep() {
@@ -676,6 +700,7 @@ export abstract class Unit extends Renderable {
     this.renderPositionTimestamp = window.performance.now();
     this.visualPath = [];
     this.visualMovementActive = false;
+    this.delayedMovementTicks = 0;
   }
 
   attackAnimation(tickPercent: number, context: OffscreenCanvasRenderingContext2D) {
@@ -693,6 +718,7 @@ export abstract class Unit extends Renderable {
     this.renderFromLocation = { ...this.location };
     this.visualPath = [];
     this.visualMovementActive = false;
+    this.delayedMovementTicks = 0;
     this.dying = this.deathAnimationLength;
     this.region.onUnitDeath(this);
     this.region.clearAggroFor(this);

@@ -14,6 +14,7 @@ export interface RenderableListener {
   modelChanged();
   spotAnimChanged?(spotAnims: CacheRenderSpotAnim[]);
   getAnimationMetadata?(id: number): AnimationMetadata | undefined;
+  getActiveAnimationMetadata?(): AnimationMetadata | undefined;
 }
 
 /** Projects heights above a renderable's origin into UI-canvas coordinates. */
@@ -178,6 +179,11 @@ export abstract class Renderable {
   /** Cache sequence behavior for an animation, when supplied by the active renderer. */
   getAnimationMetadata(index: number): AnimationMetadata | undefined {
     return this.animationChangeListener?.getAnimationMetadata?.(index);
+  }
+
+  /** Cache sequence behavior for the currently playing one-shot animation. */
+  protected getActiveAnimationMetadata(): AnimationMetadata | undefined {
+    return this.animationChangeListener?.getActiveAnimationMetadata?.();
   }
 
   setAnimationListener(listener: RenderableListener) {

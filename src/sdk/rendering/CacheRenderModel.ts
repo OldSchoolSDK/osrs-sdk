@@ -372,6 +372,15 @@ export class CacheRenderModel implements Model, RenderableListener {
       priority: animation.priority,
     };
   }
+  getActiveAnimationMetadata(): AnimationMetadata | undefined {
+    if (!this.animationPlaying) return undefined;
+    const animation = this.animations[String(this.activeAnimation)];
+    if (!animation) return undefined;
+    return {
+      precedenceAnimating: animation.precedenceAnimating,
+      priority: animation.priority,
+    };
+  }
   modelChanged() {
     const next = this.renderable.get3dModel();
     const nextPrimary = (next as any)?.getPrimaryModel?.();

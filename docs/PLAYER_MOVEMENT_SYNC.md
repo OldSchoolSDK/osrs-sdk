@@ -1,13 +1,18 @@
-# Player movement and true-tile synchronisation
+# Actor movement and true-tile synchronisation
 
-The SDK keeps two related positions for a moving player:
+The SDK keeps two related positions for every moving `Unit` (players and NPCs):
 
 - **`location`** is the authoritative, discrete true tile. It is changed by
   the server-tick simulation (`movementStep` / `moveTowardsDestination`). Game
   logic, collision, targeting and the true-tile overlay use this position.
 - **`perceivedLocation`** is the client-side visual position. It advances in
-  fixed 20 ms client steps through a queue of upcoming tiles. It is deliberately
-  allowed to be between tiles while the model is walking.
+  fixed 20 ms client steps through `visualPath`, a queue of upcoming tiles. It
+  is deliberately allowed to be between tiles while the model is walking.
+
+`Unit` owns `visualPath`, the shared interpolation state, and the common
+`advanceVisualPath` implementation. Players add one or two authoritative steps
+after pathfinding, depending on whether they walk or run. NPCs add the tile
+selected by `Mob.movementStep`; NPC steps currently use walking speed.
 
 ## Update sequence
 
@@ -30,10 +35,11 @@ Enqueuing a second look-ahead tile for a walker makes the visual actor consume
 steps faster than the true tile and eventually fall behind; this is why walking
 enqueues one tile and running enqueues at most two.
 
-When a path queue drains at a server boundary, the player retains the walking
-pose if another authoritative step is pending. This prevents a transient
-walk → idle → walk transition, which would reset the cache animation clock and
-appear as a hitch.
+When an NPC path queue drains at a server boundary, a locomotion latch retains
+the walking pose until a server tick confirms that the NPC did not move. This
+prevents a transient walk → idle → walk transition from resetting the cache
+animation clock once per tile. Teleports and death clear both the visual queue
+and this latch.
 
 While turning, translation is intentionally slowed to half speed and the
 player rotates at 64 orientation units per client tick. This reproduces the
@@ -55,6 +61,45 @@ while visual movement is pending; strafe and turn poses are used only while the
 actor is rotating toward a new heading. Cache-rendered animation time advances
 continuously in the renderer, so changing render FPS does not restart a pose.
 
+## Action animations and movement precedence
+
+The game client can temporarily stop consuming an actor's visual path while a
+one-shot action animation plays. The authoritative `location` and subsequent
+path updates continue normally; only the client-side `perceivedLocation` is
+held. This is why an NPC can appear to pause for an attack and then catch up to
+its true tile.
+
+Sequence definitions control this behavior with two integer properties:
+
+- Cache opcode 9 is exported as `precedenceAnimating`.
+- Cache opcode 10 is exported as `priority`.
+- A value of `0` blocks visual movement. Non-zero values permit it.
+
+When these opcodes are absent, the cache reader reports `-1`. During asset
+generation the adapter applies the client's `SequenceDefinition.postDecode()`
+defaults: both values become `0` for a sequence without an interleave/mask, or
+`2` for a sequence with one.
+
+`Unit.playAnimation` snapshots the visual queue length when the action begins.
+While that animation remains active, `advanceVisualPath` selects the same
+property as the client:
+
+- If steps were already queued when the animation started, it consults
+  `precedenceAnimating`.
+- If the queue was empty and movement arrived afterward, it consults
+  `priority`.
+
+Every blocked 20 ms client tick increments delayed movement debt without
+consuming a path step. Once the animation permits movement or finishes, an
+actor with multiple queued steps moves at twice the normal walking speed and
+repays one delayed tick per client update. The debt is reset when the queue
+empties, or when the actor teleports or dies.
+
+Cache-backed renderers expose these properties at runtime through
+`unit.getAnimationMetadata(animationId)`. Semantic pose IDs are resolved
+through the model's pose map before lookup. The method returns `undefined` for
+a renderer without cache metadata or before its assets have loaded.
+
 ## References
 
 The interpolation and actor-rotation investigation was informed by
@@ -66,6 +111,7 @@ for the existing 600 ms server-tick simulation and Three.js renderer, not a
 drop-in copy.
 
 Movement regressions are covered in
-[`test/sdk/PlayerMovement.test.ts`](../test/sdk/PlayerMovement.test.ts),
-including frame-by-frame pose continuity, constant displacement, queue length,
-and final facing in all four cardinal directions.
+[`test/sdk/PlayerMovement.test.ts`](../test/sdk/PlayerMovement.test.ts) and
+[`test/sdk/Interpolation.test.ts`](../test/sdk/Interpolation.test.ts), including
+frame-by-frame pose continuity, queue consumption, animation precedence,
+catch-up behavior, and final facing in all four cardinal directions.
