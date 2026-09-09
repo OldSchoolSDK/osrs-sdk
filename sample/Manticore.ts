@@ -175,7 +175,7 @@ export class Manticore extends Mob {
   override attackStep() {
     super.attackStep();
     if (this.attackStyles?.length === 3) {
-      if (this.attackDelay === 5) {
+      if (this.attackDelay === 6) {
         this.playAnimation(ManticoreAnimations.TripleCharge);
       }
       if (this.attackDelay <= 5) {
