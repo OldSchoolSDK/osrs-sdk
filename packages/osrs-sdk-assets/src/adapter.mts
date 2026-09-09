@@ -7,6 +7,17 @@ import { compileScene } from "./compile-scene.mts";
 import { applyDefinitionOverrides } from "./definition-overrides";
 import { renderFaceIndices } from "./face-rendering";
 
+const OBJECT_TYPE = Object.freeze({
+  WALL_CORNER: 2,
+  WALL_DECORATION: 4,
+  DIAGONAL_OUTSIDE_WALL_DECORATION: 6,
+  DIAGONAL_INSIDE_WALL_DECORATION: 7,
+  DIAGONAL_WALL_DECORATION: 8,
+  INTERACTABLE: 10,
+  DIAGONAL_INTERACTABLE: 11,
+});
+const CACHE_ANGLE_45 = 0x100;
+
 export async function decodeAllAssets(options) {
   const reader = await loadReader(options.readerPath);
   return createDecoder(reader)(options);
@@ -545,13 +556,17 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
       // perpendicular model. Preserve the source location for placement while
       // compiling each model orientation as its own reusable payload.
       const firstModelOrientation =
-        location.type === 2 || location.type === 6 || location.type === 8
+        location.type === OBJECT_TYPE.WALL_CORNER ||
+        location.type === OBJECT_TYPE.DIAGONAL_OUTSIDE_WALL_DECORATION ||
+        location.type === OBJECT_TYPE.DIAGONAL_WALL_DECORATION
           ? location.orientation + 4
-          : location.type === 7
+          : location.type === OBJECT_TYPE.DIAGONAL_INSIDE_WALL_DECORATION
             ? ((location.orientation + 2) & 3) + 4
             : location.orientation;
       const modelOrientations =
-        location.type === 2 ? [firstModelOrientation, (location.orientation + 1) & 3] : [firstModelOrientation];
+        location.type === OBJECT_TYPE.WALL_CORNER
+          ? [firstModelOrientation, (location.orientation + 1) & 3]
+          : [firstModelOrientation];
       for (const modelOrientation of modelOrientations) {
         const needsContour = definition?.contouredGround >= 0 && terrain.varied;
         const contourKey = needsContour
@@ -580,15 +595,15 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
       height,
       needsContour,
     } of variants.values()) {
-      const model = await definition?.getModel(cache, location.type, modelOrientation);
+      // Diagonal interactables use interactable geometry with an additional 45-degree turn.
+      const modelType =
+        location.type === OBJECT_TYPE.DIAGONAL_INTERACTABLE ? OBJECT_TYPE.INTERACTABLE : location.type;
+      const model = await definition?.getModel(cache, modelType, modelOrientation);
       // Some map locations are sound/collision-only definitions. They remain in
       // the recipe for accounting, but have no model and should not become an
       // empty render payload.
       if (!model?.vertexCount) continue;
-      // SceneRegionBuilder applies an additional 0x100 (45-degree) turn after
-      // ObjectDefinition conversion for DIAGONAL_INTERACTABLE (type 11).
-      // This is distinct from the model-orientation lookup above.
-      if (location.type === 11) model.method1206(0x100);
+      if (location.type === OBJECT_TYPE.DIAGONAL_INTERACTABLE) model.method1206(CACHE_ANGLE_45);
       if (needsContour) contourModel(model, location, width, height, terrain, definition.contouredGround);
       const result = await attachTextures(cache, payload({ getMergedModel: () => model }, undefined, undefined, {
         ...OBJECT_LIGHTING,
