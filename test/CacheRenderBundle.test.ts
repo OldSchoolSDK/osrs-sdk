@@ -1,4 +1,4 @@
-import { advanceAnimationTimeForDraw, applyBlendedRawFrames, applyRawFrame, decodeCacheRenderPayload, mergePayloads } from "../src/sdk/rendering/CacheRenderModel";
+import { advanceAnimationTimeForDraw, applyBlendedRawFrames, applyRawFrame, CacheRenderModel, decodeCacheRenderPayload, mergePayloads } from "../src/sdk/rendering/CacheRenderModel";
 import { validateCacheRenderBundleManifest } from "../src/sdk/rendering/CacheRenderBundle";
 import { crc32 } from "../src/cache-render-format";
 import { TextDecoder, TextEncoder } from "util";
@@ -50,6 +50,31 @@ test("retains an authored geometry clickbox when composing cache payloads", () =
     { version: 2, positions: [1, 0, 0] },
   ]);
   expect(merged.geometryClickbox).toEqual({ positions: [0, 0, 0, 1, 0, 0, 0, 1, 0], indices: [0, 1, 2] });
+});
+
+test("retains sequence movement metadata when composing cache payloads", () => {
+  const merged = mergePayloads([
+    {
+      version: 2,
+      positions: [],
+      animations: {
+        123: { frames: [[]], lengths: [1], precedenceAnimating: 0, priority: 2 },
+      },
+    },
+  ]);
+  expect(merged.animations?.[123]).toEqual(
+    expect.objectContaining({ precedenceAnimating: 0, priority: 2 }),
+  );
+});
+
+test("resolves animation metadata through a cache model pose map", () => {
+  const model = Object.create(CacheRenderModel.prototype) as CacheRenderModel;
+  (model as any).animations = { 456: {
+    frames: [[]], lengths: [1], precedenceAnimating: 0, priority: 2,
+  } };
+  (model as any).poseMap = { 2: 456 };
+
+  expect(model.getAnimationMetadata(2)).toEqual({ precedenceAnimating: 0, priority: 2 });
 });
 
 test("calculates animation pivots from cache vertices rather than expanded render vertices", () => {

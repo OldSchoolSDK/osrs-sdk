@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { decompressSync } from "fflate";
 import { Location3 } from "../Location";
-import { Renderable, RenderableListener } from "../Renderable";
+import { AnimationMetadata, Renderable, RenderableListener } from "../Renderable";
 import { CacheRender, CacheRenderBundle, CacheRenderBundleError } from "./CacheRenderBundle";
 import { CacheRenderReference, CacheRenderSpotAnim } from "./CacheRenderReference";
 import { Model } from "./Model";
@@ -94,10 +94,10 @@ export function mergePayloads(payloads: Payload[]): Payload {
   payloads.forEach((payload) => Object.entries(payload.animations ?? {}).forEach(([id, animation]) => {
     const existing = animations[id];
     if (!existing) {
-      animations[id] = { frames: animation.frames.map((frame) => frame.slice()), lengths: animation.lengths.slice(), rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave, mayaFrames: animation.mayaFrames, frameSounds: animation.frameSounds, soundsCrossWorldView: animation.soundsCrossWorldView };
+      animations[id] = { frames: animation.frames.map((frame) => frame.slice()), lengths: animation.lengths.slice(), precedenceAnimating: animation.precedenceAnimating, priority: animation.priority, rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave, mayaFrames: animation.mayaFrames, frameSounds: animation.frameSounds, soundsCrossWorldView: animation.soundsCrossWorldView };
     } else if (animation.rawFrames?.length && !existing.rawFrames?.length) {
       // Prefer the shared frame-map representation when it is available.
-      animations[id] = { frames: animation.frames.map((frame) => frame.slice()), lengths: animation.lengths.slice(), rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave, mayaFrames: animation.mayaFrames, frameSounds: animation.frameSounds, soundsCrossWorldView: animation.soundsCrossWorldView };
+      animations[id] = { frames: animation.frames.map((frame) => frame.slice()), lengths: animation.lengths.slice(), precedenceAnimating: animation.precedenceAnimating, priority: animation.priority, rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave, mayaFrames: animation.mayaFrames, frameSounds: animation.frameSounds, soundsCrossWorldView: animation.soundsCrossWorldView };
     } else if (!existing.rawFrames?.length && !animation.rawFrames?.length) {
       // Legacy bundles stored baked frames in every item; retain their old
       // composition behavior for those bundles.
@@ -363,6 +363,14 @@ export class CacheRenderModel implements Model, RenderableListener {
       this.frameSoundPlayer.reset();
     }
     return Promise.resolve();
+  }
+  getAnimationMetadata(id: number): AnimationMetadata | undefined {
+    const animation = this.animations[String(this.poseMap[String(id)] ?? id)];
+    if (!animation) return undefined;
+    return {
+      precedenceAnimating: animation.precedenceAnimating,
+      priority: animation.priority,
+    };
   }
   modelChanged() {
     const next = this.renderable.get3dModel();

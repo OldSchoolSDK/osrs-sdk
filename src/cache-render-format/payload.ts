@@ -7,6 +7,10 @@ export type CacheRenderFrameSound = { id: number; loops: number; location: numbe
 export type CacheRenderAnimation = {
   frames: number[][];
   lengths: number[];
+  /** Sequence opcode 9: whether an active sequence permits queued movement. */
+  precedenceAnimating?: number;
+  /** Sequence opcode 10: movement precedence after the queued-path snapshot drains. */
+  priority?: number;
   rawFrames?: CacheRenderRawFrame[];
   interleaveLeave?: number[];
   mayaFrames?: number[][][];

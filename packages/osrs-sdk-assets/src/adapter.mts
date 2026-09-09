@@ -763,6 +763,8 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
       result[id] = {
         frames: animation.vertexData.map((frame) => frame.flatMap(([x, y, z]) => [x / 128, y / 128, z / 128])),
         lengths: animation.lengths,
+        precedenceAnimating: sequence.precedenceAnimating,
+        priority: sequence.priority,
         ...(rawFrames.length ? { rawFrames } : {}),
         interleaveLeave: sequence.interleaveLeave ?? [],
         ...(Object.keys(frameSounds).length ? { frameSounds } : {}),
@@ -955,6 +957,8 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
             if (animation.rawFrames?.length || animation.mayaFrames?.length)
               shared[sequenceId] = {
                 lengths: animation.lengths,
+                precedenceAnimating: animation.precedenceAnimating,
+                priority: animation.priority,
                 ...(animation.rawFrames?.length
                   ? { rawFrames: animation.rawFrames, interleaveLeave: animation.interleaveLeave ?? [] }
                   : { mayaFrames: animation.mayaFrames }),

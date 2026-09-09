@@ -4,10 +4,16 @@ import { Location, Location3 } from "./Location";
 import { Model } from "./rendering/Model";
 import { CacheRenderSpotAnim } from "./rendering/CacheRenderReference";
 
+export interface AnimationMetadata {
+  precedenceAnimating?: number;
+  priority?: number;
+}
+
 export interface RenderableListener {
   animationChanged(id: number, blend: boolean): Promise<void>;
   modelChanged();
   spotAnimChanged?(spotAnims: CacheRenderSpotAnim[]);
+  getAnimationMetadata?(id: number): AnimationMetadata | undefined;
 }
 
 /** Projects heights above a renderable's origin into UI-canvas coordinates. */
@@ -167,6 +173,11 @@ export abstract class Renderable {
     } else {
       this.queuedAnimationId = index;
     }
+  }
+
+  /** Cache sequence behavior for an animation, when supplied by the active renderer. */
+  getAnimationMetadata(index: number): AnimationMetadata | undefined {
+    return this.animationChangeListener?.getAnimationMetadata?.(index);
   }
 
   setAnimationListener(listener: RenderableListener) {
