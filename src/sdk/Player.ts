@@ -10,6 +10,7 @@ import { AmmoType } from "./gear/Ammo";
 import { AttackBonuses, Weapon } from "./gear/Weapon";
 import { Item } from "./Item";
 import { ItemName } from "./ItemName";
+import { Interpolation, QueuedPathStep } from "./Interpolation";
 import { LineOfSight } from "./LineOfSight";
 import { Location } from "./Location";
 import { Mob } from "./Mob";
@@ -82,7 +83,8 @@ export class Player extends Unit {
 
   seekingItem: Item = null;
 
-  path: (Location & { run: boolean })[] = [];
+  // TODO: Match the real client's maximum actor path queue length.
+  path: QueuedPathStep[] = [];
 
   clickMarker: ClickMarker | null = null;
   aggroMarker: ClickMarker | null = null;
@@ -555,10 +557,9 @@ export class Player extends Unit {
       this.currentPoseAnimation = this.getIdlePoseId();
       return;
     }
-    let { x, y } = this.perceivedLocation;
     const { x: nextX, y: nextY, run } = this.path[0];
-    if (x !== nextX || y !== nextY) {
-      this.lastTravelAngle = -Pathing.angle(x, y, nextX, nextY);
+    if (this.perceivedLocation.x !== nextX || this.perceivedLocation.y !== nextY) {
+      this.lastTravelAngle = -Pathing.angle(this.perceivedLocation.x, this.perceivedLocation.y, nextX, nextY);
     }
 
     const baseMovementSpeed = 1 / (Settings.tickMs / 20);
@@ -579,34 +580,19 @@ export class Player extends Unit {
         this.currentPoseAnimation = PlayerAnimationIndices.Rotate180;
       }
     }
-    if (this.path.length > 3) movementSpeed = baseMovementSpeed * 2;
-    else if (this.path.length > 2) movementSpeed = baseMovementSpeed * 1.5;
-    if (run) {
-      movementSpeed *= 2;
-    }
     if (this.currentPoseAnimation === PlayerAnimationIndices.Walk && run) {
       this.currentPoseAnimation = PlayerAnimationIndices.Run;
     }
-    if (Math.abs(x - nextX) > 2 || Math.abs(y - nextY) > 2) {
-      x = nextX;
-      y = nextY;
-    } else if (x !== nextX || y !== nextY) {
-      const arrivalEpsilon = 1e-9;
-      if (x < nextX) {
-        x = nextX - x <= movementSpeed + arrivalEpsilon ? nextX : x + movementSpeed;
-      } else if (x > nextX) {
-        x = x - nextX <= movementSpeed + arrivalEpsilon ? nextX : x - movementSpeed;
-      }
-      if (y < nextY) {
-        y = nextY - y <= movementSpeed + arrivalEpsilon ? nextY : y + movementSpeed;
-      } else if (y > nextY) {
-        y = y - nextY <= movementSpeed + arrivalEpsilon ? nextY : y - movementSpeed;
-      }
-    }
+    const interpolation = Interpolation.resolvePath(
+      this.perceivedLocation,
+      this.path,
+      baseMovementSpeed,
+      movementSpeed,
+    );
     this.renderFromLocation = { ...this.perceivedLocation };
-    this.perceivedLocation = { x, y };
+    this.perceivedLocation = interpolation.location;
     this.renderPositionTimestamp = tickTimestamp;
-    if (x === nextX && y === nextY) {
+    if (interpolation.reachedStep) {
       this.path.shift();
       if (ENABLE_POSITION_DEBUG) {
         const headTile = this.pathMarkers.shift();

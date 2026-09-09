@@ -3,6 +3,7 @@
 
 export * from './LineOfSight';
 export * from './Pathing';
+export * from './Interpolation';
 export * from './Collision';
 export * from './Loadout';
 
