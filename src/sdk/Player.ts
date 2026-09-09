@@ -87,13 +87,9 @@ export class Player extends Unit {
 
   pathMarkers: ClickMarker[] = [];
   currentPoseAnimation = PlayerAnimationIndices.Idle;
-  private renderFromLocation: Location = { x: 0, y: 0 };
-  private renderPositionTimestamp = 0;
 
   constructor(region: Region, location: Location, options: UnitOptions = {}) {
     super(region, location, options);
-    this.renderFromLocation = { ...this.perceivedLocation };
-    this.renderPositionTimestamp = window.performance.now();
 
     this.destinationLocation = location;
     this.pathTargetLocation = location;
@@ -579,9 +575,7 @@ export class Player extends Unit {
     if (this.currentPoseAnimation === PlayerAnimationIndices.Walk && run) {
       this.currentPoseAnimation = PlayerAnimationIndices.Run;
     }
-    this.renderFromLocation = { ...this.perceivedLocation };
-    const reachedStep = this.advanceVisualPath(baseMovementSpeed, movementSpeed);
-    this.renderPositionTimestamp = tickTimestamp;
+    const reachedStep = this.advanceVisualPath(baseMovementSpeed, movementSpeed, tickTimestamp);
     if (reachedStep) {
       if (ENABLE_POSITION_DEBUG) {
         const headTile = this.pathMarkers.shift();
@@ -953,15 +947,6 @@ export class Player extends Unit {
     );
     this.region.context.restore();
     return { x: perceivedX, y: perceivedY };
-  }
-
-  getPerceivedLocation(tickPercent: number) {
-    const alpha = Math.min(1, Math.max(0, (window.performance.now() - this.renderPositionTimestamp) / 20));
-    return {
-      x: this.renderFromLocation.x + (this.perceivedLocation.x - this.renderFromLocation.x) * alpha,
-      y: this.renderFromLocation.y + (this.perceivedLocation.y - this.renderFromLocation.y) * alpha,
-      z: 0,
-    };
   }
 
   drawUILayer(

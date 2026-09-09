@@ -22,6 +22,7 @@ import { Ring } from "./gear/Ring";
 import { Cape } from "./gear/Cape";
 import { Ammo } from "./gear/Ammo";
 import { SetEffect } from "./SetEffect";
+import { Settings } from "./Settings";
 import { Item } from "./Item";
 import { PrayerController } from "./PrayerController";
 import { Region } from "./Region";
@@ -98,6 +99,9 @@ export abstract class Unit extends Renderable {
   private unitRotationFrom = 0;
   private unitRotationTimestamp = 0;
   private unitRotationDirection = 1;
+  private renderFromLocation: Location = { x: 0, y: 0 };
+  private renderPositionTimestamp = 0;
+  protected visualMovementActive = false;
   protected cacheRenderSpotAnims: CacheRenderSpotAnim[] = [];
 
   /** Snapshot of the spotanims currently attached to this unit. */
@@ -231,8 +235,10 @@ export abstract class Unit extends Renderable {
     super();
     this.region = region;
     this.aggro = options.aggro || null;
-    this.perceivedLocation = location;
-    this.location = location;
+    this.perceivedLocation = { ...location };
+    this.location = { ...location };
+    this.renderFromLocation = { ...location };
+    this.renderPositionTimestamp = window.performance.now();
     this.setStats();
     this.age = options.spawnDelay || 0;
     this.autoRetaliate = true;
@@ -287,14 +293,20 @@ export abstract class Unit extends Renderable {
   }
 
   /** Advance and consume the next step in this unit's client-side visual path. */
-  protected advanceVisualPath(baseMovementSpeed: number, movementSpeed = baseMovementSpeed) {
+  protected advanceVisualPath(
+    baseMovementSpeed: number,
+    movementSpeed = baseMovementSpeed,
+    tickTimestamp = window.performance.now(),
+  ) {
     const interpolation = Interpolation.resolvePath(
       this.perceivedLocation,
       this.visualPath,
       baseMovementSpeed,
       movementSpeed,
     );
+    this.renderFromLocation = { ...this.perceivedLocation };
     this.perceivedLocation = interpolation.location;
+    this.renderPositionTimestamp = tickTimestamp;
     return interpolation.reachedStep ? this.visualPath.shift() ?? null : null;
   }
 
@@ -325,10 +337,13 @@ export abstract class Unit extends Renderable {
     }
   }
 
-  getPerceivedLocation(tickPercent: number) {
-    const perceivedX = Pathing.linearInterpolation(this.perceivedLocation.x, this.location.x, tickPercent);
-    const perceivedY = Pathing.linearInterpolation(this.perceivedLocation.y, this.location.y, tickPercent);
-    return { x: perceivedX, y: perceivedY, z: 0 };
+  getPerceivedLocation(_tickPercent: number) {
+    const alpha = Math.min(1, Math.max(0, (window.performance.now() - this.renderPositionTimestamp) / 20));
+    return {
+      x: this.renderFromLocation.x + (this.perceivedLocation.x - this.renderFromLocation.x) * alpha,
+      y: this.renderFromLocation.y + (this.perceivedLocation.y - this.renderFromLocation.y) * alpha,
+      z: 0,
+    };
   }
 
   private getTargetRotation(tickPercent: number) {
@@ -347,6 +362,10 @@ export abstract class Unit extends Renderable {
 
   // Client ticks run at 50 Hz, matching the player's 64-JAU turn rate.
   clientTick(tickPercent: number, tickTimestamp = window.performance.now()) {
+    if (this.visualPath.length > 0) {
+      const baseMovementSpeed = 1 / (Settings.tickMs / 20);
+      this.advanceVisualPath(baseMovementSpeed, baseMovementSpeed, tickTimestamp);
+    }
     this.unitTargetRotation = this.getTargetRotation(tickPercent);
     this.unitRotationFrom = this.unitRotation;
     this.unitRotationTimestamp = tickTimestamp;
@@ -651,7 +670,12 @@ export abstract class Unit extends Renderable {
   }
 
   setLocation(location: Location) {
-    this.location = location;
+    this.location = { ...location };
+    this.perceivedLocation = { ...location };
+    this.renderFromLocation = { ...location };
+    this.renderPositionTimestamp = window.performance.now();
+    this.visualPath = [];
+    this.visualMovementActive = false;
   }
 
   attackAnimation(tickPercent: number, context: OffscreenCanvasRenderingContext2D) {
@@ -665,7 +689,10 @@ export abstract class Unit extends Renderable {
   }
 
   dead() {
-    this.perceivedLocation = this.location;
+    this.perceivedLocation = { ...this.location };
+    this.renderFromLocation = { ...this.location };
+    this.visualPath = [];
+    this.visualMovementActive = false;
     this.dying = this.deathAnimationLength;
     this.region.onUnitDeath(this);
     this.region.clearAggroFor(this);
@@ -900,7 +927,11 @@ export abstract class Unit extends Renderable {
 
   get animationIndex() {
     // can be overriden by setAnimation
-    if (this.perceivedLocation.x !== this.location.x || this.perceivedLocation.y !== this.location.y) {
+    if (
+      this.visualMovementActive ||
+      this.perceivedLocation.x !== this.location.x ||
+      this.perceivedLocation.y !== this.location.y
+    ) {
       return this.walkingPoseId ?? this.idlePoseId;
     }
     return this.idlePoseId;

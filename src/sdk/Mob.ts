@@ -168,10 +168,10 @@ export class Mob extends Unit {
     if (this.age > 0) {
       return;
     }
-    this.perceivedLocation = { x: this.location.x, y: this.location.y };
-
+    let moved = false;
     this.setHasLOS();
     if (this.canMove() && this.aggro) {
+      const previousLocation = { ...this.location };
       const { dx, dy } = this.getNextMovementStep();
 
       const xOff = dx - this.location.x;
@@ -224,6 +224,16 @@ export class Mob extends Unit {
       } else if (ySpace) {
         this.location.y = dy;
       }
+      if (this.location.x !== previousLocation.x || this.location.y !== previousLocation.y) {
+        this.visualPath.push({ ...this.location, run: false });
+        this.visualMovementActive = true;
+        moved = true;
+      }
+    }
+    if (!moved && this.visualPath.length === 0) {
+      // bit of a hack, but if we moved this tick, prevent the animation from switching to 'idle' when the queue is now empty (stops it from flicking to
+      // idle anim every tick).
+      this.visualMovementActive = false;
     }
   }
 

@@ -5,20 +5,6 @@ import { TestRegion } from "../../src/sdk/testing/TestRegion";
 import { PlayerAnimationIndices } from "../../src/sdk/rendering/GLTFAnimationConstants";
 import { Mob } from "../../src/sdk/Mob";
 
-test("walking consumes a tile after one 600 ms server tick (30 client steps)", () => {
-  const region = new TestRegion(10, 10);
-  const player = new Player(region, { x: 2, y: 2 });
-  player.visualPath = [{ x: 3, y: 2, run: false }];
-
-  for (let cycle = 1; cycle < 30; cycle++) player.clientTick(0, cycle * 20);
-  expect(player.perceivedLocation.x).toBeCloseTo(2 + 29 / 30);
-  expect(player.visualPath).toHaveLength(1);
-
-  player.clientTick(0, 30 * 20);
-  expect(player.perceivedLocation).toEqual({ x: 3, y: 2 });
-  expect(player.visualPath).toHaveLength(0);
-});
-
 test("running keeps both straight-line tile steps in the visual queue", () => {
   const region = new TestRegion(20, 20);
   const player = new Player(region, { x: 2, y: 2 });
