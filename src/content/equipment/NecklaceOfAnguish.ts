@@ -50,9 +50,4 @@ export class NecklaceOfAnguish extends Necklace {
       },
     };
   }
-
-  Model = Assets.getAssetUrl("models/player_necklace_of_anguish__or_.glb");
-  override get model() {
-    return this.Model;
-  }
 }

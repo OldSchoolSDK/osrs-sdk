@@ -70,9 +70,4 @@ export class DizanasQuiver extends Cape {
       this.bonuses.other.rangedStrength = 3;
     }
   }
-
-  override get model() {
-    return this.Model;
-  }
-  Model = Assets.getAssetUrl("models/player_dizana_s_max_cape.glb");
 }

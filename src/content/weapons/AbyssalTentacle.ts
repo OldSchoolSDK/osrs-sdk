@@ -89,11 +89,6 @@ export class AbyssalTentacle extends MeleeWeapon {
     return InventoryImage;
   }
 
-  private Model = Assets.getAssetUrl("models/player_abyssal_tentacle.glb");
-  override get model() {
-    return this.Model;
-  }
-
   override get attackAnimationId() {
     return PlayerAnimationIndices.SwordSlash;
   }

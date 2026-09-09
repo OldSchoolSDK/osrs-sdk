@@ -146,11 +146,6 @@ export class BlackChinchompa extends RangedWeapon {
     }
   }
 
-  Model = Assets.getAssetUrl("models/player_black_chinchompa.glb");
-  override get model() {
-    return this.Model;
-  }
-
   get attackAnimationId() {
     return PlayerAnimationIndices.ThrowChinchompa;
   }

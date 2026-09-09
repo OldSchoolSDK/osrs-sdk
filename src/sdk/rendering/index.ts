@@ -5,7 +5,6 @@ export * from './Actor';
 export * from './BasicModel';
 export * from './CanvasSpriteModel';
 export * from './EmptyModel';
-export * from './FallbackModel';
 export * from './GLTFAnimationConstants';
 export * from './GLTFModel';
 export * from './CacheRenderBundle';

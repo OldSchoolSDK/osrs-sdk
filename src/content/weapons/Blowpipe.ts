@@ -148,11 +148,6 @@ export class Blowpipe extends RangedWeapon {
     return new Sound(cacheSound(CACHE_ASSETS.sounds.blowpipeSpecial.id), 0.5);
   }
 
-  Model = Assets.getAssetUrl("models/player_toxic_blowpipe.glb");
-  override get model() {
-    return this.Model;
-  }
-
   get attackAnimationId() {
     return PlayerAnimationIndices.FireBlowpipe;
   }

@@ -112,11 +112,6 @@ export class TwistedBow extends RangedWeapon {
     return Math.min(2.5, Math.max(0, multiplier));
   }
 
-  Model = Assets.getAssetUrl("models/player_twisted_bow.glb");
-  override get model() {
-    return this.Model;
-  }
-
   get attackAnimationId() {
     return PlayerAnimationIndices.FireBow;
   }

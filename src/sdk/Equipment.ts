@@ -116,13 +116,6 @@ export class Equipment extends Item {
   }
 
   /**
-   * name of the model to render for this item
-   */
-  get model(): string | null {
-    return null;
-  }
-
-  /**
    * index of animation to use for attacks if possible
    */
   get attackAnimationId(): number | null {

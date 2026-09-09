@@ -31,11 +31,8 @@ import { TileMarker } from "../content/TileMarker";
 import { Model } from "./rendering/Model";
 
 import { PlayerAnimationIndices } from "./rendering/GLTFAnimationConstants";
-import { GLTFModel } from "./rendering/GLTFModel";
-import { CacheRender } from "./rendering/CacheRenderBundle";
 import { CacheRenderModel } from "./rendering/CacheRenderModel";
 import { CacheRenderReferences } from "./rendering/CacheRenderReference";
-import { FallbackModel } from "./rendering/FallbackModel";
 import { Trainer } from "./Trainer";
 import { UILayerProjector } from "./Renderable";
 
@@ -978,9 +975,9 @@ export class Player extends Unit {
   }
 
   create3dModel(): Model {
-    // Cache references use explicit OSRS item IDs where available; names remain a legacy fallback.
-    if (CacheRender.isConfigured()) {
-      const reference = CacheRenderReferences.player(
+    return CacheRenderModel.forRenderable(
+      this,
+      CacheRenderReferences.player(
         [
           this.equipment.helmet,
           this.equipment.necklace,
@@ -997,22 +994,7 @@ export class Player extends Unit {
           .filter((e) => !!e)
           .map((e) => e.cacheItemId ?? e.itemName),
         { idle: PlayerAnimationIndices.Idle, walk: PlayerAnimationIndices.Walk, run: PlayerAnimationIndices.Run },
-      );
-      return new FallbackModel(
-        CacheRenderModel.forRenderable(this, reference),
-        GLTFModel.forRenderableMulti(
-          this,
-          Object.values(this.equipment)
-            .map((e) => e?.model)
-            .filter((e) => !!e),
-        ),
-      );
-    }
-    return GLTFModel.forRenderableMulti(
-      this,
-      Object.values(this.equipment)
-        .map((e) => e?.model)
-        .filter((e) => !!e),
+      ),
     );
   }
 

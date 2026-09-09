@@ -52,9 +52,4 @@ export class CrystalHelm extends Helmet {
       },
     };
   }
-
-  Model = Assets.getAssetUrl("models/player_crystal_helm.glb");
-  override get model() {
-    return this.Model;
-  }
 }

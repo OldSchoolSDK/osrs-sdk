@@ -20,10 +20,8 @@ export class SampleRegion extends Region {
     return CardinalDirection.NORTH;
   }
 
-  // The cache-composed scene supplies its own terrain. Keep the legacy
-  // minimap-textured floor available only for the explicit GLB comparison.
   drawDefaultFloor() {
-    return new URLSearchParams(window.location.search).get("static-scene") === "1";
+    return false;
   }
 
   getName() {
@@ -53,9 +51,7 @@ export class SampleRegion extends Region {
     this.addMob(new Manticore(this, { x: 25, y: 24 }));
     this.addMob(new JavelinColossus(this, { x: 28, y: 24 }));
 
-    // The cache scene uses raw region-local tile coordinates. Retain the
-    // legacy GLB anchor only when explicitly requested for comparison.
-    this.addEntity(new SampleScene(this, { x: 0, y: new URLSearchParams(window.location.search).get("static-scene") === "1" ? 48 : 0 }));
+    this.addEntity(new SampleScene(this, { x: 0, y: 0 }));
 
     return { player };
   }

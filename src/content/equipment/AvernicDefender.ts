@@ -48,9 +48,4 @@ export class AvernicDefender extends Offhand {
       },
     };
   }
-
-  Model = Assets.getAssetUrl("models/player_avernic_defender.glb");
-  override get model() {
-    return this.Model;
-  }
 }

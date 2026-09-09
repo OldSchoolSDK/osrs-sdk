@@ -86,10 +86,6 @@ export class NoxiousHalberd extends MeleeWeapon {
     return InventoryImage;
   }
 
-  override get model() {
-    return Assets.getAssetUrl("models/player_noxious_halberd.glb");
-  }
-
   override get attackAnimationId() {
     return PlayerAnimationIndices.ScytheSwing;
   }

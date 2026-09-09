@@ -51,9 +51,4 @@ export class MasoriBodyF extends Chest {
       },
     };
   }
-
-  override get model() {
-    return this.Model;
-  }
-  Model = Assets.getAssetUrl("models/player_masori_body__f_.glb");
 }

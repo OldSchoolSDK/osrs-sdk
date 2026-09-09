@@ -1,10 +1,8 @@
 import {
-  BasicModel,
   CacheRender,
   CacheRenderModel,
   CacheRenderReferences,
   DelayedAction,
-  FallbackModel,
   GraphicsObject,
   Location,
   Mob,
@@ -142,16 +140,10 @@ export class SampleAnimayaNpc extends Mob {
   }
 
   override create3dModel() {
-    if (CacheRender.isConfigured()) {
-      return new FallbackModel(
-        CacheRenderModel.forRenderable(
-          this,
-          CacheRenderReferences.npc(SAMPLE_ASSETS.npcs.solHeredit.id),
-          { frameSoundDelayMs: SOL_FRAME_SOUND_DELAY_MS },
-        ),
-        BasicModel.forRenderable(this),
-      );
-    }
-    return BasicModel.forRenderable(this);
+    return CacheRenderModel.forRenderable(
+      this,
+      CacheRenderReferences.npc(SAMPLE_ASSETS.npcs.solHeredit.id),
+      { frameSoundDelayMs: SOL_FRAME_SOUND_DELAY_MS },
+    );
   }
 }

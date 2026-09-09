@@ -1,4 +1,4 @@
-import { BasicModel, CacheRender, CacheRenderModel, CacheRenderReferences, CollisionType, Entity, FallbackModel, LineOfSightMask, Location, Region } from "../src";
+import { CacheRenderModel, CacheRenderReferences, CollisionType, Entity, LineOfSightMask } from "../src";
 import { SAMPLE_ASSETS } from "./assets";
 
 /** Static pillar object based on InfernoTrainer's pillar entity. */
@@ -33,13 +33,6 @@ export class SampleDummy extends Entity {
   }
 
   override create3dModel() {
-    if (CacheRender.isConfigured()) {
-      return new FallbackModel(
-        // it's an inferno pillar
-        CacheRenderModel.forRenderable(this, CacheRenderReferences.model(SAMPLE_ASSETS.models.infernoPillar.id)),
-        BasicModel.forRenderable(this),
-      );
-    }
-    return BasicModel.forRenderable(this);
+    return CacheRenderModel.forRenderable(this, CacheRenderReferences.model(SAMPLE_ASSETS.models.infernoPillar.id));
   }
 }

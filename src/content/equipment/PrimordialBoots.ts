@@ -48,9 +48,4 @@ export class PrimordialBoots extends Feet {
       },
     };
   }
-
-  Model = Assets.getAssetUrl("models/player_primordial_boots.glb");
-  override get model() {
-    return this.Model;
-  }
 }

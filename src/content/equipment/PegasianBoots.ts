@@ -50,9 +50,4 @@ export class PegasianBoots extends Feet {
       },
     };
   }
-
-  Model = Assets.getAssetUrl("models/player_pegasian_boots.glb");
-  override get model() {
-    return this.Model;
-  }
 }

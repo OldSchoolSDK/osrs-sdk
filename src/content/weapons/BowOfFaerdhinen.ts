@@ -100,11 +100,6 @@ export class BowOfFaerdhinen extends RangedWeapon {
     return from.bonuses.other.crystalDamage || 1;
   }
 
-  Model = Assets.getAssetUrl("models/player_bow_of_faerdhinen.glb");
-  override get model() {
-    return this.Model;
-  }
-
   get attackAnimationId() {
     return PlayerAnimationIndices.FireBow;
   }

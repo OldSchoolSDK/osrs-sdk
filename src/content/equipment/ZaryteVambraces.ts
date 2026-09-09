@@ -50,9 +50,4 @@ export class ZaryteVambraces extends Gloves {
       },
     };
   }
-
-  Model = Assets.getAssetUrl("models/player_zaryte_vambraces.glb");
-  override get model() {
-    return this.Model;
-  }
 }

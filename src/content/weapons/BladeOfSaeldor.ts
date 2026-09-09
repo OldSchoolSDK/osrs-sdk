@@ -82,11 +82,6 @@ export class BladeOfSaeldor extends MeleeWeapon {
     return BladeOfSaeldorImage;
   }
 
-  private Model = Assets.getAssetUrl("models/player_blade_of_saeldor.glb");
-  override get model() {
-    return this.Model;
-  }
-
   override get attackAnimationId() {
     return PlayerAnimationIndices.SwordSlash;
   }

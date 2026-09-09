@@ -48,9 +48,4 @@ export class FerociousGloves extends Gloves {
       },
     };
   }
-
-  Model = Assets.getAssetUrl("models/player_ferocious_gloves.glb");
-  override get model() {
-    return this.Model;
-  }
 }

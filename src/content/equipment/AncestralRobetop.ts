@@ -50,9 +50,4 @@ export class AncestralRobetop extends Chest {
       },
     };
   }
-
-  Model = Assets.getAssetUrl("models/player_ancestral_robe_top.glb");
-  override get model() {
-    return this.Model;
-  }
 }

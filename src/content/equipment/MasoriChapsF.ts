@@ -52,9 +52,4 @@ export class MasoriChapsF extends Legs {
       },
     };
   }
-
-  override get model() {
-    return this.Model;
-  }
-  Model = Assets.getAssetUrl("models/player_masori_chaps__f_.glb");
 }

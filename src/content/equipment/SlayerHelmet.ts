@@ -50,9 +50,4 @@ export class SlayerHelmet extends Helmet {
       },
     };
   }
-
-  Model = Assets.getAssetUrl("models/player_tzkal_slayer_helmet__i_.glb");
-  override get model() {
-    return this.Model;
-  }
 }

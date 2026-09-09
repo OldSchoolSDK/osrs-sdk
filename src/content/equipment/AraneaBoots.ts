@@ -50,9 +50,4 @@ export class AraneaBoots extends Feet {
       },
     };
   }
-
-  Model = Assets.getAssetUrl("models/player_aranea_boots.glb");
-  override get model() {
-    return this.Model;
-  }
 }

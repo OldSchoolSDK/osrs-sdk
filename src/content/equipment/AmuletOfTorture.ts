@@ -48,9 +48,4 @@ export class AmuletOfTorture extends Necklace {
       },
     };
   }
-
-  Model = Assets.getAssetUrl("models/player_amulet_of_torture__or_.glb");
-  override get model() {
-    return this.Model;
-  }
 }

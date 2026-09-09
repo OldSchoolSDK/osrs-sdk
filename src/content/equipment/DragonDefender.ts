@@ -50,9 +50,4 @@ export class DragonDefender extends Offhand {
       },
     };
   }
-
-  Model = Assets.getAssetUrl("models/player_dragon_defender.glb");
-  override get model() {
-    return this.Model;
-  }
 }

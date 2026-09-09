@@ -51,9 +51,4 @@ export class MasoriMaskF extends Helmet {
       },
     };
   }
-
-  override get model() {
-    return this.Model;
-  }
-  Model = Assets.getAssetUrl("models/player_masori_mask__f_.glb");
 }

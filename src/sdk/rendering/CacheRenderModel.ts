@@ -596,9 +596,9 @@ export class CacheRenderModel implements Model, RenderableListener {
   }
   draw(scene: THREE.Scene, clockDelta: number, _tickPercent: number, location: Location3, rotation: number, pitch: number, visible: boolean, modelOffsets: Location3[]) {
     this.ensureLoaded().catch((error) => {
-      // FallbackModel keeps the viewport alive, but do not hide why cache rendering
-      // was skipped (bad URL, integrity failure, or an absent loadout reference).
-      console.error("[osrs-sdk] Cache render preload failed; using GLTF fallback", error);
+      // Keep cache integration failures visible (bad URL, integrity failure, or
+      // an absent render reference).
+      console.error("[osrs-sdk] Cache render preload failed", error);
     });
     this.spotAnimClock += Math.max(0, clockDelta);
     if (this.root.parent !== scene) {

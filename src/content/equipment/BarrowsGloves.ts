@@ -50,9 +50,4 @@ export class BarrowsGloves extends Gloves {
       },
     };
   }
-
-  Model = Assets.getAssetUrl("models/player_barrows_gloves.glb");
-  override get model() {
-    return this.Model;
-  }
 }

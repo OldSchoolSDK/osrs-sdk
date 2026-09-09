@@ -162,10 +162,6 @@ export class ScytheOfVitur extends MeleeWeapon {
     return true;
   }
 
-  override get model() {
-    return Assets.getAssetUrl("models/player_sanguine_scythe_of_vitur.glb");
-  }
-
   override get attackAnimationId() {
     return PlayerAnimationIndices.ScytheSwing;
   }

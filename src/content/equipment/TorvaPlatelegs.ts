@@ -48,8 +48,4 @@ export class TorvaPlatelegs extends Legs {
       },
     };
   }
-
-  override get model() {
-    return Assets.getAssetUrl("models/player_sanguine_torva_platelegs.glb");
-  }
 }

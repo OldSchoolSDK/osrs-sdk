@@ -53,9 +53,4 @@ export class CrystalLegs extends Legs {
       },
     };
   }
-
-  Model = Assets.getAssetUrl("models/player_crystal_legs.glb");
-  override get model() {
-    return this.Model;
-  }
 }

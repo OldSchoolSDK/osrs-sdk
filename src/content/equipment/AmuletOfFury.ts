@@ -50,9 +50,4 @@ export class AmuletOfFury extends Necklace {
       },
     };
   }
-
-  Model = Assets.getAssetUrl("models/player_amulet_of_fury.glb");
-  override get model() {
-    return this.Model;
-  }
 }
