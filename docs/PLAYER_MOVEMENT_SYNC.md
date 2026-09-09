@@ -15,7 +15,7 @@ At the default settings, server ticks are 600 ms apart and client ticks are 20
 ms apart:
 
 1. The server tick updates `location` by one tile when walking, or two tiles
-   when running, and appends the corresponding visual steps to `path`.
+   when running, and appends the corresponding visual steps to `visualPath`.
 2. Client ticks consume that queue at one tile per 30 client ticks while
    walking, and two tiles per 30 client ticks while running. If the visual
    queue grows beyond two or three tiles, bounded 1.5x/2x catch-up rates drain

@@ -7,6 +7,7 @@ import { BasePrayer } from "./BasePrayer";
 import { Projectile } from "./weapons/Projectile";
 import { XpDrop } from "./XpDrop";
 import { Location } from "./Location";
+import { Interpolation, QueuedPathStep } from "./Interpolation";
 import { Pathing } from "./Pathing";
 import { ImageLoader } from "./utils/ImageLoader";
 import { Weapon } from "./gear/Weapon";
@@ -106,6 +107,8 @@ export abstract class Unit extends Renderable {
   prayerController: PrayerController;
   aggro?: Unit;
   perceivedLocation: Location;
+  // TODO: Match the real client's maximum actor path queue length.
+  visualPath: QueuedPathStep[] = [];
   attackDelay = 0;
   lastHitAgo = Number.MAX_SAFE_INTEGER;
   hasLOS = false;
@@ -281,6 +284,18 @@ export abstract class Unit extends Renderable {
 
   movementStep() {
     // Override me
+  }
+
+  /** Advance and consume the next step in this unit's client-side visual path. */
+  protected advanceVisualPath(baseMovementSpeed: number, movementSpeed = baseMovementSpeed) {
+    const interpolation = Interpolation.resolvePath(
+      this.perceivedLocation,
+      this.visualPath,
+      baseMovementSpeed,
+      movementSpeed,
+    );
+    this.perceivedLocation = interpolation.location;
+    return interpolation.reachedStep ? this.visualPath.shift() ?? null : null;
   }
 
   attackStep() {

@@ -10,7 +10,6 @@ import { AmmoType } from "./gear/Ammo";
 import { AttackBonuses, Weapon } from "./gear/Weapon";
 import { Item } from "./Item";
 import { ItemName } from "./ItemName";
-import { Interpolation, QueuedPathStep } from "./Interpolation";
 import { LineOfSight } from "./LineOfSight";
 import { Location } from "./Location";
 import { Mob } from "./Mob";
@@ -82,9 +81,6 @@ export class Player extends Unit {
   inventory: Item[];
 
   seekingItem: Item = null;
-
-  // TODO: Match the real client's maximum actor path queue length.
-  path: QueuedPathStep[] = [];
 
   clickMarker: ClickMarker | null = null;
   aggroMarker: ClickMarker | null = null;
@@ -258,7 +254,7 @@ export class Player extends Unit {
     });
     this.setEffects = completeSetEffects;
 
-    if (this.path.length === 0) {
+    if (this.visualPath.length === 0) {
       this.currentPoseAnimation = this.getIdlePoseId();
     }
     this.invalidateModel();
@@ -553,11 +549,11 @@ export class Player extends Unit {
     if (Math.abs(angleDelta) <= ROTATION_RADIANS_PER_CLIENT_TICK) this._angle = this.nextAngle;
     else this._angle += Math.sign(angleDelta) * ROTATION_RADIANS_PER_CLIENT_TICK;
 
-    if (this.path.length === 0) {
+    if (this.visualPath.length === 0) {
       this.currentPoseAnimation = this.getIdlePoseId();
       return;
     }
-    const { x: nextX, y: nextY, run } = this.path[0];
+    const { x: nextX, y: nextY, run } = this.visualPath[0];
     if (this.perceivedLocation.x !== nextX || this.perceivedLocation.y !== nextY) {
       this.lastTravelAngle = -Pathing.angle(this.perceivedLocation.x, this.perceivedLocation.y, nextX, nextY);
     }
@@ -569,7 +565,7 @@ export class Player extends Unit {
 
     const canRotate = true;
     if (currentAngle !== this.nextAngle && canRotate) {
-      if (ENABLE_POSITION_DEBUG) console.log("must rotate", this.path.length, run);
+      if (ENABLE_POSITION_DEBUG) console.log("must rotate", this.visualPath.length, run);
       movementSpeed = baseMovementSpeed / 2;
       const lateralThreshold = (Math.PI * 3) / 8;
       if (angleDelta >= lateralThreshold && angleDelta < (Math.PI * 3) / 4) {
@@ -583,22 +579,15 @@ export class Player extends Unit {
     if (this.currentPoseAnimation === PlayerAnimationIndices.Walk && run) {
       this.currentPoseAnimation = PlayerAnimationIndices.Run;
     }
-    const interpolation = Interpolation.resolvePath(
-      this.perceivedLocation,
-      this.path,
-      baseMovementSpeed,
-      movementSpeed,
-    );
     this.renderFromLocation = { ...this.perceivedLocation };
-    this.perceivedLocation = interpolation.location;
+    const reachedStep = this.advanceVisualPath(baseMovementSpeed, movementSpeed);
     this.renderPositionTimestamp = tickTimestamp;
-    if (interpolation.reachedStep) {
-      this.path.shift();
+    if (reachedStep) {
       if (ENABLE_POSITION_DEBUG) {
         const headTile = this.pathMarkers.shift();
         this.region.removeEntity(headTile);
       }
-      if (this.path.length === 0) {
+      if (this.visualPath.length === 0) {
         this.currentPoseAnimation = this.getIdlePoseId();
         this.restingAngle = this.lastTravelAngle;
         if (!this.aggro) this.nextAngle = this.restingAngle;
@@ -692,8 +681,8 @@ export class Player extends Unit {
     // Walking advances one authoritative tile per server tick; running may
     // advance two. Do not enqueue the second look-ahead tile for a walker or
     // the visual queue grows faster than the true tile and falls behind.
-    const visualPath = path.slice(0, this.running ? 2 : 1);
-    const newTiles = visualPath.map((pos) => ({
+    const visualSteps = path.slice(0, this.running ? 2 : 1);
+    const newTiles = visualSteps.map((pos) => ({
       ...pos,
       run: this.running && path.length >= 2,
     }));
@@ -704,7 +693,7 @@ export class Player extends Unit {
         this.region.addEntity(marker);
       });
     }
-    this.path.push(...newTiles);
+    this.visualPath.push(...newTiles);
     this.nextAngle = this.getTargetAngle();
   }
 
@@ -770,8 +759,13 @@ export class Player extends Unit {
       );
       return -angle;
     }
-    if (this.path.length > 0) {
-      const angle = Pathing.angle(this.perceivedLocation.x, this.perceivedLocation.y, this.path[0].x, this.path[0].y);
+    if (this.visualPath.length > 0) {
+      const angle = Pathing.angle(
+        this.perceivedLocation.x,
+        this.perceivedLocation.y,
+        this.visualPath[0].x,
+        this.visualPath[0].y,
+      );
       return -angle;
     }
     return this.restingAngle;

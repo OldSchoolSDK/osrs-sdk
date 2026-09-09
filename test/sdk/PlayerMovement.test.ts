@@ -8,15 +8,15 @@ import { Mob } from "../../src/sdk/Mob";
 test("walking consumes a tile after one 600 ms server tick (30 client steps)", () => {
   const region = new TestRegion(10, 10);
   const player = new Player(region, { x: 2, y: 2 });
-  player.path = [{ x: 3, y: 2, run: false }];
+  player.visualPath = [{ x: 3, y: 2, run: false }];
 
   for (let cycle = 1; cycle < 30; cycle++) player.clientTick(0, cycle * 20);
   expect(player.perceivedLocation.x).toBeCloseTo(2 + 29 / 30);
-  expect(player.path).toHaveLength(1);
+  expect(player.visualPath).toHaveLength(1);
 
   player.clientTick(0, 30 * 20);
   expect(player.perceivedLocation).toEqual({ x: 3, y: 2 });
-  expect(player.path).toHaveLength(0);
+  expect(player.visualPath).toHaveLength(0);
 });
 
 test("running keeps both straight-line tile steps in the visual queue", () => {
@@ -28,7 +28,7 @@ test("running keeps both straight-line tile steps in the visual queue", () => {
   player.moveTowardsDestination();
 
   expect(player.location).toEqual({ x: 4, y: 2 });
-  expect(player.path.map(({ x, y }) => ({ x, y }))).toEqual([{ x: 3, y: 2 }, { x: 4, y: 2 }]);
+  expect(player.visualPath.map(({ x, y }) => ({ x, y }))).toEqual([{ x: 3, y: 2 }, { x: 4, y: 2 }]);
 });
 
 test("walking enqueues only the authoritative one-tile step", () => {
@@ -40,18 +40,18 @@ test("walking enqueues only the authoritative one-tile step", () => {
   player.moveTowardsDestination();
 
   expect(player.location).toEqual({ x: 3, y: 2 });
-  expect(player.path.map(({ x, y }) => ({ x, y }))).toEqual([{ x: 3, y: 2 }]);
+  expect(player.visualPath.map(({ x, y }) => ({ x, y }))).toEqual([{ x: 3, y: 2 }]);
 });
 
 test("snaps visual movement across a path discontinuity larger than two tiles", () => {
   const region = new TestRegion(20, 20);
   const player = new Player(region, { x: 2, y: 2 });
-  player.path = [{ x: 6, y: 2, run: false }];
+  player.visualPath = [{ x: 6, y: 2, run: false }];
 
   player.clientTick(0, 20);
 
   expect(player.perceivedLocation).toEqual({ x: 6, y: 2 });
-  expect(player.path).toHaveLength(0);
+  expect(player.visualPath).toHaveLength(0);
 });
 
 test.each([
@@ -61,7 +61,7 @@ test.each([
 ])("selects the directional movement pose for heading delta %p", (heading, expectedPose) => {
   const region = new TestRegion(20, 20);
   const player = new Player(region, { x: 2, y: 2 });
-  player.path = [{ x: 3, y: 2, run: false }];
+  player.visualPath = [{ x: 3, y: 2, run: false }];
   (player as any).nextAngle = heading;
 
   player.clientTick(0, 20);
@@ -75,11 +75,11 @@ test("returns to idle when the visual path is empty", () => {
   player.running = false;
   player.location = { x: 3, y: 2 };
   player.destinationLocation = { x: 5, y: 2 };
-  player.path = [{ x: 3, y: 2, run: false }];
+  player.visualPath = [{ x: 3, y: 2, run: false }];
 
   for (let cycle = 1; cycle <= 32; cycle++) player.clientTick(0, cycle * 20);
 
-  expect(player.path).toHaveLength(0);
+  expect(player.visualPath).toHaveLength(0);
   expect(player.currentPoseAnimation).toBe(PlayerAnimationIndices.Idle);
 });
 
@@ -91,7 +91,7 @@ test.each([
   const player = new Player(region, { x: 2, y: 2 });
   player.running = false;
   player.destinationLocation = { x: heading === 0 ? 8 : -4, y: 2 };
-  player.path = [
+  player.visualPath = [
     { x: heading === 0 ? 3 : 1, y: 2, run: false },
     { x: heading === 0 ? 4 : 0, y: 2, run: false },
     { x: heading === 0 ? 5 : -1, y: 2, run: false },
@@ -115,7 +115,7 @@ test("keeps walking displacement constant in a normal visual path buffer", () =>
   const region = new TestRegion(20, 20);
   const player = new Player(region, { x: 2, y: 2 });
   player.destinationLocation = { x: 8, y: 2 };
-  player.path = [
+  player.visualPath = [
     { x: 3, y: 2, run: false },
     { x: 4, y: 2, run: false },
   ];
@@ -127,7 +127,7 @@ test("keeps walking displacement constant in a normal visual path buffer", () =>
   for (let cycle = 1; cycle <= 50; cycle++) {
     player.clientTick(0, cycle * 20);
     const current = player.perceivedLocation.x;
-    if (current !== previous && player.path.length > 0) deltas.push(current - previous);
+    if (current !== previous && player.visualPath.length > 0) deltas.push(current - previous);
     previous = current;
   }
 
@@ -139,7 +139,7 @@ test("uses bounded catch-up speed when the visual queue grows", () => {
   const region = new TestRegion(30, 30);
   const player = new Player(region, { x: 2, y: 2 });
   player.destinationLocation = { x: 20, y: 2 };
-  player.path = [
+  player.visualPath = [
     { x: 3, y: 2, run: false },
     { x: 4, y: 2, run: false },
     { x: 5, y: 2, run: false },
@@ -159,7 +159,7 @@ test("keeps diagonal running continuous across visual waypoints", () => {
   const player = new Player(region, { x: 2, y: 2 });
   player.running = true;
   player.destinationLocation = { x: 8, y: 8 };
-  player.path = [{ x: 3, y: 3, run: true }, { x: 4, y: 4, run: true }];
+  player.visualPath = [{ x: 3, y: 3, run: true }, { x: 4, y: 4, run: true }];
   const heading = -Math.PI / 4;
   (player as any)._angle = heading;
   (player as any).nextAngle = heading;
@@ -204,7 +204,7 @@ test("does not downgrade a running step to walk during a small-angle turn", () =
   const region = new TestRegion(20, 20);
   const player = new Player(region, { x: 2, y: 2 });
   player.running = true;
-  player.path = [{ x: 3, y: 3, run: true }];
+  player.visualPath = [{ x: 3, y: 3, run: true }];
   // Small enough to remain a forward movement pose, but large enough to
   // trigger the reference turn slowdown.
   (player as any)._angle = 0;
@@ -284,7 +284,7 @@ test("uses the final path segment rather than a transient turn target for restin
   player.running = false;
   player.location = { x: 4, y: 5 };
   player.destinationLocation = { x: 4, y: 5 };
-  player.path = [{ x: 4, y: 5, run: false }];
+  player.visualPath = [{ x: 4, y: 5, run: false }];
   // Simulate nextAngle having been overwritten during a server/visual queue
   // boundary. Zero is the old east-facing fallback.
   (player as any).nextAngle = 0;
