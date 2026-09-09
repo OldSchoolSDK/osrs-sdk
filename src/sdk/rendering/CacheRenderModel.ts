@@ -15,6 +15,8 @@ import { AnimationFrameSoundPlayer, preloadAnimationFrameSounds } from "./Animat
 // sequences continue to use the extracted baked-frame fallback.
 const ENABLE_CACHE_RENDER_ANIMATIONS = true;
 const DRAW_CLICKBOX_DEBUG = false;
+const DRAW_CACHE_MODEL_WIREFRAME = false;
+
 type RawFrame = CacheRenderRawFrame;
 type AnimationPayload = CacheRenderAnimation;
 type TexturePayload = CacheRenderTexture;
@@ -447,16 +449,16 @@ export class CacheRenderModel implements Model, RenderableListener {
       geometry.computeVertexNormals();
       geometry.computeBoundingSphere();
       // Cache payload colours already contain the game client's model lighting.
-      const materials: THREE.Material[] = [new THREE.MeshBasicMaterial({ color: payload.color ?? 0xffffff, vertexColors: Boolean(payload.colors?.length) })];
-      if (hasVertexAlpha) enableVertexAlpha(materials[0]);
+      const materials: THREE.Material[] = [new THREE.MeshBasicMaterial({ color: payload.color ?? 0xffffff, vertexColors: Boolean(payload.colors?.length), wireframe: DRAW_CACHE_MODEL_WIREFRAME })];
+      if (hasVertexAlpha && !DRAW_CACHE_MODEL_WIREFRAME) enableVertexAlpha(materials[0]);
       const textureMaterial = new Map<number, number>();
       Object.entries(payload.textures ?? {}).forEach(([id, texture]) => {
         const rgba = new Uint8Array(texture.pixels.length * 4);
         texture.pixels.forEach((pixel, index) => { const value = pixel >>> 0; rgba[index * 4] = value >> 16 & 255; rgba[index * 4 + 1] = value >> 8 & 255; rgba[index * 4 + 2] = value & 255; rgba[index * 4 + 3] = value >> 24 & 255; });
         const image = new THREE.DataTexture(rgba, texture.width, texture.height, THREE.RGBAFormat); image.flipY = false; image.needsUpdate = true;
         textureMaterial.set(Number(id), materials.length);
-        const textureMaterialInstance = new THREE.MeshBasicMaterial({ map: image, vertexColors: Boolean(payload.colors?.length) });
-        if (hasVertexAlpha) enableVertexAlpha(textureMaterialInstance);
+        const textureMaterialInstance = new THREE.MeshBasicMaterial({ map: image, vertexColors: Boolean(payload.colors?.length), wireframe: DRAW_CACHE_MODEL_WIREFRAME });
+        if (hasVertexAlpha && !DRAW_CACHE_MODEL_WIREFRAME) enableVertexAlpha(textureMaterialInstance);
         materials.push(textureMaterialInstance);
       });
       if (payload.textureIds?.length) {
@@ -538,7 +540,7 @@ export class CacheRenderModel implements Model, RenderableListener {
         }
         geometry.setIndex(spotPayload.indices ?? []);
         geometry.computeVertexNormals();
-        const effect = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: spotPayload.color ?? 0xffffff, vertexColors: Boolean(spotPayload.colors?.length), transparent: true }));
+        const effect = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: spotPayload.color ?? 0xffffff, vertexColors: Boolean(spotPayload.colors?.length), transparent: true, wireframe: DRAW_CACHE_MODEL_WIREFRAME }));
         const metadata = spotPayload.spotAnim ?? {};
         const placement = this.activeSpotAnims[0];
         effect.userData.spotAnimId = metadata.id;
