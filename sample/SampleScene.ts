@@ -10,6 +10,8 @@ export const SampleSceneModel = Assets.getAssetUrl("models/scene-v3.glb");
 // only as an explicit visual-regression baseline; never draw both scenes.
 const useStaticScene = new URLSearchParams(window.location.search).get("static-scene") === "1";
 
+const useInferno = false;
+
 export class SampleScene extends Entity {
   get collisionType() {
     return CollisionType.NONE;
@@ -36,7 +38,12 @@ export class SampleScene extends Entity {
   }
 
   create3dModel(): Model {
-    if (!useStaticScene) return new CacheRenderSceneModel(`region:${SAMPLE_ASSETS.regions.inferno.id}`);
+    if (!useStaticScene) {
+      if (useInferno) {
+      return new CacheRenderSceneModel(`region:${SAMPLE_ASSETS.regions.inferno.id}`);
+      }
+      return new CacheRenderSceneModel(`region:${SAMPLE_ASSETS.regions.colosseum.id}`, { elevation: -7.5 });
+    }
     return new GLTFModel(this, [SampleSceneModel], { scale: 1, verticalOffset: -2.5, originOffset: {
       x: -6.5,
       y: 12.5,
