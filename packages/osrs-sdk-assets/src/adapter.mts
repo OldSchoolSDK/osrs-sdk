@@ -15,10 +15,9 @@ export async function decodeAllAssets(options) {
 function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
   const itemKey = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-  // The SDK's unlit Three.js materials expect the cache palette's established
-  // 0.6 gamma adjustment. Tile brightness is applied to packed HSL beforehand;
-  // it is not this final RGB conversion.
-  function hslRgb(hsl, brightness = 0.6) {
+  // The game client's default brightness is applied when its HSL palette is built.
+  // Model lighting adjusts packed HSL before this final RGB conversion.
+  function hslRgb(hsl, brightness = 0.8) {
     const hue = ((hsl >> 10) & 63) / 64 + 0.5 / 64,
       saturation = ((hsl >> 7) & 7) / 8 + 0.5 / 8,
       luminance = (hsl & 127) / 128;
@@ -79,11 +78,17 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
     return (hsl & 65408) + luminance;
   }
 
+  function modelRenderType(model, face) {
+    const renderType = model.faceRenderTypes?.[face];
+    // Models without an authored render type use smooth vertex lighting.
+    return renderType == null || renderType < 0 ? 0 : renderType;
+  }
+
   function effectiveRenderType(model, face) {
     const alpha = model.faceAlphas?.[face] ?? 0;
     if (alpha === -2) return 3;
     if (alpha === -1) return 2;
-    return model.faceRenderTypes?.[face] ?? 0;
+    return modelRenderType(model, face);
   }
 
   function modelLighting(model, lighting) {
@@ -110,7 +115,7 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
       }
       const length = Math.max(1, Math.floor(Math.hypot(x, y, z)));
       const normal = { x: Math.trunc(x * 256 / length), y: Math.trunc(y * 256 / length), z: Math.trunc(z * 256 / length) };
-      const renderType = model.faceRenderTypes?.[face] ?? 0;
+      const renderType = modelRenderType(model, face);
       if (renderType === 1) faceNormals[face] = normal;
       else if (renderType === 0) {
         for (const vertex of [a, b, c]) {
