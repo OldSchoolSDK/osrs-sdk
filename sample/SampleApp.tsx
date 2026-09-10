@@ -110,7 +110,20 @@ function createTrainer() {
   };
   const regionName = window.location.pathname.split("/").pop() ?? "index.html";
   const region = regions[regionName] ?? regions["index.html"];
-  return new TrainerInstance(region, { readyTimer: 6 });
+  const trainer = new TrainerInstance(region, { readyTimer: 6 });
+  // Temporary internal flag to make the manticore aggressive, for automated visual testing of its spotanim
+  if (new URLSearchParams(window.location.search).get("visual-harness") === "1") {
+    (window as Window & { __OSRS_VISUAL_HARNESS__?: unknown }).__OSRS_VISUAL_HARNESS__ = {
+      trainer,
+      startManticoreAttack() {
+        const player = trainer.getSnapshot().player;
+        const manticore = trainer.region.mobs.find((mob) => mob.mobName() === "Manticore");
+        if (!player || !manticore) throw new Error("Manticore scenario is not initialised");
+        manticore.setAggro(player);
+      },
+    };
+  }
+  return trainer;
 }
 
 function SampleSidebarContents({ onLoadoutToggle }: { onLoadoutToggle: () => void }) {
