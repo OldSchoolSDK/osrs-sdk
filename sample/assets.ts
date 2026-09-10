@@ -45,6 +45,7 @@ export const SAMPLE_ASSETS = {
     solWallB: { id: 50964, animations: { idle: 7508 } },
   },
   spotAnims: {
+    javelinColossusProjectile: { id: 2673 },
     solTripleAttackLong: { id: 2667 },
     solTripleAttackShort: { id: 2668 },
     solDust: { id: 2669 },
@@ -76,6 +77,11 @@ export const SAMPLE_ASSETS = {
     infernoLavaRectangle: { id: 30291 },
   },
   sounds: {
+    manticoreTripleThrowProjectile01: { id: 8382 },
+    javelinColossusAttack: { id: 8348 },
+    manticoreProjectile01: { id: 8406 },
+    manticoreProjectile02: { id: 8400 },
+    manticoreProjectile03: { id: 8383 },
     solSpearStart: { id: 8147 },
     solShieldStart: { id: 8150 },
     solShieldEnd: { id: 8145 },

@@ -258,6 +258,8 @@ export type CacheRenderModelOptions = {
    * as projectile models share the actor/model cache basis.
    */
   basisRotation?: number;
+  /** Repeat spotanim sequences for the lifetime of the owning renderable. */
+  loopSpotAnims?: boolean;
 };
 
 /** Three.js implementation for decoded cache geometry. Cache extraction owns the conversion from OSRS frames to this payload. */
@@ -770,12 +772,13 @@ export class CacheRenderModel implements Model, RenderableListener {
         const placementStart = placement == null ? this.spotAnimClock : this.spotAnimStarts.get(spotAnimChannel(placement)) ?? this.spotAnimClock;
         const effectTime = this.spotAnimClock - placementStart - delay / 50;
         const activationAnimation = placement?.animation == null ? true : (this.poseMap[String(placement.animation)] ?? placement.animation) === this.activeAnimation;
-        // Attached spotanims are one-shot graphics. Ground effects often live
-        // for several ticks, so wrapping with `% total` would replay the
-        // graphic before the entity is destroyed.
+        // Attached spotanims are normally one-shot graphics. Projectile
+        // spotanims repeat until their owning ProjectileGraphic is destroyed.
         const total = animation?.lengths.reduce((sum, length) => sum + length, 0) / 50 || 0;
         const hasFrames = Boolean(animation?.frames.length || animation?.rawFrames?.length || animation?.mayaFrames?.length);
-        spot.mesh.visible = activationAnimation && Boolean(placement) && effectTime >= 0 && effectTime < total && hasFrames;
+        const looping = this.options.loopSpotAnims === true;
+        spot.mesh.visible = activationAnimation && Boolean(placement) && effectTime >= 0
+          && (looping ? total > 0 : effectTime < total) && hasFrames;
         const spotAnimationId = spot.animationId ?? -1;
         let spotSoundPlayer = this.spotFrameSoundPlayers.get(spotAnimationId);
         if (!spotSoundPlayer) {
@@ -783,6 +786,7 @@ export class CacheRenderModel implements Model, RenderableListener {
           this.spotFrameSoundPlayers.set(spotAnimationId, spotSoundPlayer);
         }
         if (
+          !looping &&
           this.reference.kind === "spotAnim" &&
           !this.spotAnimCompletionNotified &&
           effectTime >= 0 &&
@@ -795,11 +799,14 @@ export class CacheRenderModel implements Model, RenderableListener {
           spotSoundPlayer.reset();
           continue;
         }
-        spotSoundPlayer.advance(spotAnimationId, animation, effectTime, false, soundLocation);
-        const time = Math.max(0, Math.min(effectTime, Math.max(0, total - 1e-6)));
+        spotSoundPlayer.advance(spotAnimationId, animation, effectTime, looping, soundLocation);
+        const time = looping
+          ? effectTime % total
+          : Math.max(0, Math.min(effectTime, Math.max(0, total - 1e-6)));
         let elapsed = 0, frame = 0;
         for (; frame < animation.lengths.length - 1 && time >= elapsed + animation.lengths[frame] / 50; frame++) elapsed += animation.lengths[frame] / 50;
-        const next = Math.min(frame + 1, animation.frames.length - 1);
+        const frameCount = animation.mayaFrames?.length || animation.rawFrames?.length || animation.frames.length;
+        const next = looping ? (frame + 1) % frameCount : Math.min(frame + 1, frameCount - 1);
         const blend = animation.lengths[frame] ? Math.min(1, (time - elapsed) / (animation.lengths[frame] / 50)) : 0;
         const transformed = new Float32Array(spot.basePositions);
         const alphaValues = new Float32Array(spot.baseAlphas);

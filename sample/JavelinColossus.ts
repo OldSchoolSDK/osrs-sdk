@@ -5,6 +5,8 @@ import { Mob } from "../src/sdk/Mob";
 import { Model } from "../src/sdk/rendering/Model";
 import { RangedWeapon } from "../src/sdk/weapons/RangedWeapon";
 import { UnitBonuses } from "../src/sdk/Unit";
+import { cacheSound } from "../src/sdk/audio/CacheSoundEffects";
+import { Sound } from "../src/sdk/utils/SoundCache";
 
 /** Semantic pose indices mapped to the cache sequences extracted for NPC 12817. */
 export enum JavelinColossusAnimations {
@@ -28,7 +30,15 @@ export class JavelinColossus extends Mob {
   }
 
   override setStats() {
-    this.weapons = { range: new RangedWeapon() };
+    this.weapons = {
+      range: new RangedWeapon({
+        reduceDelay: -2, // land at least 2 ticks later
+        visuals: {
+          startCycleOffset: 60,
+          spotAnim: { id: SAMPLE_ASSETS.spotAnims.javelinColossusProjectile.id },
+          projectileSound: new Sound(cacheSound(SAMPLE_ASSETS.sounds.javelinColossusAttack.id), 0.05) },
+      }),
+    };
     this.stats = {
       attack: 220,
       strength: 200,

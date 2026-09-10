@@ -1,4 +1,5 @@
 import { DelayedAction } from "../../sdk/DelayedAction";
+import { cacheSound } from "../../sdk/audio/CacheSoundEffects";
 import { Mob } from "../../sdk/Mob";
 import { UILayerProjector } from "../../sdk/Renderable";
 import { UnitBonuses } from "../../sdk/Unit";
@@ -8,6 +9,7 @@ import { Model } from "../../sdk/rendering/Model";
 import { MagicWeapon } from "../../sdk/weapons/MagicWeapon";
 import { MeleeWeapon } from "../../sdk/weapons/MeleeWeapon";
 import { RangedWeapon } from "../../sdk/weapons/RangedWeapon";
+import { Sound } from "../../sdk/utils/SoundCache";
 
 
 /** Semantic pose indices mapped to the cache sequences extracted for NPC 12818. */
@@ -31,6 +33,14 @@ const ORB_TO_SPOTANIM = {
   [Orbs.Melee]: 2685,
 };
 
+// dunno if these change
+const TRIPLE_THROW_PROJECTILE_SOUND = 8382;
+const ORB_TO_PROJECTILE_SOUND = {
+  [Orbs.Range]: 8382,
+  [Orbs.Mage]: 8382,
+  [Orbs.Melee]: 8382,
+};
+
 const ORB_HEIGHT_1 = 7;
 const ORB_HEIGHT_2 = 9;
 const ORB_HEIGHT_3 = 11;
@@ -41,7 +51,8 @@ const PROJECTILE_FLIGHT_CLIENT_CYCLES = 30;
  *
  * This is a reference implementation of the Manticore's combat and visuals.
  * Consumers are responsible for declaring NPC 12818, its sequences, and the
- * three orb spotanims in their own cache asset manifest.
+ * three orb spotanims, and projectile sounds 8406, 8400, and 8383 in their
+ * own cache asset manifest.
  */
 export class Manticore extends Mob {
   static readonly NPC_ID = 12818;
@@ -250,6 +261,7 @@ export class Manticore extends Mob {
         setDelay: 2,
         visuals: {
           spotAnim: { id: spotAnimId },
+          projectileSound: new Sound(cacheSound(ORB_TO_PROJECTILE_SOUND[orb]), 0.1),
           // Every orb visually reaches its target one game tick after launch,
           // regardless of the distance-derived combat hit delay.
           endCycleOffset: PROJECTILE_FLIGHT_CLIENT_CYCLES,

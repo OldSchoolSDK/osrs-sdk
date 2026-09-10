@@ -376,7 +376,7 @@ export class ProjectileGraphic extends Renderable {
       return CacheRenderModel.forRenderable(
         this,
         CacheRenderReferences.spotAnim([spotAnim]),
-        { basisRotation: Math.PI / 2 },
+        { basisRotation: Math.PI / 2, loopSpotAnims: true },
       );
     }
     if (options.model) return GLTFModel.forRenderable(this, options.model, { scale: options.modelScale });
