@@ -191,7 +191,13 @@ export class Mob extends Unit {
         ),
         Boolean,
       );
-      const both = xSpace && ySpace;
+      // The client allows NPCs larger than one tile to cut a diagonal corner
+      // as long as their destination footprint is clear. Only 1x1 NPCs must
+      // also be able to occupy both adjacent cardinal tiles.
+      const movingDiagonally = xOff !== 0 && yOff !== 0;
+      const both = movingDiagonally && this.size > 1
+        ? Pathing.canTileBePathedTo(this.region, dx, dy, this.size, this.consumesSpace as Mob)
+        : xSpace && ySpace;
 
       // if (this.mobName() === EntityName.JAL_AK){
       //   this.tcc =  xTiles; //xTiles.concat(yTiles);
