@@ -1,14 +1,13 @@
-import { SAMPLE_ASSETS } from "./assets";
-import { CacheRenderModel } from "../src/sdk/rendering/CacheRenderModel";
-import { CacheRenderReferences } from "../src/sdk/rendering/CacheRenderReference";
-import { MagicWeapon } from "../src/sdk/weapons/MagicWeapon";
-import { MeleeWeapon } from "../src/sdk/weapons/MeleeWeapon";
-import { RangedWeapon } from "../src/sdk/weapons/RangedWeapon";
-import { Mob } from "../src/sdk/Mob";
-import { Model } from "../src/sdk/rendering/Model";
-import { UnitBonuses } from "../src/sdk/Unit";
-import { DelayedAction, UILayerProjector } from "osrs-sdk";
-import { Projectile } from "../src/sdk/weapons/Projectile";
+import { DelayedAction } from "../../sdk/DelayedAction";
+import { Mob } from "../../sdk/Mob";
+import { UILayerProjector } from "../../sdk/Renderable";
+import { UnitBonuses } from "../../sdk/Unit";
+import { CacheRenderModel } from "../../sdk/rendering/CacheRenderModel";
+import { CacheRenderReferences } from "../../sdk/rendering/CacheRenderReference";
+import { Model } from "../../sdk/rendering/Model";
+import { MagicWeapon } from "../../sdk/weapons/MagicWeapon";
+import { MeleeWeapon } from "../../sdk/weapons/MeleeWeapon";
+import { RangedWeapon } from "../../sdk/weapons/RangedWeapon";
 
 
 /** Semantic pose indices mapped to the cache sequences extracted for NPC 12818. */
@@ -27,9 +26,9 @@ enum Orbs {
 };
 
 const ORB_TO_SPOTANIM = {
-  [Orbs.Range]: SAMPLE_ASSETS.spotAnims.rangeOrb.id,
-  [Orbs.Mage]: SAMPLE_ASSETS.spotAnims.mageOrb.id,
-  [Orbs.Melee]: SAMPLE_ASSETS.spotAnims.meleeOrb.id,
+  [Orbs.Range]: 2683,
+  [Orbs.Mage]: 2681,
+  [Orbs.Melee]: 2685,
 };
 
 const ORB_HEIGHT_1 = 7;
@@ -38,14 +37,14 @@ const ORB_HEIGHT_3 = 11;
 const PROJECTILE_FLIGHT_CLIENT_CYCLES = 30;
 
 /**
- * The Fortis manticore (NPC definition 12818).
+ * The Fortis Colosseum manticore (NPC definition 12818).
  *
- * The combat values mirror the OSRS Wiki definition. Its special triple-hit
- * attack is encounter-specific; this base NPC exposes all three attack styles
- * so encounters can choose the appropriate one when implementing that cycle.
+ * This is a reference implementation of the Manticore's combat and visuals.
+ * Consumers are responsible for declaring NPC 12818, its sequences, and the
+ * three orb spotanims in their own cache asset manifest.
  */
 export class Manticore extends Mob {
-  static readonly NPC_ID = SAMPLE_ASSETS.npcs.manticore.id;
+  static readonly NPC_ID = 12818;
 
   private attackStyles: Orbs[] | null = null;
 

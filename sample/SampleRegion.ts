@@ -1,5 +1,6 @@
 import {
   CardinalDirection,
+  Manticore,
   Player,
   Region,
 } from "../src";
@@ -8,7 +9,6 @@ import { SampleNpc } from "./SampleNpc";
 import { SampleDummy } from "./SampleDummy";
 import { SampleAnimayaNpc } from "./SampleAnimayaNpc";
 import { SampleScene } from "./SampleScene";
-import { Manticore } from "./Manticore";
 import { JavelinColossus } from "./JavelinColossus";
 
 export class SampleRegion extends Region {
