@@ -33,7 +33,7 @@ function RenderFpsControl() {
         <input
           id="displayClickboxes"
           type="checkbox"
-          checked={settings.displayClickboxes}
+          checked={settings.displayClickboxes ?? false}
           onChange={(event) => Settings.set({ displayClickboxes: event.currentTarget.checked })}
         />
         Display clickboxes

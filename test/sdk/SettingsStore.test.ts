@@ -58,6 +58,18 @@ describe("Settings legacy migration", () => {
     expect(Settings.smoothCacheAnimations).toBe(false);
     expect(Settings.getSnapshot().renderFps).toBe(120);
   });
+
+  it("can toggle clickbox rendering on and off", () => {
+    Settings.readFromStorage();
+
+    Settings.set({ displayClickboxes: true });
+    expect(Settings.displayClickboxes).toBe(true);
+    expect(Settings.getSnapshot().displayClickboxes).toBe(true);
+
+    Settings.set({ displayClickboxes: false });
+    expect(Settings.displayClickboxes).toBe(false);
+    expect(Settings.getSnapshot().displayClickboxes).toBe(false);
+  });
 });
 
 describe("SettingsStore", () => {
@@ -92,5 +104,16 @@ describe("SettingsStore", () => {
 
     expect(effect).toHaveBeenCalledTimes(2);
     expect(effect).toHaveBeenLastCalledWith(2, 1);
+  });
+
+  it("replaces only missing and undefined values with current defaults", () => {
+    const store = createSettingsStore({
+      defaults: { enabled: true, label: "default", showClickboxes: false, volume: 50 },
+    });
+
+    store.replace({ enabled: false, label: "", showClickboxes: undefined, volume: 0 });
+
+    expect(store.getSnapshot()).toEqual({ enabled: false, label: "", showClickboxes: false, volume: 0 });
+    expect(store.getSnapshot()).toBe(store.getSnapshot());
   });
 });

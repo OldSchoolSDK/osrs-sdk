@@ -58,7 +58,18 @@ export class SettingsStore<T extends object> {
   }
 
   replace(settings: T, persist = true) {
-    this.snapshot = this.freeze(settings);
+    // Settings objects outlive individual SDK releases in localStorage and
+    // callers can also replace a store with a partial runtime object. Keep
+    // every snapshot schema-complete so controlled React inputs never receive
+    // undefined after having rendered a default value.
+    const defaults = this.createDefaults();
+    const normalized = { ...defaults, ...settings } as T;
+    Object.keys(normalized).forEach((key) => {
+      if (normalized[key as keyof T] === undefined) {
+        normalized[key as keyof T] = defaults[key as keyof T];
+      }
+    });
+    this.snapshot = this.freeze(normalized);
     if (persist) this.storage?.save(this.snapshot);
     this.listeners.forEach((listener) => listener());
     return this.snapshot;
