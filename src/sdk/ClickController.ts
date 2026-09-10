@@ -48,18 +48,24 @@ export class ClickController {
   }
 
   private queueMouseMoved(e: MouseEvent) {
-    this.pendingMouseMove = e;
-    if (this.mouseMoveFrame !== null) return;
+    if (this.mouseMoveFrame !== null) {
+      this.pendingMouseMove = e;
+      return;
+    }
+    this.processMouseMoved(e);
     this.mouseMoveFrame = requestAnimationFrame(() => {
       this.mouseMoveFrame = null;
       const latest = this.pendingMouseMove;
       this.pendingMouseMove = null;
-      if (!latest) return;
-      ControlPanelController.controller.cursorMovedTo(latest);
-      MapController.controller.cursorMovedTo(latest);
-      Viewport.viewport.contextMenu.cursorMovedTo(latest.clientX, latest.clientY);
-      this.mouseMoved(latest);
+      if (latest) this.queueMouseMoved(latest);
     });
+  }
+
+  private processMouseMoved(e: MouseEvent) {
+    ControlPanelController.controller.cursorMovedTo(e);
+    MapController.controller.cursorMovedTo(e);
+    Viewport.viewport.contextMenu.cursorMovedTo(e.clientX, e.clientY);
+    this.mouseMoved(e);
   }
 
   wheel(e: WheelEvent) {
