@@ -17,6 +17,7 @@ import { Unit } from "./Unit";
 import { Trainer } from "./Trainer";
 import { Pathing } from "./Pathing";
 import { drawLineOnTop, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./rendering/RenderUtils";
+import { convexHull, projectedHullContains, ScreenPoint } from "./rendering/ProjectedClickbox";
 
 // how many pixels wide should 2d elements be scaled to
 const SPRITE_SCALE = 32;
@@ -57,6 +58,8 @@ export class Viewport3d implements ViewportDelegate {
   private stats = new Stats();
 
   private knownActors: Map<Renderable, Actor> = new Map();
+  private projectedClickboxes = new Map<Mob, { hull: ScreenPoint[]; tolerance: number }>();
+  private projectedClickboxClientTick = -1;
 
   private selectedTile: Location | null = null;
   private selectedTileMesh: THREE.LineSegments;
@@ -424,6 +427,7 @@ export class Viewport3d implements ViewportDelegate {
     this.updateCamera(delta);
 
     this.knownActors.forEach((actor) => actor.draw(this.scene, delta, world.tickPercent));
+    this.refreshProjectedClickboxes(world);
 
     // highlight selected tile
     if (this.selectedTile) {
@@ -432,6 +436,23 @@ export class Viewport3d implements ViewportDelegate {
       this.selectedTileMesh.position.z = this.selectedTile.y - 0.5;
       this.selectedTileMesh.visible = !Trainer.clickController.hasSelectedMob();
     }
+  }
+
+  private refreshProjectedClickboxes(world: World) {
+    // invalidate clickboxes only after a client tick
+    if (this.projectedClickboxClientTick === world.clientTickCounter) {
+      return;
+    }
+    this.projectedClickboxClientTick = world.clientTickCounter;
+    
+    const clickboxes = new Map<Mob, { hull: ScreenPoint[]; tolerance: number }>();
+    this.knownActors.forEach((actor, renderable) => {
+      if (!(renderable instanceof Mob) || !renderable.selectable) return;
+      const vertices = actor.getModel()?.getClickboxVertices?.() ?? [];
+      const hull = convexHull(vertices.map((vertex) => this.projectToScreen(vertex)));
+      if (hull.length >= 3) clickboxes.set(renderable, { hull, tolerance: renderable.size === 1 ? 20 : 5 });
+    });
+    this.projectedClickboxes = clickboxes;
   }
 
   private reconcileActors(region: Region) {
@@ -476,6 +497,27 @@ export class Viewport3d implements ViewportDelegate {
     renderables.forEach((r) => {
       r.drawUILayer(world.tickPercent, getUILayerProjector(r), this.uiCanvasContext, SPRITE_SCALE);
     });
+
+    if (Settings.displayClickboxes) {
+      this.projectedClickboxes.forEach(({ hull, tolerance }) => {
+        this.uiCanvasContext.save();
+        this.uiCanvasContext.beginPath();
+        this.uiCanvasContext.moveTo(hull[0].x, hull[0].y);
+        hull.slice(1).forEach((point) => this.uiCanvasContext.lineTo(point.x, point.y));
+        this.uiCanvasContext.closePath();
+        this.uiCanvasContext.fillStyle = "rgba(0, 255, 255, 0.12)";
+        this.uiCanvasContext.fill();
+        // A thick stroke visualises the same edge tolerance used by picking.
+        this.uiCanvasContext.lineJoin = "round";
+        this.uiCanvasContext.lineWidth = tolerance * 2;
+        this.uiCanvasContext.strokeStyle = "rgba(0, 255, 255, 0.25)";
+        this.uiCanvasContext.stroke();
+        this.uiCanvasContext.lineWidth = 1;
+        this.uiCanvasContext.strokeStyle = "#00ffff";
+        this.uiCanvasContext.stroke();
+        this.uiCanvasContext.restore();
+      });
+    }
   }
 
   // return canvas coordinates from world coordinates
@@ -506,20 +548,28 @@ export class Viewport3d implements ViewportDelegate {
       y: Math.floor(floor.z) + 1.5,
     };
     const intersections = this.raycaster.intersectObjects(
-      this.scene.children.filter((c) => c.userData.clickable === true),
+      this.scene.children.filter((child) =>
+        child.userData.clickable === true && !this.projectedClickboxes.has(child.userData.unit),
+      ),
       true,
     );
 
-    // check if there were any NPCs on the way.
-    const mobs = intersections
+    const projectedMobs: Mob[] = [];
+    this.projectedClickboxes.forEach(({ hull, tolerance }, mob) => {
+      if (projectedHullContains(hull, { x: offsetX, y: offsetY }, tolerance)) projectedMobs.push(mob);
+    });
+
+    // Non-cache models retain the existing Three.js raycast fallback.
+    const raycastMobs = intersections
       .filter((i) => i.object.userData.unit instanceof Mob)
       .map((i) => i.object.userData.unit as Mob);
+    const mobs = _.uniq(projectedMobs.concat(raycastMobs));
 
     // Note: we currently only handle clicking on mobs
     if (mobs.length > 0) {
       return {
         type: "entities" as const,
-        mobs: _.uniq(mobs),
+        mobs,
         players: [],
         groundItems: [],
         location: {

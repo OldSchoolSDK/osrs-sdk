@@ -21,5 +21,8 @@ export interface Model {
   /** Current posed height above the model origin, when available. */
   getLogicalHeight?(): number | null;
 
+  /** Current animated model vertices in world space, for projected clickboxes. */
+  getClickboxVertices?(): THREE.Vector3[];
+
   preload(): Promise<void>;
 }

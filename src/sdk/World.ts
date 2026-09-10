@@ -17,6 +17,8 @@ const CLIENT_TICK_MS = 20;
 export class World {
   regions: Region[] = [];
   globalTickCounter = 0;
+  private _clientTickCounter = 0;
+  get clientTickCounter() { return this._clientTickCounter; }
   isPaused = true;
   tickPercent: number;
   clientTickPercent: number;
@@ -143,6 +145,7 @@ export class World {
 
   tickClient(tickPercent: number, timestamp?: number) {
     this.regions.forEach((region: Region) => this.clientTick(region, tickPercent, timestamp));
+    this._clientTickCounter++;
   }
 
   tickRegion(region: Region) {

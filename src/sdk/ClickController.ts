@@ -27,34 +27,39 @@ export class ClickController {
   }
 
   eventListeners: ((e: MouseEvent) => void)[] = [];
+  private pendingMouseMove: MouseEvent | null = null;
+  private mouseMoveFrame: number | null = null;
 
   unload() {
     this.viewport.canvas.removeEventListener("mousedown", this.eventListeners[0]);
     this.viewport.canvas.removeEventListener("mouseup", this.eventListeners[1]);
     this.viewport.canvas.removeEventListener("mousemove", this.eventListeners[2]);
-    this.viewport.canvas.removeEventListener("mousemove", this.eventListeners[3]);
-    this.viewport.canvas.removeEventListener("mousemove", this.eventListeners[4]);
-    this.viewport.canvas.removeEventListener("mousemove", this.eventListeners[5]);
+    if (this.mouseMoveFrame !== null) cancelAnimationFrame(this.mouseMoveFrame);
+    this.mouseMoveFrame = null;
+    this.pendingMouseMove = null;
     this.viewport.canvas.removeEventListener("wheel", this.eventListeners[6]);
   }
 
   registerClickActions() {
     this.viewport.canvas.addEventListener("mousedown", (this.eventListeners[0] = this.clickDown.bind(this)));
     this.viewport.canvas.addEventListener("mouseup", (this.eventListeners[1] = this.leftClickUp.bind(this)));
-    this.viewport.canvas.addEventListener(
-      "mousemove",
-      (this.eventListeners[2] = (e: MouseEvent) => ControlPanelController.controller.cursorMovedTo(e)),
-    );
-    this.viewport.canvas.addEventListener(
-      "mousemove",
-      (this.eventListeners[3] = (e: MouseEvent) => MapController.controller.cursorMovedTo(e)),
-    );
-    this.viewport.canvas.addEventListener(
-      "mousemove",
-      (this.eventListeners[4] = (e) => Viewport.viewport.contextMenu.cursorMovedTo(e.clientX, e.clientY)),
-    );
-    this.viewport.canvas.addEventListener("mousemove", (this.eventListeners[5] = this.mouseMoved.bind(this)));
+    this.viewport.canvas.addEventListener("mousemove", (this.eventListeners[2] = this.queueMouseMoved.bind(this)));
     this.viewport.canvas.addEventListener("wheel", (this.eventListeners[6] = this.wheel.bind(this)));
+  }
+
+  private queueMouseMoved(e: MouseEvent) {
+    this.pendingMouseMove = e;
+    if (this.mouseMoveFrame !== null) return;
+    this.mouseMoveFrame = requestAnimationFrame(() => {
+      this.mouseMoveFrame = null;
+      const latest = this.pendingMouseMove;
+      this.pendingMouseMove = null;
+      if (!latest) return;
+      ControlPanelController.controller.cursorMovedTo(latest);
+      MapController.controller.cursorMovedTo(latest);
+      Viewport.viewport.contextMenu.cursorMovedTo(latest.clientX, latest.clientY);
+      this.mouseMoved(latest);
+    });
   }
 
   wheel(e: WheelEvent) {

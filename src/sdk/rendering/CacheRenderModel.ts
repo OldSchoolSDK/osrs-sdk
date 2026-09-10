@@ -335,6 +335,22 @@ export class CacheRenderModel implements Model, RenderableListener {
   static forRenderable(renderable: Renderable, reference: CacheRenderReference, options?: CacheRenderModelOptions) {
     return new CacheRenderModel(renderable, reference, options);
   }
+  getClickboxVertices() {
+    if (!this.mesh || !this.mesh.visible) return [];
+    this.root.updateWorldMatrix(true, true);
+    const position = this.mesh.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
+    if (!position) return [];
+    const vertices: THREE.Vector3[] = [];
+    const seen = new Set<number>();
+    for (let index = 0; index < position.count; index++) {
+      const source = this.sourceVertices[index] ?? index;
+      if (seen.has(source)) continue;
+      seen.add(source);
+      vertices.push(new THREE.Vector3(position.getX(index), position.getY(index), position.getZ(index))
+        .applyMatrix4(this.mesh.matrixWorld));
+    }
+    return vertices;
+  }
   spotAnimChanged(spotAnims: CacheRenderSpotAnim[]) { this.setActiveSpotAnims(spotAnims); }
   private setActiveSpotAnims(spotAnims: CacheRenderSpotAnim[]) {
     const starts = new Map<string, number>();

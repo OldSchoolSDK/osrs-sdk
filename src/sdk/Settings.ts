@@ -15,6 +15,7 @@ export type SettingsState = {
   combat_key: string;
   displayFeedback: boolean;
   displayBossHealthBar: boolean;
+  displayClickboxes: boolean;
   displayMobLoS: boolean;
   displayPlayerLoS: boolean;
   displayXpDrops: boolean;
@@ -69,6 +70,7 @@ export class Settings {
   static lockPOV: boolean;
   static displayFeedback: boolean;
   static displayBossHealthBar = true;
+  static displayClickboxes = false;
   static metronome: boolean;
   static antiDrag: number;
 
@@ -181,6 +183,7 @@ export class Settings {
       combat_key: Settings.combat_key,
       displayFeedback: Settings.displayFeedback,
       displayBossHealthBar: Settings.displayBossHealthBar,
+      displayClickboxes: Settings.displayClickboxes,
       displayMobLoS: Settings.displayMobLoS,
       displayPlayerLoS: Settings.displayPlayerLoS,
       displayXpDrops: Settings.displayXpDrops,
@@ -220,6 +223,7 @@ function createDefaults(): SettingsState {
     combat_key: "F5",
     displayFeedback: true,
     displayBossHealthBar: true,
+    displayClickboxes: false,
     displayMobLoS: false,
     displayPlayerLoS: false,
     displayXpDrops: true,
@@ -266,6 +270,7 @@ const legacyStorage: SettingsStorage<SettingsState> = {
       combat_key: window.localStorage.getItem("combat_key") || defaults.combat_key,
       displayFeedback: window.localStorage.getItem("displayFeedback") !== "false",
       displayBossHealthBar: defaults.displayBossHealthBar,
+      displayClickboxes: defaults.displayClickboxes,
       displayMobLoS: legacyBoolean("displayMobLoS", false),
       displayPlayerLoS: legacyBoolean("displayPlayerLoS", false),
       displayXpDrops: window.localStorage.getItem("displayXpDrops") !== "false",
