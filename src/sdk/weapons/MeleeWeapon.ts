@@ -3,7 +3,7 @@ import { PrayerGroups } from "../BasePrayer";
 import { EquipmentTypes } from "../Equipment";
 import { Weapon, AttackBonuses } from "../gear/Weapon";
 import { Unit, UnitTypes } from "../Unit";
-import { ProjectileOptions } from "./Projectile";
+import { mergeProjectileOptions, ProjectileOptions } from "./Projectile";
 import { CACHE_ASSETS } from "../../assets/CacheAssets";
 
 export class MeleeWeapon extends Weapon {
@@ -12,10 +12,7 @@ export class MeleeWeapon extends Weapon {
   }
 
   constructor(projectileOptions: ProjectileOptions = {}) {
-    super({
-      hidden: true,
-      ...projectileOptions
-    });
+    super(mergeProjectileOptions({ visuals: { hidden: true } }, projectileOptions));
   }
   get type() {
     return EquipmentTypes.WEAPON;

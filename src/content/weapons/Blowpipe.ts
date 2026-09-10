@@ -25,11 +25,12 @@ export class Blowpipe extends RangedWeapon {
   }
   constructor() {
     super({
-      modelScale: 1 / 128,
-      visualDelayTicks: 1,
-      visualHitEarlyTicks: 0,
-      verticalOffset: -0.75,
-      motionInterpolator: new ArcProjectileMotionInterpolator(0.5),
+      visuals: {
+        modelScale: 1 / 128,
+        startCycleOffset: 30,
+        verticalOffset: -0.75,
+        motionInterpolator: new ArcProjectileMotionInterpolator(0.5),
+      },
     });
     this.bonuses = {
       attack: {
@@ -101,9 +102,11 @@ export class Blowpipe extends RangedWeapon {
     const didAttack = super.attack(from, to, bonuses, {
       ...options,
       reduceDelay: -1,
-      visualHitEarlyTicks: 1,
-      visualDelayTicks: 1,
-      projectileSound: this.specialAttackSound,
+      visuals: {
+        hitEarlyCycleOffset: 30,
+        startCycleOffset: 30,
+        projectileSound: this.specialAttackSound,
+      },
     });
 
     const healAttackerBy = Math.floor(this.damageRoll / 2);

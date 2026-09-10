@@ -691,6 +691,7 @@ export abstract class Unit extends Renderable {
       this.setAggro(projectile.from);
     }
     this.incomingProjectiles.push(projectile);
+    this.region.addProjectileGraphic(projectile.graphic);
   }
 
   setLocation(location: Location) {

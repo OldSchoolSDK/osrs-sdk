@@ -219,6 +219,8 @@ export class World {
   }
 
   clientTick(region: Region, tickPercent: number, timestamp?: number) {
+    region.projectileGraphics = region.projectileGraphics.filter((graphic) => !graphic.shouldDestroy());
+    region.projectileGraphics.forEach((graphic) => graphic.clientTick());
     region.players.forEach((player: Player) => {
       player.clientTick(tickPercent, timestamp);
     });

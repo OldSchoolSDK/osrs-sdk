@@ -66,7 +66,7 @@ export class SampleAnimayaNpc extends Mob {
       // timerStep runs immediately before incoming attacks are processed, so
       // this one-tick hidden projectile creates the hitsplat on this boundary.
       this.addProjectile(new Projectile(null, damage, this, this, "stab", {
-        hidden: true,
+        visuals: { hidden: true },
         setDelay: 1,
       }));
     }

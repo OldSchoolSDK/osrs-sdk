@@ -21,7 +21,7 @@ describe("region lifecycle", () => {
     expect(region.mobs).not.toContain(mob);
   });
 
-  test("getRenderables returns region-owned renderables and unit projectiles", () => {
+  test("getRenderables returns region-owned projectile graphics", () => {
     const region = new TestRegion(10, 10);
     const entity = new Entity(region, { x: 1, y: 1 });
     const player = new Player(region, { x: 2, y: 2 });
@@ -34,14 +34,15 @@ describe("region lifecycle", () => {
     region.addPlayer(player);
     region.mobs.push(mob);
     region.newMobs.push(queuedMob);
-    region.projectiles.push(regionProjectile);
-    mob.incomingProjectiles.push(incomingProjectile);
+    region.addProjectile(regionProjectile);
+    mob.addProjectile(incomingProjectile);
 
     const renderables = region.getRenderables();
 
     expect(renderables).toEqual(
-      expect.arrayContaining([entity, player, mob, queuedMob, regionProjectile, incomingProjectile]),
+      expect.arrayContaining([entity, player, mob, queuedMob, regionProjectile.graphic, incomingProjectile.graphic]),
     );
+    expect(renderables).not.toEqual(expect.arrayContaining([regionProjectile, incomingProjectile]));
   });
 
   test("world cleanup still removes mobs whose death state has completed", () => {

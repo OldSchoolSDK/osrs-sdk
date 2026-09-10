@@ -5,7 +5,7 @@ import { Unit, UnitTypes } from "../Unit";
 import { ImageLoader } from "../utils/ImageLoader";
 import { Equipment } from "../Equipment";
 import { Player } from "../Player";
-import { Projectile, ProjectileOptions } from "../weapons/Projectile";
+import { mergeProjectileOptions, Projectile, ProjectileOptions } from "../weapons/Projectile";
 import { find } from "lodash";
 import { SetEffect, SetEffectTypes } from "../SetEffect";
 import { ItemName } from "../ItemName";
@@ -192,7 +192,10 @@ export class Weapon extends Equipment {
 
     if (to.equipment.ring && to.equipment.ring.itemName === ItemName.RING_OF_SUFFERING_I && this.damage > 0) {
       from.addProjectile(
-        new Projectile(this, Math.floor(this.damage * 0.1) + 1, to, from, "recoil", { reduceDelay: 15, hidden: true }),
+        new Projectile(this, Math.floor(this.damage * 0.1) + 1, to, from, "recoil", {
+          reduceDelay: 15,
+          visuals: { hidden: true },
+        }),
       );
     }
 
@@ -255,13 +258,11 @@ export class Weapon extends Equipment {
 
   registerProjectile(from: Unit, to: Unit, bonuses: AttackBonuses, options: ProjectileOptions = {}) {
     to.addProjectile(
-      new Projectile(this, this.damage, from, to, bonuses.attackStyle, {
-        sound: this.attackSound,
-        hitSound: this.attackLandingSound,
-        model: this.projectileModel,
-        ...this.projectileOptions,
-        ...options,
-      }),
+      new Projectile(this, this.damage, from, to, bonuses.attackStyle, mergeProjectileOptions(
+        { sound: this.attackSound, hitSound: this.attackLandingSound, visuals: { model: this.projectileModel } },
+        this.projectileOptions,
+        options,
+      )),
     );
   }
 

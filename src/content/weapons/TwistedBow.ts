@@ -18,11 +18,13 @@ export class TwistedBow extends RangedWeapon {
   get cacheItemId(): number { return CACHE_ASSETS.items.twistedBow.id; }
   constructor(geno = false) {
     super({
-      modelScale: 1 / 128,
-      visualDelayTicks: 1,
-      visualHitEarlyTicks: 1,
-      verticalOffset: -0.75,
-      motionInterpolator: new ArcProjectileMotionInterpolator(1),
+      visuals: {
+        modelScale: 1 / 128,
+        startCycleOffset: 30,
+        hitEarlyCycleOffset: 30,
+        verticalOffset: -0.75,
+        motionInterpolator: new ArcProjectileMotionInterpolator(1),
+      },
     });
     this.bonuses = {
       attack: {

@@ -35,6 +35,7 @@ const ORB_TO_SPOTANIM = {
 const ORB_HEIGHT_1 = 7;
 const ORB_HEIGHT_2 = 9;
 const ORB_HEIGHT_3 = 11;
+const PROJECTILE_FLIGHT_CLIENT_CYCLES = 30;
 
 /**
  * The Fortis manticore (NPC definition 12818).
@@ -60,7 +61,7 @@ export class Manticore extends Mob {
 
   override setStats() {
     this.weapons = {
-      crush: new MeleeWeapon({ hidden: false }),
+      crush: new MeleeWeapon({ visuals: { hidden: false } }),
       range: new RangedWeapon(),
       magic: new MagicWeapon(),
     };
@@ -220,7 +221,12 @@ export class Manticore extends Mob {
         // Projectiles added during attackStep are processed once immediately
         // by World.tickRegion, so delay 2 means one full tick after spawning.
         setDelay: 2,
-        spotAnim: { id: spotAnimId },
+        visuals: {
+          spotAnim: { id: spotAnimId },
+          // Every orb visually reaches its target one game tick after launch,
+          // regardless of the distance-derived combat hit delay.
+          endCycleOffset: PROJECTILE_FLIGHT_CLIENT_CYCLES,
+        },
       },
     );
   }

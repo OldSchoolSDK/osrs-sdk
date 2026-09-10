@@ -6,7 +6,6 @@ import { CardinalDirection, GroundItems, Region } from "./Region";
 import { Settings } from "./Settings";
 import { Renderable, UILayerProjector } from "./Renderable";
 import { Unit } from "./Unit";
-import { Pathing } from "./Pathing";
 import { Mob } from "./Mob";
 import { Collision } from "./Collision";
 import { Item } from "./Item";
@@ -29,7 +28,7 @@ export class Viewport2d implements ViewportDelegate {
     region.drawGroundItems(region.context);
 
     // Draw all things on the map
-    const renderables: Renderable[] = [...region.entities];
+    const renderables: Renderable[] = [...region.entities, ...region.projectileGraphics];
     const units: Unit[] = [];
 
     if (world.getReadyTimer <= 0) {
@@ -78,11 +77,6 @@ export class Viewport2d implements ViewportDelegate {
         player.drawUILayer(world.tickPercent, getUILayerProjector(player), player.region.context, Settings.tileSize);
       });
 
-      units.forEach((unit) => {
-        if (unit.dying === -1) {
-          this.drawIncomingProjectiles(unit, unit.region.context, world.tickPercent);
-        }
-      });
     }
 
     region.context.restore();
@@ -144,62 +138,6 @@ export class Viewport2d implements ViewportDelegate {
         y: adjustedY,
       },
     };
-  }
-
-  // The rendering context is the world.
-  drawIncomingProjectiles(
-    unit: Unit,
-    context: OffscreenCanvasRenderingContext2D,
-    tickPercent: number,
-    scale: number = Settings.tileSize,
-  ) {
-    const { incomingProjectiles } = unit;
-    incomingProjectiles.forEach((projectile) => {
-      if (projectile.options.hidden) {
-        return;
-      }
-
-      if (projectile.remainingDelay < 0) {
-        return;
-      }
-
-      const startX = projectile.currentLocation.x;
-      const startY = projectile.currentLocation.y;
-      const { x: endX, y: endY } = projectile.getTargetDestination(tickPercent);
-
-      const perceivedX = Pathing.linearInterpolation(startX, endX, tickPercent / (projectile.remainingDelay + 1));
-      const perceivedY = Pathing.linearInterpolation(startY, endY, tickPercent / (projectile.remainingDelay + 1));
-
-      context.save();
-      context.translate(perceivedX * Settings.tileSize, perceivedY * Settings.tileSize);
-
-      if (projectile.image) {
-        context.rotate(Math.PI);
-        context.drawImage(projectile.image, -scale / 2, -scale / 2, scale, scale);
-      } else {
-        context.beginPath();
-
-        context.fillStyle = "#D1BB7773";
-        if (
-          projectile.attackStyle === "slash" ||
-          projectile.attackStyle === "crush" ||
-          projectile.attackStyle === "stab"
-        ) {
-          context.fillStyle = "#FF000073";
-        } else if (projectile.attackStyle === "range") {
-          context.fillStyle = "#00FF0073";
-        } else if (projectile.attackStyle === "magic") {
-          context.fillStyle = "#0000FF73";
-        } else if (projectile.attackStyle === "heal") {
-          context.fillStyle = "#9813aa73";
-        } else {
-          console.log("[WARN] This style is not accounted for in custom coloring: ", projectile.attackStyle);
-        }
-        context.arc(0, 0, 5, 0, 2 * Math.PI);
-        context.fill();
-      }
-      context.restore();
-    });
   }
 
   setMapRotation(direction: CardinalDirection) {

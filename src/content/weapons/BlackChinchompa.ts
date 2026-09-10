@@ -135,7 +135,10 @@ export class BlackChinchompa extends RangedWeapon {
             alreadyCastedOn.push(mob);
             // HACK: chin gets massive accuracy bonus if main roll hits
             from.bonuses.attack.range += 100000;
-            super.attack(from, mob, bonuses, { ...options, hidden: true });
+            super.attack(from, mob, bonuses, {
+              ...options,
+              visuals: { ...options.visuals, hidden: true },
+            });
             from.bonuses.attack.range -= 100000;
           });
         });

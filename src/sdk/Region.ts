@@ -9,7 +9,7 @@ import type { Renderable } from "./Renderable";
 import type { Unit } from "./Unit";
 import { Settings } from "./Settings";
 import type { World } from "./World";
-import type { Projectile } from "./weapons/Projectile";
+import type { Projectile, ProjectileGraphic } from "./weapons/Projectile";
 import { DelayedAction } from "./DelayedAction";
 import { TileMarker } from "../content";
 import { LoadoutRegistry } from "../content/LoadoutRegistry";
@@ -46,8 +46,10 @@ export abstract class Region {
   mobs: Mob[] = [];
   primaryBoss: Mob | null = null;
   entities: Entity[] = [];
-  // free-floating projectiles not associated with a mob/player. TODO maybe they all should be here.
+  // Combat projectiles aimed at locations rather than units.
   projectiles: Projectile[] = [];
+  // Client-cycle visuals are region-owned and expire independently of hits.
+  projectileGraphics: ProjectileGraphic[] = [];
 
   mapImage: HTMLImageElement;
 
@@ -156,10 +158,15 @@ export abstract class Region {
 
   addProjectile(projectile: Projectile) {
     this.projectiles.push(projectile);
+    this.addProjectileGraphic(projectile.graphic);
   }
 
   removeProjectile(projectile: Projectile) {
     remove(this.projectiles, projectile);
+  }
+
+  addProjectileGraphic(graphic: ProjectileGraphic) {
+    if (!this.projectileGraphics.includes(graphic)) this.projectileGraphics.push(graphic);
   }
 
   getName(): string {
@@ -297,9 +304,6 @@ export abstract class Region {
 
   getRenderables(): Renderable[] {
     const units = [...this.players, ...this.mobs, ...this.newMobs];
-    const incomingProjectiles: Renderable[] = [];
-    units.forEach((unit) => incomingProjectiles.push(...unit.incomingProjectiles));
-
-    return [...this.entities, ...units, ...this.projectiles, ...incomingProjectiles];
+    return [...this.entities, ...units, ...this.projectileGraphics];
   }
 }
