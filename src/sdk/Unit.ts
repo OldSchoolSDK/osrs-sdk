@@ -609,6 +609,11 @@ export abstract class Unit extends Renderable {
     return Math.min(this.stats.hitpoint, 30);
   }
 
+  /** Client-space hitbar width. This is independent of the unit's tile footprint. */
+  get healthBarWidth(): number {
+    return 30;
+  }
+
   shouldDestroy() {
     // this is -1 for a living npc.
     return this.dying === 0;
@@ -867,16 +872,16 @@ export abstract class Unit extends Renderable {
   }
 
   drawHPBar(context: OffscreenCanvasRenderingContext2D, scale: number, verticalOffset = -(this.size / 2) * scale) {
+    const width = this.healthBarWidth;
     context.fillStyle = "red";
-    context.fillRect((-this.size / 2) * scale, verticalOffset, scale * this.size, 5);
+    context.fillRect(-width / 2, verticalOffset, width, 5);
 
     const healthRatio = Math.min(
       1,
       Math.ceil((this.currentStats.hitpoint / this.stats.hitpoint) * this.healthScale) / this.healthScale,
     );
     context.fillStyle = "lime";
-    const w = healthRatio * (scale * this.size);
-    context.fillRect((-this.size / 2) * scale, verticalOffset, w, 5);
+    context.fillRect(-width / 2, verticalOffset, healthRatio * width, 5);
   }
 
   drawHitsplats(
