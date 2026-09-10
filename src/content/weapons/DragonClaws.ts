@@ -13,11 +13,12 @@ import { CACHE_ASSETS } from "../../assets/CacheAssets";
 
 const NORMAL_ATTACK_SOUND_ID = CACHE_ASSETS.sounds.dragonClawsAttack.id;
 const SPECIAL_ATTACK_SOUND_ID = CACHE_ASSETS.sounds.dragonClawsSpecialFirst.id;
-// TODO: Verify whether these client-side sound cues should instead align to 600 ms game-tick boundaries.
-const SPECIAL_ATTACK_FOLLOW_UP_SOUNDS = [
-  { id: CACHE_ASSETS.sounds.dragonClawsSpecialSecond.id, delayMs: 300 },
-  { id: CACHE_ASSETS.sounds.dragonClawsSpecialThird.id, delayMs: 600 },
-  { id: CACHE_ASSETS.sounds.dragonClawsSpecialThird.id, delayMs: 900 },
+const CLIENT_CYCLE_MS = 20;
+const SPECIAL_ATTACK_SOUNDS = [
+  { id: SPECIAL_ATTACK_SOUND_ID, delayCycles: 10 },
+  { id: CACHE_ASSETS.sounds.dragonClawsSpecialSecond.id, delayCycles: 30 },
+  { id: CACHE_ASSETS.sounds.dragonClawsSpecialThird.id, delayCycles: 42 },
+  { id: CACHE_ASSETS.sounds.dragonClawsSpecialThird.id, delayCycles: 60 },
 ];
 const SOUND_VOLUME = 0.1;
 
@@ -32,7 +33,7 @@ export class DragonClaws extends MeleeWeapon {
 
   constructor() {
     super();
-    [NORMAL_ATTACK_SOUND_ID, SPECIAL_ATTACK_SOUND_ID, ...SPECIAL_ATTACK_FOLLOW_UP_SOUNDS.map(({ id }) => id)].forEach(
+    [NORMAL_ATTACK_SOUND_ID, ...SPECIAL_ATTACK_SOUNDS.map(({ id }) => id)].forEach(
       (id) => SoundCache.preload(cacheSound(id)),
     );
     this.bonuses = {
@@ -152,12 +153,12 @@ export class DragonClaws extends MeleeWeapon {
       this.grantXp(from, to);
       this.registerProjectile(from, to, bonuses, {
         ...options,
-        sound: hit === 0 ? this.specialAttackSound : null,
+        sound: null,
         setDelay: hit < 2 ? 1 : 2,
       });
     });
-    SPECIAL_ATTACK_FOLLOW_UP_SOUNDS.forEach(({ id, delayMs }) => {
-      setTimeout(() => SoundCache.play(new Sound(cacheSound(id), SOUND_VOLUME)), delayMs);
+    SPECIAL_ATTACK_SOUNDS.forEach(({ id, delayCycles }) => {
+      setTimeout(() => SoundCache.play(new Sound(cacheSound(id), SOUND_VOLUME)), delayCycles * CLIENT_CYCLE_MS);
     });
     this.lastHitHit = firstSuccessfulHit >= 0;
     if (this.lastHitHit) from.consumeMaxDamageRollsOnNextAttack();
