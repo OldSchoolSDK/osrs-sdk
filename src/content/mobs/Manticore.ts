@@ -139,6 +139,11 @@ export class Manticore extends Mob {
     }
     // override default behaviour
     this.attackDelay = 10;
+    this.region.mobs.forEach((mob) => {
+      if (mob instanceof Manticore && mob !== this && mob.attackDelay <= 0) {
+        mob.attackDelay = 5;
+      }
+    });
     this.playAnimation(ManticoreAnimations.TripleThrow);
     // The first projectile is launched on the attack tick.
     this.fireProjectile(0);
@@ -158,9 +163,19 @@ export class Manticore extends Mob {
     if (this.attackStyles) {
       return this.attackStyles;
     }
-    // TODO: choose based on other mantis
+    const coordinatedManticore = this.region.mobs.find((mob) =>
+      mob instanceof Manticore
+      && mob !== this
+      && mob.dying < 0
+      && mob.currentStats.hitpoint > 0
+      && mob.attackStyles !== null
+    ) as Manticore | undefined;
+    if (coordinatedManticore?.attackStyles) {
+      this.attackStyles = [...coordinatedManticore.attackStyles];
+      return this.attackStyles;
+    }
+
     this.attackStyles = [];
-    // TODO: mantimayhem
     // 50% chance of range or mage first
     const firstStyle = Math.random() < 0.5 ? Orbs.Range : Orbs.Mage;
     this.attackStyles.push(firstStyle);
