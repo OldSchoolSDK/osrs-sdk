@@ -20,6 +20,8 @@ describe("Manticore coordination", () => {
 
   test("an attacking Manticore offsets ready peers by five ticks", () => {
     const region = new TestRegion(20, 20);
+    const world = new World();
+    region.world = world;
     const attacker = new Manticore(region, { x: 2, y: 5 });
     const readyPeer = new Manticore(region, { x: 10, y: 5 });
     const waitingPeer = new Manticore(region, { x: 14, y: 5 });
@@ -27,6 +29,7 @@ describe("Manticore coordination", () => {
     (attacker as any).attackStyles = [0, 1, 2];
     readyPeer.attackDelay = 0;
     waitingPeer.attackDelay = 2;
+    readyPeer.attackStep();
 
     attacker.didAttack();
 

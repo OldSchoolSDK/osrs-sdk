@@ -143,20 +143,17 @@ export class Manticore extends Mob {
     this.region.mobs.forEach((mob) => {
       if (!(mob instanceof Manticore) || mob === this) return;
 
-      if (mob.attackDelay <= 0) {
-        mob.attackDelay = 5;
-        return;
-      }
-
       // NPCs decrement their cooldown inside their own sequential attackStep.
-      // A peer still at 1 that has not stepped is also ready on this tick. Set
-      // it to 6 so its imminent decrement leaves the intended five-tick gap.
+      // An unprocessed peer at 1 or below is ready on this tick. Set it to 6
+      // so its imminent decrement leaves the intended five-tick gap. A peer
+      // which has already stepped receives 5 because it will not decrement
+      // again until the next tick.
       // This is a serious hack and implies we need to decrement timers separately from the step.
-      if (
-        mob.attackDelay === 1
-        && mob.lastAttackStepTick !== this.region.world.globalTickCounter
-      ) {
+      const hasStepped = mob.lastAttackStepTick === this.region.world.globalTickCounter;
+      if (!hasStepped && mob.attackDelay <= 1) {
         mob.attackDelay = 6;
+      } else if (hasStepped && mob.attackDelay <= 0) {
+        mob.attackDelay = 5;
       }
     });
     this.playAnimation(ManticoreAnimations.TripleThrow);
