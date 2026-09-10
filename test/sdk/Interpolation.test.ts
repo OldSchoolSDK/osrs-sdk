@@ -41,6 +41,28 @@ test("mob movement queues and consumes a visual tile step", () => {
   expect(mob.animationIndex).toBe(mob.idlePoseId);
 });
 
+test("a running mob visually covers a two-tile step in one game tick", () => {
+  const region = new TestRegion(20, 20);
+  const target = new Player(region, { x: 8, y: 2 });
+  const mob = new class extends Mob {
+    override get canRun() { return true; }
+    override getNextMovementStep() { return { dx: this.location.x + 2, dy: this.location.y }; }
+  }(region, { x: 2, y: 2 }, { aggro: target });
+
+  mob.movementStep();
+
+  expect(mob.location).toEqual({ x: 4, y: 2 });
+  expect(mob.visualPath).toEqual([{ x: 4, y: 2, run: true }]);
+
+  for (let cycle = 1; cycle < 30; cycle++) mob.clientTick(0, cycle * 20);
+  expect(mob.perceivedLocation.x).toBeCloseTo(2 + 58 / 30);
+  expect(mob.visualPath).toHaveLength(1);
+
+  mob.clientTick(0, 30 * 20);
+  expect(mob.perceivedLocation).toEqual({ x: 4, y: 2 });
+  expect(mob.visualPath).toHaveLength(0);
+});
+
 test("an active sequence stalls a pre-existing visual path, then catches up", async () => {
   const region = new TestRegion(20, 20);
   const mob = new Mob(region, { x: 2, y: 2 });

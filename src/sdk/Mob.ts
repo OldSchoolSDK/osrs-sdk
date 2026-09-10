@@ -225,7 +225,11 @@ export class Mob extends Unit {
         this.location.y = dy;
       }
       if (this.location.x !== previousLocation.x || this.location.y !== previousLocation.y) {
-        this.visualPath.push({ ...this.location, run: false });
+        const movedMoreThanOneTile = Math.max(
+          Math.abs(this.location.x - previousLocation.x),
+          Math.abs(this.location.y - previousLocation.y),
+        ) > 1;
+        this.visualPath.push({ ...this.location, run: this.canRun && movedMoreThanOneTile });
         this.visualMovementActive = true;
         moved = true;
       }
@@ -235,6 +239,11 @@ export class Mob extends Unit {
       // idle anim every tick).
       this.visualMovementActive = false;
     }
+  }
+
+  /** Whether this mob may visually cover two tiles during one game tick. */
+  get canRun() {
+    return false;
   }
 
   getXMovementTiles(xOff: number, yOff: number) {
