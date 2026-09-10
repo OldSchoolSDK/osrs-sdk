@@ -542,6 +542,10 @@ export class Viewport3d implements ViewportDelegate {
       this.yaw.rotation.y = Math.PI;
     } else if (direction === CardinalDirection.NORTH) {
       this.yaw.rotation.y = 0;
+    } else if (direction === CardinalDirection.EAST) {
+      this.yaw.rotation.y = -Math.PI / 2;
+    } else if (direction === CardinalDirection.WEST) {
+      this.yaw.rotation.y = Math.PI / 2;
     }
   }
 

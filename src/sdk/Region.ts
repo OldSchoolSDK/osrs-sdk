@@ -30,6 +30,8 @@ export interface GroundItems {
 export enum CardinalDirection {
   NORTH,
   SOUTH,
+  EAST,
+  WEST,
 }
 
 // Base class for any trainer region.

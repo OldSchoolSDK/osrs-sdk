@@ -195,6 +195,14 @@ export class Viewport {
     this.delegate.setMapRotation(CardinalDirection.NORTH);
   }
 
+  rotateEast() {
+    this.delegate.setMapRotation(CardinalDirection.EAST);
+  }
+
+  rotateWest() {
+    this.delegate.setMapRotation(CardinalDirection.WEST);
+  }
+
   getDelegate() {
     return this.delegate;
   }
