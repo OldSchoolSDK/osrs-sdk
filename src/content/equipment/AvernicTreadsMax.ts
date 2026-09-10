@@ -25,7 +25,7 @@ export class AvernicTreadsMax extends Feet {
     this.bonuses = {
       attack: { stab: 5, slash: 5, crush: 5, magic: 11, range: 15 },
       defence: { stab: 21, slash: 25, crush: 25, magic: 10, range: 10 },
-      other: { meleeStrength: 4, rangedStrength: 2, magicDamage: 0.01, prayer: 0 },
+      other: { meleeStrength: 6, rangedStrength: 3, magicDamage: 0.02, prayer: 0 },
       targetSpecific: { undead: 0, slayer: 0 },
     };
   }
