@@ -270,6 +270,20 @@ export class Manticore extends Mob {
     );
   }
 
+  /**
+   * Apply a specific attack sequence by string: (r)ange/(m)age/(M)elee. TODO: should just pass
+   * an array in instead of decoding strings here.
+   */
+  setAttackPattern(pattern: string) {
+    const normalized = pattern.startsWith("u") ? pattern.slice(1) : pattern;
+    const expanded = normalized === "r" ? "rmM" : normalized === "m" ? "mrM" : normalized;
+    const orbByCode: Record<string, Orbs> = { r: Orbs.Range, m: Orbs.Mage, M: Orbs.Melee };
+    const decoded = expanded.split("").map((code) => orbByCode[code]);
+    if (decoded.length === 3 && decoded.every((orb) => orb !== undefined)) {
+      this.attackStyles = decoded;
+    }
+  }
+
   override get idlePoseId() {
     return ManticoreAnimations.Idle;
   }
