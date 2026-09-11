@@ -2,37 +2,20 @@ import * as THREE from "three";
 import { Model } from "./Model";
 import { Renderable } from "../Renderable";
 import { Location3 } from "../Location";
-import { drawLineOnTop, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./RenderUtils";
+import { createTileIndicator, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./RenderUtils";
 
 export class TileMarkerModel implements Model {
   static forRenderable(r: Renderable, renderOrder: number | null = GroundOverlayRenderOrder.MARKED_TILE) {
     return new TileMarkerModel(r, renderOrder);
   }
 
-  private outline: THREE.LineSegments;
-  private lineMaterial: THREE.LineBasicMaterial;
+  private outline: THREE.Mesh;
+  private material: THREE.MeshBasicMaterial;
 
   constructor(private renderable: Renderable, renderOrder: number | null) {
     const { size } = renderable;
-    this.lineMaterial = new THREE.LineBasicMaterial({
-      color: renderable.colorHex,
-      linewidth: 2,
-    });
-    const points = [
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(size, 0, 0),
-      new THREE.Vector3(size, 0, 0),
-      new THREE.Vector3(size, 0, -size),
-      new THREE.Vector3(size, 0, -size),
-      new THREE.Vector3(0, 0, -size),
-      new THREE.Vector3(0, 0, -size),
-      new THREE.Vector3(0, 0, 0),
-    ];
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    this.outline = new THREE.LineSegments(geometry, this.lineMaterial);
-    if (renderOrder !== null) {
-      drawLineOnTop(this.outline, renderOrder);
-    }
+    this.outline = createTileIndicator(size, renderable.colorHex, renderOrder);
+    this.material = this.outline.material as THREE.MeshBasicMaterial;
   }
 
   draw(
@@ -53,7 +36,7 @@ export class TileMarkerModel implements Model {
     this.outline.position.x = x;
     this.outline.position.y = GROUND_OVERLAY_Y;
     this.outline.position.z = y;
-    this.lineMaterial.color.setHex(this.renderable.colorHex);
+    this.material.color.setHex(this.renderable.colorHex);
   }
 
   destroy(scene: THREE.Scene) {

@@ -16,7 +16,7 @@ import _ from "lodash";
 import { Unit } from "./Unit";
 import { Trainer } from "./Trainer";
 import { Pathing } from "./Pathing";
-import { drawLineOnTop, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./rendering/RenderUtils";
+import { createTileIndicator, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./rendering/RenderUtils";
 import { convexHull, projectedHullContains, ScreenPoint } from "./rendering/ProjectedClickbox";
 
 // how many pixels wide should 2d elements be scaled to
@@ -62,7 +62,7 @@ export class Viewport3d implements ViewportDelegate {
   private projectedClickboxClientTick = -1;
 
   private selectedTile: Location | null = null;
-  private selectedTileMesh: THREE.LineSegments;
+  private selectedTileMesh: THREE.Mesh;
 
   private clock = new THREE.Clock();
 
@@ -132,23 +132,7 @@ export class Viewport3d implements ViewportDelegate {
     this.yaw.add(this.pitch);
     this.pitch.add(this.camera);
 
-    const lineMaterial = new THREE.LineBasicMaterial({
-      color: "#FFFFFF",
-      linewidth: 2,
-    });
-    const points = [
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(1, 0, 0),
-      new THREE.Vector3(1, 0, 0),
-      new THREE.Vector3(1, 0, -1),
-      new THREE.Vector3(1, 0, -1),
-      new THREE.Vector3(0, 0, -1),
-      new THREE.Vector3(0, 0, -1),
-      new THREE.Vector3(0, 0, 0),
-    ];
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    this.selectedTileMesh = new THREE.LineSegments(geometry, lineMaterial);
-    drawLineOnTop(this.selectedTileMesh, GroundOverlayRenderOrder.HOVERED_TILE);
+    this.selectedTileMesh = createTileIndicator(1, "#FFFFFF", GroundOverlayRenderOrder.HOVERED_TILE);
     this.scene.add(this.selectedTileMesh);
 
     this.animate();
