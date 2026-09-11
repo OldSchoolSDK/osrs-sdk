@@ -1,6 +1,7 @@
 import React, { HTMLAttributes } from "react";
 import { Settings } from "osrs-sdk";
 import { useSettingsSnapshot } from "../hooks/useSettingsSnapshot";
+import { RuneScapePanel } from "./RuneScapePanel";
 
 export type DefaultSidebarProps = HTMLAttributes<HTMLElement>;
 
@@ -50,23 +51,23 @@ export function DefaultSidebar({ children, style, ...props }: DefaultSidebarProp
       id="right_panel"
       {...props}
       style={{
-        background: "black",
         display: settings.menuVisible ? "flex" : "none",
         flex: "0 0 auto",
         flexDirection: "column",
         height: "100%",
         minWidth: 0,
         overflowY: "auto",
-        padding: "30px 10px",
-        width: 200,
+        width: 240,
         ...style,
       }}
     >
-      <div>{children}</div>
-      <div>
-        <hr />
-        <RenderFpsControl />
-      </div>
+      <RuneScapePanel style={{ boxSizing: "border-box", minHeight: "100%", width: "100%" }}>
+        <div>{children}</div>
+        <div>
+          <hr style={{ border: 0, borderTop: "1px solid #6b5b3e" }} />
+          <RenderFpsControl />
+        </div>
+      </RuneScapePanel>
     </aside>
   );
 }

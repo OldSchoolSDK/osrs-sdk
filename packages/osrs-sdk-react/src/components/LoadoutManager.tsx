@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { EQUIPMENT_TYPE_TO_SLOT, Equipment, loadLoadoutRegistry, Settings, Weapon } from "osrs-sdk";
 import type { Loadout as LoadoutData, LoadoutItemId } from "osrs-sdk";
 import { Modal } from "./Modal";
+import { RuneScapeButton } from "./RuneScapeButton";
+import { RuneScapePanel } from "./RuneScapePanel";
 import { Loadout } from "./Loadout";
 import type { GetLoadoutSubstitutes, LoadoutRegistry, LoadoutSlot } from "./Loadout";
 import { useTrainerContext } from "../TrainerContext";
@@ -116,13 +118,9 @@ export function LoadoutManager({ getSubstitutes, loadouts, onClose, open }: Load
 
   return (
     <Modal open={open}>
-      <div
+      <RuneScapePanel
         style={{
-          backgroundColor: "#282828",
-          border: "1px solid #FFFF00",
-          color: "#FFFF00",
           minWidth: 320,
-          padding: 20,
         }}
       >
         <h2>Loadout</h2>
@@ -151,8 +149,10 @@ export function LoadoutManager({ getSubstitutes, loadouts, onClose, open }: Load
         ) : (
           <p>No loadout templates configured.</p>
         )}
-        <button type="button" onClick={close}>{hasPendingChanges ? "Close + Reset" : "Close"}</button>
-      </div>
+        <RuneScapeButton type="button" onClick={close}>
+          {hasPendingChanges ? "Close + Reset" : "Close"}
+        </RuneScapeButton>
+      </RuneScapePanel>
     </Modal>
   );
 }
