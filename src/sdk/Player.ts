@@ -789,6 +789,15 @@ export class Player extends Unit {
     this.clickMarker = null;
   }
 
+  showTargetMarker(location: Location) {
+    if (!this.clickMarker) {
+      this.clickMarker = new ClickMarker(this.region, location);
+      this.region.addEntity(this.clickMarker);
+    } else {
+      this.clickMarker.location = location;
+    }
+  }
+
   updatePathMarker() {
     if (!this.pathTargetLocation) {
       this.removeClickMarker();
@@ -797,12 +806,11 @@ export class Player extends Unit {
     if (
       this.clickMarker &&
       this.location.x === this.pathTargetLocation.x &&
-      this.location.y === this.pathTargetLocation.x
+      this.location.y === this.pathTargetLocation.y
     ) {
       this.removeClickMarker();
     } else if (!this.clickMarker) {
-      this.clickMarker = new ClickMarker(this.region, this.pathTargetLocation);
-      this.region.addEntity(this.clickMarker);
+      this.showTargetMarker(this.pathTargetLocation);
     } else {
       this.clickMarker.location = this.pathTargetLocation;
     }

@@ -277,6 +277,7 @@ export class ClickController {
       inputController.queueAction(() => player.setSeekingItem(groundItems[0]));
     } else if (x !== null && y !== null) {
       this.yellowClick();
+      player.showTargetMarker({ x: Math.floor(x), y: Math.floor(y) });
       inputController.queueAction(() => this.playerWalkClick(x, y));
     }
     Viewport.viewport.contextMenu.setInactive();

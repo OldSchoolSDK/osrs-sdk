@@ -246,6 +246,38 @@ test("keeps diagonal running visually aligned with successive true tiles", () =>
   }
 });
 
+test("removes the target marker as soon as the true location reaches its tile", () => {
+  const region = new TestRegion(20, 20);
+  const player = new Player(region, { x: 2, y: 3 });
+  player.pathTargetLocation = { x: 7, y: 5 };
+
+  (player as any).updatePathMarker();
+  expect(player.clickMarker).not.toBeNull();
+
+  player.location = { x: 7, y: 5 };
+  expect(player.perceivedLocation).not.toEqual(player.location);
+  (player as any).updatePathMarker();
+
+  expect(player.clickMarker).toBeNull();
+});
+
+test("can show a short-path target marker before server movement reaches it", () => {
+  const region = new TestRegion(20, 20);
+  const player = new Player(region, { x: 2, y: 3 });
+  const target = { x: 4, y: 3 };
+
+  player.showTargetMarker(target);
+  expect(player.clickMarker?.location).toEqual(target);
+
+  player.running = true;
+  player.destinationLocation = target;
+  player.moveTowardsDestination();
+  (player as any).updatePathMarker();
+
+  expect(player.location).toEqual(target);
+  expect(player.clickMarker).toBeNull();
+});
+
 test.each([
   [{ x: 6, y: 5 }, 0],
   [{ x: 4, y: 5 }, -Math.PI],
