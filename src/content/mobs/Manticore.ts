@@ -58,6 +58,7 @@ export class Manticore extends Mob {
   static readonly NPC_ID = 12818;
 
   private attackStyles: Orbs[] | null = null;
+  private preselectedAttackStyles: Orbs[] | null = null;
 
   private hasAttacked = false;
   private lastAttackStepTick = -1;
@@ -186,6 +187,10 @@ export class Manticore extends Mob {
     if (this.attackStyles) {
       return this.attackStyles;
     }
+    if (this.preselectedAttackStyles) {
+      this.attackStyles = [...this.preselectedAttackStyles];
+      return this.attackStyles;
+    }
     const coordinatedManticore = this.region.mobs.find((mob) =>
       mob instanceof Manticore
       && mob !== this
@@ -275,12 +280,18 @@ export class Manticore extends Mob {
    * an array in instead of decoding strings here.
    */
   setAttackPattern(pattern: string) {
-    const normalized = pattern.startsWith("u") ? pattern.slice(1) : pattern;
+    const startsUncharged = pattern.startsWith("u");
+    const normalized = startsUncharged ? pattern.slice(1) : pattern;
     const expanded = normalized === "r" ? "rmM" : normalized === "m" ? "mrM" : normalized;
     const orbByCode: Record<string, Orbs> = { r: Orbs.Range, m: Orbs.Mage, M: Orbs.Melee };
     const decoded = expanded.split("").map((code) => orbByCode[code]);
     if (decoded.length === 3 && decoded.every((orb) => orb !== undefined)) {
-      this.attackStyles = decoded;
+      if (startsUncharged) {
+        this.preselectedAttackStyles = decoded;
+        this.attackDelay = 10;
+      } else {
+        this.attackStyles = decoded;
+      }
     }
   }
 
