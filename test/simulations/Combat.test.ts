@@ -8,11 +8,13 @@ import { TestRegion } from "../../src/sdk/testing/TestRegion";
 import { TestNpc } from "../../src/sdk/testing/TestNpc";
 import { Settings } from "../../src";
 import { MeleeWeapon } from "../../src/sdk/weapons/MeleeWeapon";
+import { RangedWeapon } from "../../src/sdk/weapons/RangedWeapon";
 import { DelayedAction } from "../../src/sdk/DelayedAction";
 import { ScytheOfVitur } from "../../src/content/weapons/ScytheOfVitur";
 import { DragonClaws } from "../../src/content/weapons/DragonClaws";
 import { CACHE_ASSETS } from "../../src/assets/CacheAssets";
 import { GraphicsObject } from "../../src/sdk/GraphicsObject";
+import { Projectile } from "../../src/sdk/weapons/Projectile";
 
 describe("basic combat scenario", () => {
   test("when player tries to kill a fake jalxil...", () => {
@@ -91,14 +93,16 @@ describe("basic combat scenario", () => {
     // max-damage-roll mechanic must bypass accuracy rather than merely fixing
     // the damage after a successful roll.
     Random.setRandom(() => 1);
-    attacker.grantMaxDamageRollsOnNextAttack();
+    target.grantMaxDamageRollsOnNextIncomingAttack();
 
     weapon.attack(attacker, target, bonuses);
 
     expect(weapon.damageRoll).toBe(weapon._maxHit(attacker, target, bonuses));
-    expect(attacker.forceMaxDamageRollsOnNextAttack).toBe(true);
+    expect(target.forceMaxDamageRollsOnNextIncomingAttack).toBe(true);
+    target.processIncomingAttacks();
+    expect(target.forceMaxDamageRollsOnNextIncomingAttack).toBe(true);
     DelayedAction.tick();
-    expect(attacker.forceMaxDamageRollsOnNextAttack).toBe(false);
+    expect(target.forceMaxDamageRollsOnNextIncomingAttack).toBe(false);
     Random.setRandom(originalRandom);
   });
 
@@ -109,15 +113,52 @@ describe("basic combat scenario", () => {
     const scythe = new ScytheOfVitur();
     const originalRandom = Random.randomFn;
     Random.setRandom(() => 0);
-    attacker.grantMaxDamageRollsOnNextAttack();
+    target.grantMaxDamageRollsOnNextIncomingAttack();
 
     scythe.attack(attacker, target, {});
 
     expect(target.incomingProjectiles).toHaveLength(3);
     expect(target.incomingProjectiles.every((projectile) => projectile.damage > 0)).toBe(true);
+    target.processIncomingAttacks();
+    expect(target.forceMaxDamageRollsOnNextIncomingAttack).toBe(true);
     DelayedAction.tick();
-    expect(attacker.forceMaxDamageRollsOnNextAttack).toBe(false);
+    expect(target.forceMaxDamageRollsOnNextIncomingAttack).toBe(false);
     Random.setRandom(originalRandom);
+  });
+
+  test("a target-owned max-damage-roll buff is consumed by a ranged hit when it lands", () => {
+    const region = new TestRegion(10, 10);
+    const attacker = new TestNpc(region, { x: 4, y: 5 }, {});
+    const target = new TestNpc(region, { x: 5, y: 5 }, {});
+    const weapon = new RangedWeapon();
+    const bonuses = {};
+    const originalRandom = Random.randomFn;
+    Random.setRandom(() => 1);
+    target.grantMaxDamageRollsOnNextIncomingAttack();
+
+    weapon.attack(attacker, target, bonuses);
+
+    expect(weapon.damageRoll).toBe(weapon._maxHit(attacker, target, bonuses));
+    target.processIncomingAttacks();
+    expect(target.forceMaxDamageRollsOnNextIncomingAttack).toBe(true);
+    DelayedAction.tick();
+    expect(target.forceMaxDamageRollsOnNextIncomingAttack).toBe(false);
+    Random.setRandom(originalRandom);
+  });
+
+  test("a zero-damage hit does not consume a target-owned max-damage-roll buff", () => {
+    const region = new TestRegion(10, 10);
+    const attacker = new TestNpc(region, { x: 4, y: 5 }, {});
+    const target = new TestNpc(region, { x: 5, y: 5 }, {});
+    target.grantMaxDamageRollsOnNextIncomingAttack();
+    target.addProjectile(new Projectile(null, 0, attacker, target, "stab", {
+      consumeTargetMaxDamageRoll: true,
+    }));
+
+    target.processIncomingAttacks();
+    DelayedAction.tick();
+
+    expect(target.forceMaxDamageRollsOnNextIncomingAttack).toBe(true);
   });
 
   test.each([

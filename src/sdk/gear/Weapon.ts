@@ -200,23 +200,23 @@ export class Weapon extends Equipment {
     }
 
     this.grantXp(from, to);
-    this.registerProjectile(from, to, bonuses, options);
-    if (this.lastHitHit) {
-      from.consumeMaxDamageRollsOnNextAttack();
-    }
+    const modifiers = to.incomingAttackRollModifiers({ attacker: from, weapon: this, bonuses });
+    this.registerProjectile(from, to, bonuses, mergeProjectileOptions(options, {
+      consumeTargetMaxDamageRoll: modifiers.maxDamage && modifiers.consumeAfterDamage,
+    }));
     return true;
   }
 
   _rollAttack(from: Unit, to: Unit, bonuses: AttackBonuses) {
     this.lastHitHit = false;
-    // Guaranteed max hits bypass accuracy checks.
-    const didHit = from.forceMaxDamageRollsOnNextAttack || Random.get() <= this._hitChance(from, to, bonuses);
+    const modifiers = to.incomingAttackRollModifiers({ attacker: from, weapon: this, bonuses });
+    const didHit = modifiers.guaranteedHit || Random.get() <= this._hitChance(from, to, bonuses);
     return didHit ? this._calculateHitDamage(from, to, bonuses) : 0;
   }
 
   _calculateHitDamage(from: Unit, to: Unit, bonuses: AttackBonuses) {
     this.lastHitHit = true;
-    if (from.forceMaxDamageRollsOnNextAttack) {
+    if (to.incomingAttackRollModifiers({ attacker: from, weapon: this, bonuses }).maxDamage) {
       return this._maxHit(from, to, bonuses);
     }
     return Math.floor(Random.get() * (this._maxHit(from, to, bonuses) + 1));

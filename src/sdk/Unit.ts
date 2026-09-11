@@ -10,7 +10,7 @@ import { Location } from "./Location";
 import { Interpolation, QueuedPathStep } from "./Interpolation";
 import { Pathing } from "./Pathing";
 import { ImageLoader } from "./utils/ImageLoader";
-import { Weapon } from "./gear/Weapon";
+import { AttackBonuses, Weapon } from "./gear/Weapon";
 import { Offhand } from "./gear/Offhand";
 import { Helmet } from "./gear/Helmet";
 import { Necklace } from "./gear/Necklace";
@@ -93,6 +93,19 @@ export interface UnitTargetBonuses {
   slayer: number;
 }
 
+export interface IncomingAttackRoll {
+  attacker: Unit;
+  weapon: Weapon;
+  bonuses: AttackBonuses;
+}
+
+export interface IncomingAttackRollModifiers {
+  guaranteedHit?: boolean;
+  maxDamage?: boolean;
+  /** Clear a transient target-side modifier after the resulting hit lands. */
+  consumeAfterDamage?: boolean;
+}
+
 export abstract class Unit extends Renderable {
   private unitTargetRotation = 0;
   private unitRotation = 0;
@@ -134,9 +147,8 @@ export abstract class Unit extends Renderable {
   lastRotation = 0;
   hasDiedAndAwaitingRemoval = false;
   nulledTicks = 0;
-  // Perhaps this should be implemented as a min-damage roll, but will do for now (plenty of "punish" mechanics have made it into the game lately)
-  forceMaxDamageRollsOnNextAttack = false;
-  private maxDamageRollsConsumptionQueued = false;
+  forceMaxDamageRollsOnNextIncomingAttack = false;
+  private maxIncomingDamageRollsConsumptionQueued = false;
 
   /** Attach or replace a temporary cache-derived graphic without rebuilding the base model. */
   addSpotAnim(spotAnim: CacheRenderSpotAnim) {
@@ -265,19 +277,26 @@ export abstract class Unit extends Renderable {
     this.lastInteractionAge = 0;
   }
 
-  grantMaxDamageRollsOnNextAttack() {
-    this.forceMaxDamageRollsOnNextAttack = true;
+  /** Modifies an attack roll made against this unit. Targets with permanent
+   * weaknesses can override this; transient effects use the built-in flag. */
+  incomingAttackRollModifiers(_attack: IncomingAttackRoll): IncomingAttackRollModifiers {
+    if (!this.forceMaxDamageRollsOnNextIncomingAttack) return {};
+    return { guaranteedHit: true, maxDamage: true, consumeAfterDamage: true };
   }
 
-  consumeMaxDamageRollsOnNextAttack() {
-    if (this.maxDamageRollsConsumptionQueued) {
+  grantMaxDamageRollsOnNextIncomingAttack() {
+    this.forceMaxDamageRollsOnNextIncomingAttack = true;
+  }
+
+  consumeMaxDamageRollsOnNextIncomingAttack() {
+    if (this.maxIncomingDamageRollsConsumptionQueued) {
       return;
     }
-    this.maxDamageRollsConsumptionQueued = true;
+    this.maxIncomingDamageRollsConsumptionQueued = true;
     DelayedAction.registerDelayedAction(
       new DelayedAction(() => {
-        this.forceMaxDamageRollsOnNextAttack = false;
-        this.maxDamageRollsConsumptionQueued = false;
+        this.forceMaxDamageRollsOnNextIncomingAttack = false;
+        this.maxIncomingDamageRollsConsumptionQueued = false;
       }, 0),
     );
   }
@@ -800,6 +819,9 @@ export abstract class Unit extends Renderable {
           if (sound) {
             SoundCache.play(sound);
           }
+        }
+        if (projectile.damage > 0 && projectile.options.consumeTargetMaxDamageRoll) {
+          this.consumeMaxDamageRollsOnNextIncomingAttack();
         }
         this.damageTaken();
         this.lastHitAgo = 0;

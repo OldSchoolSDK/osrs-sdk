@@ -80,6 +80,8 @@ export interface ProjectileOptions {
   // Reduce the computed delay of the projectile by this many ticks.
   reduceDelay?: number;
   cancelOnDeath?: boolean;
+  /** Internal marker for a transient max-damage modifier owned by the target. */
+  consumeTargetMaxDamageRoll?: boolean;
   // Sound to play on the exact tick the attack fires (irrespective of visuals)
   sound?: Sound;
   // Sound to play on the target when the attack hitsplat lands on the target (irrespective of visuals)

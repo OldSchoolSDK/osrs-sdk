@@ -102,11 +102,12 @@ export class DragonClaws extends MeleeWeapon {
     this._calculatePrayerEffects(from, to, bonuses);
 
     const protectedFromMelee = this.isBlockable(from, to, bonuses);
+    const rollModifiers = to.incomingAttackRollModifiers({ attacker: from, weapon: this, bonuses });
     let firstSuccessfulHit = -1;
     if (!protectedFromMelee) {
       const hitChance = this._hitChance(from, to, bonuses);
       for (let hit = 0; hit < 4; hit++) {
-        if (Random.get() <= hitChance) {
+        if (rollModifiers.guaranteedHit || Random.get() <= hitChance) {
           firstSuccessfulHit = hit;
           break;
         }
@@ -117,7 +118,7 @@ export class DragonClaws extends MeleeWeapon {
     const rollBetween = (minimum: number, maximum: number) => {
       const min = Math.max(0, Math.floor(minimum));
       const max = Math.max(min, Math.floor(maximum));
-      return from.forceMaxDamageRollsOnNextAttack ? max : min + Math.floor(Random.get() * (max - min + 1));
+      return rollModifiers.maxDamage ? max : min + Math.floor(Random.get() * (max - min + 1));
     };
 
     let hits: number[];
@@ -153,6 +154,7 @@ export class DragonClaws extends MeleeWeapon {
       this.grantXp(from, to);
       this.registerProjectile(from, to, bonuses, {
         ...options,
+        consumeTargetMaxDamageRoll: rollModifiers.maxDamage && rollModifiers.consumeAfterDamage,
         sound: null,
         setDelay: hit < 2 ? 1 : 2,
       });
@@ -161,7 +163,6 @@ export class DragonClaws extends MeleeWeapon {
       setTimeout(() => SoundCache.play(new Sound(cacheSound(id), SOUND_VOLUME)), delayCycles * CLIENT_CYCLE_MS);
     });
     this.lastHitHit = firstSuccessfulHit >= 0;
-    if (this.lastHitHit) from.consumeMaxDamageRollsOnNextAttack();
     return true;
   }
 
