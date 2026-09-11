@@ -29,7 +29,7 @@ export function DefaultSidebar({ children, style, ...props }: DefaultSidebarProp
         <RuneScapePanel style={{ boxSizing: "border-box", flexShrink: 0, minHeight: "100%", width: "100%" }}>
           <div>{children}</div>
           <div>
-            <hr style={{ border: 0, borderTop: "1px solid #6b5b3e" }} />
+            <hr />
             <RuneScapeButton onClick={() => setAdvancedSettingsOpen(true)} style={{ width: "100%" }} type="button">
               Advanced settings
             </RuneScapeButton>
