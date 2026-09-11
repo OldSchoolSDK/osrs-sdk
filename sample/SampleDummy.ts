@@ -24,6 +24,10 @@ export class SampleDummy extends Entity {
     return 0;
   }
 
+  override get drawOutline(): boolean {
+    return false;
+  }
+
   override get collisionType() {
     return CollisionType.BLOCK_MOVEMENT;
   }

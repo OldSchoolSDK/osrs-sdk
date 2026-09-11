@@ -1,13 +1,11 @@
 import * as THREE from "three";
 import { Model } from "./Model";
 import { Renderable } from "../Renderable";
+import { Settings } from "../Settings";
 import { Location } from "../Location";
-import { drawLineNormally, drawLineOnTop } from "./RenderUtils";
+import { drawLineOnTop, GroundOverlayRenderOrder } from "./RenderUtils";
 
 const CANVAS_TILE_SIZE = 20;
-
-const OUTLINE_NORMAL = 0xffffff;
-const OUTLINE_SELECTED = 0xff0000;
 
 /**
  * Render the model using a sprite derived from the 2d representation of the renderable.
@@ -48,7 +46,7 @@ export class CanvasSpriteModel implements Model {
     this.sprite.userData.unit = renderable;
 
     this.outlineMaterial = new THREE.LineBasicMaterial({
-      color: OUTLINE_NORMAL,
+      color: Settings.entityIndicatorColor ?? "#FFFFFF",
     });
     const points = [
       new THREE.Vector3(0, 0, 0),
@@ -88,14 +86,14 @@ export class CanvasSpriteModel implements Model {
     );
     this.texture.needsUpdate = true;
 
-    this.outlineMaterial.color.setHex(this.renderable.selected ? OUTLINE_SELECTED : OUTLINE_NORMAL);
-    if (this.renderable.selected || this.renderable.outlineRenderOrder !== null) {
-      drawLineOnTop(this.outline, this.renderable.outlineRenderOrder ?? 100);
-    } else {
-      drawLineNormally(this.outline);
-    }
+    const outlineColor = Settings.entityIndicatorColor;
+    this.outlineMaterial.color.set(outlineColor);
+    drawLineOnTop(
+      this.outline,
+      this.renderable.outlineRenderOrder ?? GroundOverlayRenderOrder.ENTITY_INDICATOR,
+    );
     this.sprite.visible = visible;
-    this.outline.visible = visible;
+    this.outline.visible = visible && this.renderable.drawOutline && Settings.entityIndicatorEnabled;
 
     const { x, y } = location;
     this.outline.position.x = x;

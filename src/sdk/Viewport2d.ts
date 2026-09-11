@@ -11,8 +11,11 @@ import { Collision } from "./Collision";
 import { Item } from "./Item";
 import _ from "lodash";
 import { Trainer } from "./Trainer";
+import { Location } from "./Location";
 
 export class Viewport2d implements ViewportDelegate {
+  private selectedTile: Location | null = null;
+
   async initialise(world: World, region: Region) {
     // do nothing, but maybe we should buffer the world background
     return;
@@ -79,6 +82,20 @@ export class Viewport2d implements ViewportDelegate {
 
     }
 
+    if (this.selectedTile && Settings.hoveredTileEnabled) {
+      region.context.save();
+      region.context.globalAlpha *= 0.5;
+      region.context.lineWidth = 2;
+      region.context.strokeStyle = Settings.hoveredTileColor;
+      region.context.strokeRect(
+        Math.floor(this.selectedTile.x) * Settings.tileSize,
+        Math.floor(this.selectedTile.y) * Settings.tileSize,
+        Settings.tileSize,
+        Settings.tileSize,
+      );
+      region.context.restore();
+    }
+
     region.context.restore();
 
     const { viewportX, viewportY } = Viewport.viewport.getViewport(world.tickPercent);
@@ -102,6 +119,7 @@ export class Viewport2d implements ViewportDelegate {
     }
     const adjustedX = x / Settings.tileSize;
     const adjustedY = y / Settings.tileSize;
+    this.selectedTile = { x: Math.floor(adjustedX), y: Math.floor(adjustedY) };
     const mobs: Mob[] = [];
     const players: Player[] = [];
     const groundItems: Item[] = [];

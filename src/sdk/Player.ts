@@ -934,14 +934,18 @@ export class Player extends Unit {
     );
 
     // Destination location
-    this.region.context.strokeStyle = "#FFFFFF73";
-    this.region.context.lineWidth = 3;
-    this.region.context.strokeRect(
-      this.destinationLocation.x * Settings.tileSize,
-      this.destinationLocation.y * Settings.tileSize,
-      Settings.tileSize,
-      Settings.tileSize,
-    );
+    if (Settings.targetTileEnabled) {
+      this.region.context.globalAlpha = 0.5;
+      this.region.context.strokeStyle = Settings.targetTileColor;
+      this.region.context.lineWidth = 3;
+      this.region.context.strokeRect(
+        this.destinationLocation!.x * Settings.tileSize,
+        this.destinationLocation!.y * Settings.tileSize,
+        Settings.tileSize,
+        Settings.tileSize,
+      );
+      this.region.context.globalAlpha = 1;
+    }
     this.region.context.restore();
     return { x: perceivedX, y: perceivedY };
   }
@@ -1003,7 +1007,6 @@ export class Player extends Unit {
   }
 
   override get drawOutline() {
-    // not needed with a real 3d model
     return false;
   }
 
@@ -1012,10 +1015,6 @@ export class Player extends Unit {
   }
 
   get canBlendAttackAnimation() {
-    return true;
-  }
-
-  override get drawTrueTile() {
     return true;
   }
 
@@ -1028,8 +1027,21 @@ export class Player extends Unit {
 }
 
 class ClickMarker extends TileMarker {
-  constructor(region: Region, location: Location, color = "#FFFFFF") {
-    super(region, location, color, 1, false);
+  private readonly targetMarker: boolean;
+
+  constructor(region: Region, location: Location, color?: string) {
+    super(region, location, color ?? Settings.targetTileColor, 1, false);
+    this.targetMarker = color === undefined;
+  }
+  override get color() {
+    return this.targetMarker ? Settings.targetTileColor : this._color;
+  }
+  override visible(tickPercent: number) {
+    return !this.targetMarker || Settings.targetTileEnabled;
+  }
+  override draw() {
+    if (this.targetMarker && !Settings.targetTileEnabled) return;
+    super.draw();
   }
   remove() {
     this.dying = 0;

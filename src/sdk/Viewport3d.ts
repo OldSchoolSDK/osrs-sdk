@@ -418,7 +418,9 @@ export class Viewport3d implements ViewportDelegate {
       this.selectedTileMesh.position.x = this.selectedTile.x - 0.5;
       this.selectedTileMesh.position.y = GROUND_OVERLAY_Y;
       this.selectedTileMesh.position.z = this.selectedTile.y - 0.5;
-      this.selectedTileMesh.visible = !Trainer.clickController.hasSelectedMob();
+      const hoveredTileColor = Settings.hoveredTileColor;
+      (this.selectedTileMesh.material as THREE.MeshBasicMaterial).color.set(hoveredTileColor);
+      this.selectedTileMesh.visible = Settings.hoveredTileEnabled;
     }
   }
 

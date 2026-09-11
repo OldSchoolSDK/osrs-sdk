@@ -11,7 +11,7 @@ import { Model } from "../sdk/rendering/Model";
 import { TileMarkerModel } from "../sdk/rendering/TileMarkerModel";
 
 export class TileMarker extends Entity {
-  private _color = "#00FF00";
+  protected _color = "#00FF00";
 
   static saveableMarkers: TileMarker[] = [];
   static onSetColor(color: string) {
@@ -66,8 +66,10 @@ export class TileMarker extends Entity {
   }
 
   draw() {
+    this.region.context.save();
+    this.region.context.globalAlpha *= 0.5;
     this.region.context.lineWidth = 2;
-    this.region.context.strokeStyle = this._color;
+    this.region.context.strokeStyle = this.color;
 
     this.region.context.strokeRect(
       this.location.x * Settings.tileSize,
@@ -75,6 +77,7 @@ export class TileMarker extends Entity {
       this.size * Settings.tileSize,
       this.size * Settings.tileSize,
     );
+    this.region.context.restore();
   }
 
   create3dModel(): Model {

@@ -329,7 +329,7 @@ export class CacheRenderModel implements Model, RenderableListener {
     ];
     this.trueTile = new THREE.LineSegments(
       new THREE.BufferGeometry().setFromPoints(points),
-      new THREE.LineBasicMaterial({ color: 0x00ffff }),
+      new THREE.LineBasicMaterial({ color: Settings.trueTileColor ?? "#00FFFF" }),
     );
   }
   static forRenderable(renderable: Renderable, reference: CacheRenderReference, options?: CacheRenderModelOptions) {
@@ -558,7 +558,7 @@ export class CacheRenderModel implements Model, RenderableListener {
         ];
         const outline = new THREE.LineSegments(
           new THREE.BufferGeometry().setFromPoints(outlinePoints),
-          new THREE.LineBasicMaterial({ color: this.renderable.colorHex }),
+          new THREE.LineBasicMaterial({ color: Settings.entityIndicatorColor ?? "#FFFFFF" }),
         );
         if (this.renderable.outlineRenderOrder !== null) outline.renderOrder = this.renderable.outlineRenderOrder;
         this.outline = outline;
@@ -628,7 +628,11 @@ export class CacheRenderModel implements Model, RenderableListener {
     // the south-west/base tile for multi-tile actors.
     const soundLocation = { x: location.x + (size - 1) / 2, y: location.y - (size - 1) / 2 };
     this.root.visible = visible && (this.mesh !== null || this.spotAnims.length > 0);
-    if (this.outline) this.outline.visible = visible && this.renderable.drawOutline;
+    const outlineColor = Settings.entityIndicatorColor;
+    if (this.outline) {
+      (this.outline.material as THREE.LineBasicMaterial).color.set(outlineColor);
+      this.outline.visible = visible && this.renderable.drawOutline && Settings.entityIndicatorEnabled;
+    }
     this.root.position.set(location.x + size / 2, location.z - 0.49, location.y - size / 2);
     this.root.rotation.order = "YXZ";
     // The client submits standalone GraphicsObjects to the scene with yaw 0.
@@ -638,6 +642,10 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.root.rotation.set(pitch, rotation + basisRotation, 0);
     if (this.outline) {
       if (this.outline.parent !== scene) scene.add(this.outline);
+      drawLineOnTop(
+        this.outline,
+        this.renderable.outlineRenderOrder ?? GroundOverlayRenderOrder.ENTITY_INDICATOR,
+      );
       this.outline.position.set(location.x, -0.49, location.y);
       this.outline.rotation.set(0, 0, 0);
     }
@@ -659,7 +667,15 @@ export class CacheRenderModel implements Model, RenderableListener {
       const trueLocation = this.renderable.getTrueLocation();
       drawLineOnTop(this.trueTile, this.renderable.trueTileRenderOrder ?? GroundOverlayRenderOrder.TRUE_TILE);
       this.trueTile.position.set(trueLocation.x, GROUND_OVERLAY_Y, trueLocation.y);
-      this.trueTile.visible = this.renderable.drawTrueTile && visible;
+      const trueTileColor = Settings.trueTileColor;
+      (this.trueTile.material as THREE.LineBasicMaterial).color.set(trueTileColor);
+      const indicatorCoversTrueTile = Settings.entityIndicatorEnabled
+        && location.x === trueLocation.x
+        && location.y === trueLocation.y;
+      this.trueTile.visible = this.renderable.drawTrueTile
+        && visible
+        && Settings.trueTileEnabled
+        && !indicatorCoversTrueTile;
     }
     this.root.children.forEach((child, index) => {
       const offset = modelOffsets[index]; child.position.set(offset?.x ?? 0, offset?.z ?? 0, offset?.y ?? 0);

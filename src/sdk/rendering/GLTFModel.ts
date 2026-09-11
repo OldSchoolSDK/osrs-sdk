@@ -5,12 +5,9 @@ import { GLTF, GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { Location, Location3 } from "../Location";
 import { Renderable, RenderableListener } from "../Renderable";
+import { Settings } from "../Settings";
 import { Model } from "./Model";
-import { drawLineNormally, drawLineOnTop, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./RenderUtils";
-
-const OUTLINE_NORMAL = 0xffffff;
-const OUTLINE_TRUE_TILE = 0x00ffff;
-const OUTLINE_SELECTED = 0xff0000;
+import { drawLineOnTop, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./RenderUtils";
 
 // global loader across models
 const loader = new GLTFLoader();
@@ -91,7 +88,7 @@ export class GLTFModel implements Model, RenderableListener {
     this.originOffset = options.originOffset ?? { x: 0, y: 0 };
 
     this.outlineMaterial = new THREE.LineBasicMaterial({
-      color: OUTLINE_NORMAL,
+      color: Settings.entityIndicatorColor ?? "#FFFFFF",
     });
     const points = [
       new THREE.Vector3(0, 0, 0),
@@ -110,7 +107,7 @@ export class GLTFModel implements Model, RenderableListener {
     this.trueTile = new THREE.LineSegments(
       trueTileGeometry,
       new THREE.LineBasicMaterial({
-        color: OUTLINE_TRUE_TILE,
+        color: Settings.trueTileColor ?? "#00FFFF",
       }),
     );
     this.trueTile.visible = renderable.drawTrueTile;
@@ -306,16 +303,16 @@ export class GLTFModel implements Model, RenderableListener {
       scene.add(this.clickHull);
     }
 
-    this.outline.visible = this.renderable.drawOutline && visible;
+    const outlineColor = Settings.entityIndicatorColor;
+    this.outline.visible = this.renderable.drawOutline && visible && Settings.entityIndicatorEnabled;
     if (this.loadedModel) {
       this.loadedModel.visible = visible;
     }
-    this.outlineMaterial.color.setHex(this.renderable.selected ? OUTLINE_SELECTED : OUTLINE_NORMAL);
-    if (this.renderable.selected || this.renderable.outlineRenderOrder !== null) {
-      drawLineOnTop(this.outline, this.renderable.outlineRenderOrder ?? 1000);
-    } else {
-      drawLineNormally(this.outline);
-    }
+    this.outlineMaterial.color.set(outlineColor);
+    drawLineOnTop(
+      this.outline,
+      this.renderable.outlineRenderOrder ?? GroundOverlayRenderOrder.ENTITY_INDICATOR,
+    );
     if (this.renderable.animationIndex !== this.lastPoseId) {
       // start a new pose if the pose index changes and we're not currently playing an animation
       this.onPoseChanged(this.renderable.animationIndex);
@@ -326,15 +323,18 @@ export class GLTFModel implements Model, RenderableListener {
      this.outline.position.x = x;
      this.outline.position.y = -0.49;
      this.outline.position.z = y;
-     this.outline.visible = this.renderable.drawOutline && visible;
+     this.outline.visible = this.renderable.drawOutline && visible && Settings.entityIndicatorEnabled;
+    const { x: trueX, y: trueY } = this.renderable.getTrueLocation();
     if (this.renderable.drawTrueTile) {
-      const { x: trueX, y: trueY } = this.renderable.getTrueLocation();
       this.trueTile.position.x = trueX;
       this.trueTile.position.y = GROUND_OVERLAY_Y;
       this.trueTile.position.z = trueY;
       drawLineOnTop(this.trueTile, this.renderable.trueTileRenderOrder ?? GroundOverlayRenderOrder.TRUE_TILE);
     }
-     this.trueTile.visible = this.renderable.drawTrueTile && visible;
+     const trueTileColor = Settings.trueTileColor;
+     (this.trueTile.material as THREE.LineBasicMaterial).color.set(trueTileColor);
+     const indicatorCoversTrueTile = Settings.entityIndicatorEnabled && x === trueX && y === trueY;
+     this.trueTile.visible = this.renderable.drawTrueTile && visible && Settings.trueTileEnabled && !indicatorCoversTrueTile;
 
     this.clickHull.position.x = x + this.renderable.size / 2;
     this.clickHull.position.z = y - this.renderable.size / 2;

@@ -4,11 +4,13 @@ import * as THREE from "three";
 // priority is determined by render order, rather than by stacking them at
 // slightly different heights.
 export const GROUND_OVERLAY_Y = -0.49;
+export const GROUND_OVERLAY_OPACITY = 0.5;
 
 export enum GroundOverlayRenderOrder {
   MARKED_TILE = 100,
   TRUE_TILE = 200,
-  HOVERED_TILE = 300,
+  ENTITY_INDICATOR = 300,
+  HOVERED_TILE = 400,
 }
 
 /** A thin ground-plane frame, rendered as triangles so WebGL MSAA smooths its edges. */
@@ -38,7 +40,12 @@ export const createTileIndicator = (
 
   const geometry = new THREE.ShapeGeometry(shape);
   geometry.rotateX(-Math.PI / 2);
-  const material = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide });
+  const material = new THREE.MeshBasicMaterial({
+    color,
+    opacity: GROUND_OVERLAY_OPACITY,
+    side: THREE.DoubleSide,
+    transparent: true,
+  });
   const indicator = new THREE.Mesh(geometry, material);
   if (renderOrder !== null) {
     indicator.renderOrder = renderOrder;
@@ -53,6 +60,7 @@ export const drawLineOnTop = (mesh: THREE.Line, renderOrder: number) => {
   (mesh.material as THREE.Material).depthTest = false;
   (mesh.material as THREE.Material).depthWrite = false;
   (mesh.material as THREE.Material).transparent = true;
+  (mesh.material as THREE.Material).opacity = GROUND_OVERLAY_OPACITY;
 };
 
 export const drawLineNormally = (mesh: THREE.Line) => {

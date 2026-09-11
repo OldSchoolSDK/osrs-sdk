@@ -18,12 +18,46 @@ type SettingRowProps = Omit<HTMLAttributes<HTMLDivElement>, "children"> & {
   label: React.ReactNode;
 };
 
+type ColorSettingName = "entityIndicatorColor" | "hoveredTileColor" | "targetTileColor" | "trueTileColor";
+type ColorEnabledSettingName = "entityIndicatorEnabled" | "hoveredTileEnabled" | "targetTileEnabled" | "trueTileEnabled";
+
 function SettingRow({ children, htmlFor, label, style, ...props }: SettingRowProps) {
   return (
     <div {...props} style={{ display: "contents", ...style }}>
       <label htmlFor={htmlFor}>{label}</label>
       <div style={{ justifySelf: "end" }}>{children}</div>
     </div>
+  );
+}
+
+function ColorSetting({ colorSetting, enabled, enabledSetting, id, label, value }: {
+  colorSetting: ColorSettingName;
+  enabled: boolean;
+  enabledSetting: ColorEnabledSettingName;
+  id: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <SettingRow htmlFor={`${id}Enabled`} label={label}>
+      <span style={{ alignItems: "center", display: "flex", gap: 8 }}>
+        <input
+          aria-label={`Enable ${label}`}
+          checked={enabled}
+          id={`${id}Enabled`}
+          onChange={(event) => Settings.set({ [enabledSetting]: event.currentTarget.checked })}
+          type="checkbox"
+        />
+        <input
+          aria-label={`${label} color`}
+          disabled={!enabled}
+          id={id}
+          onChange={(event) => Settings.set({ [colorSetting]: event.currentTarget.value })}
+          type="color"
+          value={value}
+        />
+      </span>
+    </SettingRow>
   );
 }
 
@@ -46,6 +80,38 @@ export function AdvancedSettingsPanel({ children, onClose, open, style, ...props
         </div>
 
         <Section title="Tile Indicators">
+          <ColorSetting
+            colorSetting="entityIndicatorColor"
+            enabled={settings.entityIndicatorEnabled}
+            enabledSetting="entityIndicatorEnabled"
+            id="entityIndicatorColor"
+            label="Player/NPC indicator"
+            value={settings.entityIndicatorColor}
+          />
+          <ColorSetting
+            colorSetting="trueTileColor"
+            enabled={settings.trueTileEnabled}
+            enabledSetting="trueTileEnabled"
+            id="trueTileColor"
+            label="True tiles"
+            value={settings.trueTileColor}
+          />
+          <ColorSetting
+            colorSetting="hoveredTileColor"
+            enabled={settings.hoveredTileEnabled}
+            enabledSetting="hoveredTileEnabled"
+            id="hoveredTileColor"
+            label="Hovered tile"
+            value={settings.hoveredTileColor}
+          />
+          <ColorSetting
+            colorSetting="targetTileColor"
+            enabled={settings.targetTileEnabled}
+            enabledSetting="targetTileEnabled"
+            id="targetTileColor"
+            label="Target tile"
+            value={settings.targetTileColor}
+          />
           <SettingRow htmlFor="tileMarkerColor" label="Tile marker color">
             <input
               id="tileMarkerColor"

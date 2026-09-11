@@ -180,6 +180,10 @@ export abstract class Unit extends Renderable {
     return false;
   }
 
+  override get drawTrueTile() {
+    return true;
+  }
+
   get xpBonusMultiplier() {
     return 1.0;
   }

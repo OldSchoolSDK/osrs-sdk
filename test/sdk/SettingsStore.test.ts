@@ -70,6 +70,34 @@ describe("Settings legacy migration", () => {
     expect(Settings.displayClickboxes).toBe(false);
     expect(Settings.getSnapshot().displayClickboxes).toBe(false);
   });
+
+  it("persists tile indicator colors independently from their enabled state", () => {
+    Settings.readFromStorage();
+
+    Settings.set({
+      entityIndicatorColor: "#654321",
+      entityIndicatorEnabled: false,
+      hoveredTileColor: "#123456",
+      targetTileColor: "#ABCDEF",
+      targetTileEnabled: false,
+      trueTileEnabled: false,
+    });
+
+    expect(Settings.getSnapshot().entityIndicatorColor).toBe("#654321");
+    expect(Settings.getSnapshot().entityIndicatorEnabled).toBe(false);
+    expect(Settings.getSnapshot().hoveredTileColor).toBe("#123456");
+    expect(Settings.getSnapshot().targetTileColor).toBe("#ABCDEF");
+    expect(Settings.getSnapshot().targetTileEnabled).toBe(false);
+    expect(Settings.getSnapshot().trueTileEnabled).toBe(false);
+
+    Settings.readFromStorage();
+    expect(Settings.entityIndicatorColor).toBe("#654321");
+    expect(Settings.entityIndicatorEnabled).toBe(false);
+    expect(Settings.hoveredTileColor).toBe("#123456");
+    expect(Settings.targetTileColor).toBe("#ABCDEF");
+    expect(Settings.targetTileEnabled).toBe(false);
+    expect(Settings.trueTileEnabled).toBe(false);
+  });
 });
 
 describe("SettingsStore", () => {

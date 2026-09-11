@@ -20,6 +20,8 @@ export type SettingsState = {
   displayPlayerLoS: boolean;
   displayXpDrops: boolean;
   equipment_key: string;
+  entityIndicatorColor: string;
+  entityIndicatorEnabled: boolean;
   inputDelay: number;
   inventory_key: string;
   /** The name of the currently selected loadout template. */
@@ -43,6 +45,12 @@ export type SettingsState = {
   spellbook_key: string;
   tile_markers: Location[];
   tileMarkerColor: string;
+  targetTileColor: string;
+  targetTileEnabled: boolean;
+  trueTileColor: string;
+  trueTileEnabled: boolean;
+  hoveredTileColor: string;
+  hoveredTileEnabled: boolean;
   use3dView: boolean;
   westPillar: boolean;
   zoomScale: number;
@@ -82,6 +90,17 @@ export class Settings {
   static tile_markers: Location[];
 
   static tileMarkerColor: string;
+  static targetTileColor: string;
+  static targetTileEnabled: boolean;
+
+  static entityIndicatorColor: string;
+  static entityIndicatorEnabled: boolean;
+
+  static trueTileColor: string;
+  static trueTileEnabled: boolean;
+
+  static hoveredTileColor: string;
+  static hoveredTileEnabled: boolean;
 
   static loadout: string;
   static customLoadout: Loadout | null;
@@ -188,6 +207,8 @@ export class Settings {
       displayPlayerLoS: Settings.displayPlayerLoS,
       displayXpDrops: Settings.displayXpDrops,
       equipment_key: Settings.equipment_key,
+      entityIndicatorColor: Settings.entityIndicatorColor,
+      entityIndicatorEnabled: Settings.entityIndicatorEnabled,
       inputDelay: Settings.inputDelay,
       inventory_key: Settings.inventory_key,
       loadout: Settings.loadout,
@@ -209,6 +230,12 @@ export class Settings {
       spellbook_key: Settings.spellbook_key,
       tile_markers: Settings.tile_markers,
       tileMarkerColor: Settings.tileMarkerColor,
+      targetTileColor: Settings.targetTileColor,
+      targetTileEnabled: Settings.targetTileEnabled,
+      trueTileColor: Settings.trueTileColor,
+      trueTileEnabled: Settings.trueTileEnabled,
+      hoveredTileColor: Settings.hoveredTileColor,
+      hoveredTileEnabled: Settings.hoveredTileEnabled,
       use3dView: Settings.use3dView,
       westPillar: Settings.westPillar,
       zoomScale: Settings.zoomScale,
@@ -228,6 +255,8 @@ function createDefaults(): SettingsState {
     displayPlayerLoS: false,
     displayXpDrops: true,
     equipment_key: "F1",
+    entityIndicatorColor: "#FFFFFF",
+    entityIndicatorEnabled: true,
     inputDelay: 0,
     inventory_key: "F4",
     loadout: "max_tbow_speed",
@@ -249,6 +278,12 @@ function createDefaults(): SettingsState {
     spellbook_key: "F2",
     tile_markers: null,
     tileMarkerColor: "#FF0000",
+    targetTileColor: "#FFFFFF",
+    targetTileEnabled: true,
+    trueTileColor: "#00FFFF",
+    trueTileEnabled: false,
+    hoveredTileColor: "#FFFFFF",
+    hoveredTileEnabled: true,
     use3dView: true,
     westPillar: true,
     zoomScale: 1,
@@ -275,6 +310,8 @@ const legacyStorage: SettingsStorage<SettingsState> = {
       displayPlayerLoS: legacyBoolean("displayPlayerLoS", false),
       displayXpDrops: window.localStorage.getItem("displayXpDrops") !== "false",
       equipment_key: window.localStorage.getItem("equipment_key") || defaults.equipment_key,
+      entityIndicatorColor: defaults.entityIndicatorColor,
+      entityIndicatorEnabled: defaults.entityIndicatorEnabled,
       inputDelay: parseInt(window.localStorage.getItem("inputDelay") ?? "0"),
       inventory_key: window.localStorage.getItem("inventory_key") || defaults.inventory_key,
       loadout: window.localStorage.getItem("loadout") || defaults.loadout,
@@ -296,6 +333,12 @@ const legacyStorage: SettingsStorage<SettingsState> = {
       spellbook_key: window.localStorage.getItem("spellbook_key") || defaults.spellbook_key,
       tile_markers: JSON.parse(window.localStorage.getItem("tile_markers")),
       tileMarkerColor: window.localStorage.getItem("tileMarkerColor") || defaults.tileMarkerColor,
+      targetTileColor: defaults.targetTileColor,
+      targetTileEnabled: defaults.targetTileEnabled,
+      trueTileColor: defaults.trueTileColor,
+      trueTileEnabled: defaults.trueTileEnabled,
+      hoveredTileColor: defaults.hoveredTileColor,
+      hoveredTileEnabled: defaults.hoveredTileEnabled,
       use3dView: window.localStorage.getItem("use3dView") !== "false",
       westPillar: window.localStorage.getItem("westPillar") !== "false",
       zoomScale: parseFloat(window.localStorage.getItem("zoomScale")) || 1,
