@@ -14,4 +14,5 @@ export enum PlayerAnimationIndices {
   SwordSlash = 11,
   Eat = 12,
   Dying = 13,
+  CastSpell = 14,
 }

@@ -26,6 +26,7 @@ export const CACHE_ASSETS = {
     swordSlash: { id: 390 },
     eat: { id: 829 },
     dying: { id: 836 },
+    castSpell: { id: 711 },
     dragonClawsAttack: { id: 7514 },
   },
   items: {
@@ -178,5 +179,6 @@ export const SEMANTIC_POSE_MAP = {
   11: CACHE_ASSETS.playerAnimations.swordSlash,
   12: CACHE_ASSETS.playerAnimations.eat,
   13: CACHE_ASSETS.playerAnimations.dying,
-  14: CACHE_ASSETS.playerAnimations.dragonClawsAttack,
+  14: CACHE_ASSETS.playerAnimations.castSpell,
+  15: CACHE_ASSETS.playerAnimations.dragonClawsAttack,
 };

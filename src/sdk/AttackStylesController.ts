@@ -152,9 +152,8 @@ export class AttackStylesController {
       [AttackStyle.LONG_FUSE]: ImageLoader.createImage(ChinchompaLongFuseImage),
     },
     [AttackStyleTypes.POWEREDSTAFF]: {
-      // TODO
-      [AttackStyle.ACCURATE]: ImageLoader.createImage(ChinchompaShortFuseImage),
-      [AttackStyle.LONGRANGE]: ImageLoader.createImage(ChinchompaLongFuseImage),
+      [AttackStyle.ACCURATE]: ImageLoader.createImage(StaffAccurateImage),
+      [AttackStyle.LONGRANGE]: ImageLoader.createImage(StaffDefensiveImage),
     },
   };
 

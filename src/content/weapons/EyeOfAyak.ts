@@ -1,30 +1,20 @@
 "use strict";
 
 import InventImage from "../../assets/images/weapons/Eye_of_Ayak.png";
-import { MagicWeapon } from "../../sdk/weapons/MagicWeapon";
+import { PoweredStaff } from "../../sdk/weapons/PoweredStaff";
 import { ItemName } from "../../sdk/ItemName";
-import { AttackStyle, AttackStyleTypes } from "../../sdk/AttackStylesController";
-import { AttackBonuses } from "../../sdk/gear/Weapon";
-import { Sound } from "../../sdk/utils/SoundCache";
-import { Unit } from "../../sdk/Unit";
-
-import { cacheSound } from "../../sdk/audio/CacheSoundEffects";
 import { CACHE_ASSETS } from "../../assets/CacheAssets";
 import { PlayerAnimationIndices } from "../../sdk/rendering/GLTFAnimationConstants";
 
-export class EyeOfAyak extends MagicWeapon {
+export class EyeOfAyak extends PoweredStaff {
 
   get cacheItemId(): number { return CACHE_ASSETS.items.eyeOfAyak.id; }
 
   constructor() {
-    super({
-      visuals: {
-        spotAnim: {
-          // TODO
-          id: CACHE_ASSETS.spotAnims.scytheEast.id
-        },
-        startCycleOffset: 30,
-    }});
+    // The exact cache projectile graphic and client-cycle offsets still need
+    // identifying. Until then, use the SDK's neutral magic projectile instead
+    // of borrowing an unrelated weapon's effect.
+    super({ visuals: { color: "#7d57c2" } });
     this.bonuses = {
       attack: {
         stab: 0,
@@ -53,28 +43,12 @@ export class EyeOfAyak extends MagicWeapon {
     };
   }
 
-  calculateHitDelay(distance: number) {
-    return Math.floor((1 + distance) / 3) + 1;
-  }
-
-  attackStyles() {
-    return [AttackStyle.ACCURATE, AttackStyle.LONGRANGE];
-  }
-
-  attackStyleCategory(): AttackStyleTypes {
-    return AttackStyleTypes.POWEREDSTAFF;
-  }
-
-  defaultStyle(): AttackStyle {
-    return AttackStyle.LONGRANGE;
-  }
-
   get attackSpeed() {
     return 3;
   }
 
   get weight(): number {
-    return 0;
+    return 2;
   }
 
   get itemName(): ItemName {
@@ -85,29 +59,16 @@ export class EyeOfAyak extends MagicWeapon {
     return false;
   }
 
-  get attackRange() {
-    if (this.attackStyle() === AttackStyle.LONGRANGE) {
-      return 8;
-    }
-    return 6;
-  }
-
   get inventoryImage() {
     return InventImage;
   }
 
-  get attackSound() {
-    // TODO
-    return new Sound(cacheSound(CACHE_ASSETS.sounds.twistedBowAttack.id), 0.1);
-  }
-
   get attackAnimationId() {
-    // TODO
-    return PlayerAnimationIndices.ThrowChinchompa;
+    // TODO: replace with the Eye of Ayak's exact casting sequence once known.
+    return PlayerAnimationIndices.CastSpell;
   }
 
-  // TODO
-  override _maxHit(from: Unit, to: Unit, bonuses: AttackBonuses) {
-    return 28;
+  protected override poweredSpellMaxHit(magicLevel: number) {
+    return Math.floor(magicLevel / 3) - 6;
   }
 }

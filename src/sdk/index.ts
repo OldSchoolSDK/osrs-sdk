@@ -21,6 +21,7 @@ export * from './weapons/IceBarrageSpell';
 export * from './weapons/MagicWeapon';
 export * from './weapons/MeleeWeapon';
 export * from './weapons/Projectile';
+export * from './weapons/PoweredStaff';
 export * from './weapons/RangedWeapon';
 
 export * from './AttackStylesController';
