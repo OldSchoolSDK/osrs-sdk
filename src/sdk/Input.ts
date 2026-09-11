@@ -8,9 +8,26 @@ const MAX_QUEUED_ACTIONS = 8;
 export class InputController {
   inputDelay?: ReturnType<typeof setTimeout> = null;
 
+  clientActions: (() => void)[] = [];
   queuedActions: (() => void)[] = [];
 
   static controller = new InputController();
+
+  /**
+   * Queue an input to be sampled by the next 20 ms client tick.
+   *
+   * Prayer controls use this to keep browser event timing separate from both
+   * the client-side lit state and the server-side active state.
+   */
+  queueClientAction(fn: () => void) {
+    this.clientActions.push(fn);
+  }
+
+  onClientTick() {
+    const actions = this.clientActions;
+    this.clientActions = [];
+    actions.forEach((action) => action());
+  }
 
   queueAction(fn: () => void) {
     /*if (this.inputDelay) {

@@ -4,6 +4,7 @@ import { BaseControls } from "./BaseControls";
 import { Settings } from "../Settings";
 import { ControlPanelController } from "../ControlPanelController";
 import { Trainer } from "../Trainer";
+import { InputController } from "../Input";
 
 export class PrayerControls extends BaseControls {
   hasQuickPrayersActivated = false;
@@ -51,11 +52,17 @@ export class PrayerControls extends BaseControls {
     const clickedPrayer =
       Trainer.player.prayerController.prayers[Math.floor(gridY / 35) * 5 + Math.floor(gridX / 35)];
     if (clickedPrayer && Trainer.player.currentStats.prayer > 0) {
-      clickedPrayer.toggle(Trainer.player);
+      InputController.controller.queueClientAction(() => {
+        if (Trainer.player.currentStats.prayer <= 0 || !clickedPrayer.toggleClient(Trainer.player)) return;
 
-      if (this.hasQuickPrayersActivated && Trainer.player.prayerController.activePrayers().length === 0) {
-        ControlPanelController.controls.PRAYER.hasQuickPrayersActivated = false;
-      }
+        InputController.controller.queueAction(() => {
+          clickedPrayer.toggleServer(Trainer.player);
+
+          if (this.hasQuickPrayersActivated && Trainer.player.prayerController.activePrayers().length === 0) {
+            ControlPanelController.controls.PRAYER.hasQuickPrayersActivated = false;
+          }
+        });
+      });
     }
   }
 

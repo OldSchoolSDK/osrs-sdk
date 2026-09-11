@@ -63,9 +63,7 @@ export class BasePrayer {
     return [];
   }
 
-  /**
-   * Currently only used by Quick-Prayers. UI clicks always go through `toggle`.
-   */
+  /** Currently only used by Quick-Prayers. */
   activate(player: Player) {
     if (this.disabledTicks > 0) {
       this.playOffSound();
@@ -79,13 +77,22 @@ export class BasePrayer {
     this.handleConflicts(player);
   }
 
+  /**
+   * Preserve the combined toggle operation for programmatic callers. Prayer
+   * controls split these operations across the client and server timelines.
+   */
   toggle(player: Player) {
+    if (this.toggleClient(player)) this.toggleServer(player);
+  }
+
+  /** Update the locally displayed prayer state when the client handles a click. */
+  toggleClient(player: Player): boolean {
     if (this.disabledTicks > 0) {
       this.playOffSound();
-      return;
+      return false;
     }
     if (player.stats.prayer < this.levelRequirement()) {
-      return;
+      return false;
     }
     if (this.isLit) {
       this.isLit = false;
@@ -94,8 +101,23 @@ export class BasePrayer {
       this.isLit = true;
       this.willPlayOnSound = true;
     }
-    // If clicked multiple times in a tick, invert the nextActiveState. Otherwise, use the inverse of isLit
-    this.nextActiveState = this.nextActiveState == null ? this.isLit : !this.nextActiveState;
+    return true;
+  }
+
+  /** Apply a received prayer toggle to the authoritative server-side state. */
+  toggleServer(player: Player) {
+    if (this.disabledTicks > 0) {
+      this.isLit = this.isActive;
+      this.playOffSound();
+      return;
+    }
+    if (player.stats.prayer < this.levelRequirement()) {
+      this.isLit = this.isActive;
+      return;
+    }
+
+    const activeState = this.nextActiveState == null ? this.isActive : this.nextActiveState;
+    this.nextActiveState = !activeState;
     this.handleConflicts(player);
   }
   
