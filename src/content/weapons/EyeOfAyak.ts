@@ -16,8 +16,6 @@ export class EyeOfAyak extends MagicWeapon {
 
   get cacheItemId(): number { return CACHE_ASSETS.items.eyeOfAyak.id; }
 
-  maxConcurrentHits = 9;
-
   constructor() {
     super({
       visuals: {
@@ -72,10 +70,7 @@ export class EyeOfAyak extends MagicWeapon {
   }
 
   get attackSpeed() {
-    if (this.attackStyle() === AttackStyle.MEDIUM_FUSE) {
-      return 3;
-    }
-    return 4;
+    return 3;
   }
 
   get weight(): number {
