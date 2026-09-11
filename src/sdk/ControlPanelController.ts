@@ -274,7 +274,7 @@ export class ControlPanelController {
   controlPanelClickDown(e: MouseEvent): boolean {
     let intercepted = false;
 
-    const scale = Settings.controlPanelScale;
+    const scale = this.getTabScale();
 
     const x = e.offsetX;
     const y = e.offsetY;
