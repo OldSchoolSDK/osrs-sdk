@@ -110,6 +110,7 @@ export const CACHE_ASSETS = {
     staminaPotion: { id: 12625 },
     superCombatPotion: { id: 12695 },
     superRestore: { id: 3024 },
+    eyeOfAyak: { id: 31113 },
   },
   objects: {},
   sounds: {

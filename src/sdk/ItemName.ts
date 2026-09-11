@@ -84,4 +84,5 @@ export enum ItemName {
   OATHPLATE_HELM = "Oathplate helm",
   OATHPLATE_CHEST = "Oathplate chest",
   OATHPLATE_LEGS = "Oathplate legs",
+  EYE_OF_AYAK = "Eye of Ayak",
 }
