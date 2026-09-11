@@ -1,3 +1,4 @@
+export * from "./AdvancedSettingsPanel";
 export * from "./DefaultSidebar";
 export * from "./Dropdown";
 export * from "./GameOverlay";
@@ -6,6 +7,7 @@ export * from "./LoadoutManager";
 export * from "./Modal";
 export * from "./RuneScapeButton";
 export * from "./RuneScapePanel";
+export * from "./Section";
 export * from "./SpriteFrame";
 export * from "./PlayableArea";
 export * from "./ProgressBar";

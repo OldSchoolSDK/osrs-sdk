@@ -28,6 +28,7 @@ export function Modal({ blocking = true, children, open, style, ...props }: Moda
         pointerEvents: blocking ? "auto" : "none",
         position: "absolute",
         zIndex: 2000,
+        userSelect: 'none',
         ...style,
       }}
     >

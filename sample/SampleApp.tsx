@@ -4,7 +4,6 @@ import {
   CACHE_ASSETS,
   Region,
   Settings,
-  TileMarker,
   TrainerInstance,
   TrainerLoadingState,
 } from "../src";
@@ -13,9 +12,9 @@ import {
   DefaultSidebar,
   GameOverlay,
   LoadoutManager,
+  RuneScapeButton,
   TrainerApp,
   TrainerLoadingSplash,
-  useSettingsSnapshot,
   useTrainerContext,
 } from "osrs-sdk-react";
 import { configureSampleCacheRenderer } from "./cache-render";
@@ -128,27 +127,12 @@ function createTrainer() {
 
 function SampleSidebarContents({ onLoadoutToggle }: { onLoadoutToggle: () => void }) {
   const trainer = useTrainerContext();
-  const settings = useSettingsSnapshot();
 
   return (
     <>
-      <button type="button" onClick={() => trainer.reset()}>Reset</button>
-      <button type="button" onClick={() => ControlPanelController.controller.setActiveControl("SETTINGS")}>Settings</button>
-      <button type="button" onClick={onLoadoutToggle}>Loadout</button>
-      <hr />
-      <span>More settings:</span>
-      <div>
-        <input
-          id="tileMarkerColor"
-          type="color"
-          value={settings.tileMarkerColor}
-          onChange={(event) => {
-            Settings.set({ tileMarkerColor: event.currentTarget.value });
-            TileMarker.onSetColor(event.currentTarget.value);
-          }}
-        />
-        <label htmlFor="tileMarkerColor">Tile Markers</label>
-      </div>
+      <RuneScapeButton type="button" onClick={() => trainer.reset()}>Reset</RuneScapeButton>
+      <RuneScapeButton type="button" onClick={() => ControlPanelController.controller.setActiveControl("SETTINGS")}>Ingame Settings</RuneScapeButton>
+      <RuneScapeButton type="button" onClick={onLoadoutToggle}>Loadout</RuneScapeButton>
       <div style={{ paddingBottom: 10, paddingTop: 10, textAlign: "center", width: "100%" }}>
         <div id="gpu_warning" />
       </div>
