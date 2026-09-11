@@ -7,6 +7,7 @@ import { ImageLoader } from "./utils/ImageLoader";
 import { Viewport } from "./Viewport";
 import { World } from "./World";
 import { MapController } from "./MapController";
+import { TileMarker } from "../content/TileMarker";
 
 export type TrainerSnapshot = Readonly<{
   player: Player | null;
@@ -125,6 +126,14 @@ export class TrainerInstance {
   };
 
   getSnapshot = () => this.snapshot;
+
+  setSettings(patch: Partial<SettingsSnapshot>) {
+    const settings = Settings.set(patch);
+    if (patch.tileMarkerColor !== undefined) {
+      TileMarker.onSetColor(settings.tileMarkerColor);
+    }
+    return settings;
+  }
 
   dispose() {
     if (!this.world.isPaused) this.world.stopTicking();

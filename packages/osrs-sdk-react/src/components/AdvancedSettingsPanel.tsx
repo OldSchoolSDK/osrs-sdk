@@ -1,6 +1,6 @@
 import React, { HTMLAttributes } from "react";
-import { Settings, TileMarker } from "osrs-sdk";
-import { useSettingsSnapshot } from "../hooks/useSettingsSnapshot";
+import { useTrainerContext } from "../TrainerContext";
+import { useTrainerSnapshot } from "../hooks/useTrainerSnapshot";
 import { Modal } from "./Modal";
 import { RuneScapeButton } from "./RuneScapeButton";
 import { RuneScapePanel } from "./RuneScapePanel";
@@ -38,6 +38,7 @@ function ColorSetting({ colorSetting, enabled, enabledSetting, id, label, value 
   label: string;
   value: string;
 }) {
+  const trainer = useTrainerContext();
   return (
     <SettingRow htmlFor={`${id}Enabled`} label={label}>
       <span style={{ alignItems: "center", display: "flex", gap: 8 }}>
@@ -45,14 +46,14 @@ function ColorSetting({ colorSetting, enabled, enabledSetting, id, label, value 
           aria-label={`Enable ${label}`}
           checked={enabled}
           id={`${id}Enabled`}
-          onChange={(event) => Settings.set({ [enabledSetting]: event.currentTarget.checked })}
+          onChange={(event) => trainer.setSettings({ [enabledSetting]: event.currentTarget.checked })}
           type="checkbox"
         />
         <input
           aria-label={`${label} color`}
           disabled={!enabled}
           id={id}
-          onChange={(event) => Settings.set({ [colorSetting]: event.currentTarget.value })}
+          onChange={(event) => trainer.setSettings({ [colorSetting]: event.currentTarget.value })}
           type="color"
           value={value}
         />
@@ -62,7 +63,8 @@ function ColorSetting({ colorSetting, enabled, enabledSetting, id, label, value 
 }
 
 export function AdvancedSettingsPanel({ children, onClose, open, style, ...props }: AdvancedSettingsPanelProps) {
-  const settings = useSettingsSnapshot();
+  const trainer = useTrainerContext();
+  const settings = useTrainerSnapshot((snapshot) => snapshot.settings);
 
   return (
     <Modal aria-label="Advanced settings" open={open} onClick={(event) => {
@@ -117,10 +119,7 @@ export function AdvancedSettingsPanel({ children, onClose, open, style, ...props
               id="tileMarkerColor"
               type="color"
               value={settings.tileMarkerColor}
-              onChange={(event) => {
-                Settings.set({ tileMarkerColor: event.currentTarget.value });
-                TileMarker.onSetColor(event.currentTarget.value);
-              }}
+              onChange={(event) => trainer.setSettings({ tileMarkerColor: event.currentTarget.value })}
             />
           </SettingRow>
         </Section>
@@ -130,7 +129,7 @@ export function AdvancedSettingsPanel({ children, onClose, open, style, ...props
             <select
               id="renderFps"
               value={settings.renderFps}
-              onChange={(event) => Settings.set({ renderFps: Number(event.currentTarget.value) })}
+              onChange={(event) => trainer.setSettings({ renderFps: Number(event.currentTarget.value) })}
             >
               <option value={30}>30</option>
               <option value={60}>60</option>
@@ -143,7 +142,7 @@ export function AdvancedSettingsPanel({ children, onClose, open, style, ...props
               id="smoothCacheAnimations"
               type="checkbox"
               checked={settings.smoothCacheAnimations}
-              onChange={(event) => Settings.set({ smoothCacheAnimations: event.currentTarget.checked })}
+              onChange={(event) => trainer.setSettings({ smoothCacheAnimations: event.currentTarget.checked })}
             />
           </SettingRow>
           <SettingRow htmlFor="displayClickboxes" label="Display clickboxes">
@@ -151,7 +150,7 @@ export function AdvancedSettingsPanel({ children, onClose, open, style, ...props
               id="displayClickboxes"
               type="checkbox"
               checked={settings.displayClickboxes ?? false}
-              onChange={(event) => Settings.set({ displayClickboxes: event.currentTarget.checked })}
+              onChange={(event) => trainer.setSettings({ displayClickboxes: event.currentTarget.checked })}
             />
           </SettingRow>
         </Section>
