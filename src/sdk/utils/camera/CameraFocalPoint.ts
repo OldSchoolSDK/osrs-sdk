@@ -1,6 +1,6 @@
-import { Location } from "./Location";
+import { Location } from "../../Location";
+import { CLIENT_UNITS_PER_TILE } from "../constants";
 
-export const CLIENT_UNITS_PER_TILE = 128;
 export const CAMERA_FOCAL_SNAP_DISTANCE = 500;
 
 export type CameraFocalPosition = {

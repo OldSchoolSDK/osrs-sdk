@@ -5,7 +5,7 @@ import {
   MIN_CAMERA_PITCH,
   RELAXED_MAX_CAMERA_PITCH,
   RELAXED_MIN_CAMERA_PITCH,
-} from "../../src/sdk/CameraRotation";
+} from "../../src/sdk/utils/camera/CameraRotation";
 
 test("samples the latest middle-mouse position once per client cycle", () => {
   const rotation = new ClientCameraRotation();

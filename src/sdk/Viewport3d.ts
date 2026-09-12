@@ -23,8 +23,9 @@ import {
   MIN_CAMERA_PITCH,
   RELAXED_MAX_CAMERA_PITCH,
   RELAXED_MIN_CAMERA_PITCH,
-} from "./CameraRotation";
-import { CameraFocalPoint, CameraFocalPosition } from "./CameraFocalPoint";
+} from "./utils/camera/CameraRotation";
+import { CameraFocalPoint, CameraFocalPosition } from "./utils/camera/CameraFocalPoint";
+import { cameraOrbitDistance } from "./utils/camera/CameraOrbit";
 
 // how many pixels wide should 2d elements be scaled to
 const SPRITE_SCALE = 32;
@@ -57,6 +58,7 @@ export class Viewport3d implements ViewportDelegate {
   private pitchDelta = 0;
   private clientCameraRotation = new ClientCameraRotation();
   private cameraFocalPoint = new CameraFocalPoint();
+  private orbitZoomOffset = 0;
 
   private touchStart: Touch | null = null;
   private touchStart2: Touch | null = null;
@@ -131,8 +133,7 @@ export class Viewport3d implements ViewportDelegate {
     }
     // Pitch down slightly
     this.pitch.rotation.x = -0.7;
-    // Zoom out
-    this.camera.position.z = 12;
+    this.camera.position.z = cameraOrbitDistance(this.pitch.rotation.x);
     this.scene.add(this.pivot);
     this.pivot.add(this.yaw);
     this.yaw.add(this.pitch);
@@ -193,6 +194,7 @@ export class Viewport3d implements ViewportDelegate {
     const v = this.camera.position.z + e.deltaY * ZOOM_MULT;
     if (v >= 2 && v <= 20) {
       this.camera.position.z = v;
+      this.orbitZoomOffset = v - cameraOrbitDistance(this.pitch.rotation.x);
     }
     e.preventDefault();
     return false;
@@ -227,6 +229,7 @@ export class Viewport3d implements ViewportDelegate {
       const v = this.camera.position.z + delta * ZOOM_MULT;
       if (v >= 2 && v <= 20) {
         this.camera.position.z = v;
+        this.orbitZoomOffset = v - cameraOrbitDistance(this.pitch.rotation.x);
       }
       this.touchStart = e.touches[0];
       this.touchStart2 = e.touches[1];
@@ -420,6 +423,10 @@ export class Viewport3d implements ViewportDelegate {
     }, delta, Settings.relaxCameraPitch);
     this.yaw.rotation.y = angles.yaw;
     this.pitch.rotation.x = angles.pitch;
+    this.camera.position.z = Math.max(
+      2,
+      Math.min(20, cameraOrbitDistance(this.pitch.rotation.x) + this.orbitZoomOffset),
+    );
   }
 
   clientTick(timestamp = window.performance.now()) {
