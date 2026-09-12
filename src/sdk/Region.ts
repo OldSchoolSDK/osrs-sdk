@@ -19,6 +19,7 @@ import { Button } from "./ui/Button";
 import type { Loadout as LoadoutData, LoadoutItemId } from "./Loadout";
 import type { UnitEquipment } from "./Unit";
 import { ChunkUtils } from "./utils/Chunk";
+import type { Location } from "./Location";
 
 interface GroundYItems {
   [key: number]: Item[];
@@ -49,6 +50,7 @@ export abstract class Region {
   mobs: Mob[] = [];
   primaryBoss: Mob | null = null;
   private nextChunkOrder = 0;
+  private tileCollisionFlags: Uint8Array | null = null;
   entities: Entity[] = [];
   // Combat projectiles aimed at locations rather than units.
   projectiles: Projectile[] = [];
@@ -58,14 +60,6 @@ export abstract class Region {
   mapImage: HTMLImageElement;
 
   groundItems: GroundItems = {};
-
-  _serialNumber: string;
-  get serialNumber(): string {
-    if (!this._serialNumber) {
-      this._serialNumber = String(Math.random());
-    }
-    return this._serialNumber;
-  }
 
   get initialFacing(): CardinalDirection {
     return CardinalDirection.SOUTH;
@@ -80,6 +74,7 @@ export abstract class Region {
   }
 
   addPlayer(player: Player) {
+    if (player.consumesSpace) this.setTileCollisionFlags(player.location.x, player.location.y, player.size);
     this.players.push(player);
     this.refreshUnitChunk(player);
     player.addedToWorld();
@@ -109,6 +104,7 @@ export abstract class Region {
   }
 
   addMob(mob: Mob) {
+    if (mob.consumesSpace) this.setTileCollisionFlags(mob.location.x, mob.location.y, mob.size);
     if (!mob.region.world) {
       this.mobs.push(mob);
       this.refreshUnitChunk(mob);
@@ -117,6 +113,12 @@ export abstract class Region {
       this.newMobs.push(mob);
       this.refreshUnitChunk(mob);
     }
+  }
+
+  hasUnit(unit: Unit) {
+    return this.players.some((player) => player === unit)
+      || this.mobs.some((mob) => mob === unit)
+      || this.newMobs.some((mob) => mob === unit);
   }
 
   /** Assign a fresh order when a unit first appears or crosses a chunk boundary. */
@@ -149,12 +151,74 @@ export abstract class Region {
   }
 
   removeMob(mob: Mob) {
+    if (mob.consumesSpace) this.clearTileCollisionFlags(mob.location.x, mob.location.y, mob.size);
     remove(this.mobs, mob);
     remove(this.newMobs, mob);
     if (this.primaryBoss === mob) this.primaryBoss = null;
   }
 
+  /**
+   * Tile collision flags are persistent client state. They are deliberately
+   * not rebuilt from current unit positions each tick. NPC and player movement
+   * explicitly clear and restore the flags affected by their path.
+   */
+  private getTileCollisionFlags() {
+    const length = this.width * this.height;
+    if (!this.tileCollisionFlags || this.tileCollisionFlags.length !== length) {
+      this.tileCollisionFlags = new Uint8Array(length);
+    }
+    return this.tileCollisionFlags;
+  }
+
+  private tileCollisionFlagIndex(x: number, y: number) {
+    if (x < 0 || x >= this.width || y < 0 || y >= this.height) return -1;
+    return y * this.width + x;
+  }
+
+  hasTileCollisionFlags(x: number, y: number, size: number) {
+    const flags = this.getTileCollisionFlags();
+    for (let xx = x; xx < x + size; xx++) {
+      for (let yy = y; yy > y - size; yy--) {
+        const index = this.tileCollisionFlagIndex(xx, yy);
+        if (index >= 0 && flags[index] !== 0) return true;
+      }
+    }
+    return false;
+  }
+
+  setTileCollisionFlags(x: number, y: number, size: number) {
+    const flags = this.getTileCollisionFlags();
+    for (let xx = x; xx < x + size; xx++) {
+      for (let yy = y; yy > y - size; yy--) {
+        const index = this.tileCollisionFlagIndex(xx, yy);
+        if (index >= 0) flags[index] = 1;
+      }
+    }
+  }
+
+  clearTileCollisionFlags(x: number, y: number, size: number) {
+    const flags = this.getTileCollisionFlags();
+    for (let xx = x; xx < x + size; xx++) {
+      for (let yy = y; yy > y - size; yy--) {
+        const index = this.tileCollisionFlagIndex(xx, yy);
+        if (index >= 0) flags[index] = 0;
+      }
+    }
+  }
+
+  getTileCollisionFlagLocations(): Location[] {
+    const locations: Location[] = [];
+    const flags = this.getTileCollisionFlags();
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        if (flags[this.tileCollisionFlagIndex(x, y)] !== 0) locations.push({ x, y });
+      }
+    }
+    return locations;
+  }
+
   removePlayer(player: Player) {
+    if (player.consumesSpace) this.clearTileCollisionFlags(player.location.x, player.location.y, player.size);
     remove(this.players, player);
     if (this.players.length === 0) {
       this.onGameOver();

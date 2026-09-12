@@ -5,10 +5,6 @@ import { Collision } from "./Collision";
 import { Region } from "./Region";
 import { Unit } from "./Unit";
 
-interface PathingCache {
-  [key: string]: boolean;
-}
-
 interface PathingNode {
   x: number;
   y: number;
@@ -66,27 +62,9 @@ export class Pathing {
     return LocationUtils.angle(x, y, x2, y2);
   }
 
-  static tileCache: PathingCache = {};
-  static purgeTileCache() {
-    Pathing.tileCache = {};
-  }
-
-  static canTileBePathedTo(region: Region, x: number, y: number, s: number, mobToAvoid: Unit = null) {
-    const cache =
-      Pathing.tileCache[`${region.serialNumber}-${x}-${y}-${s}-${mobToAvoid ? mobToAvoid.serialNumber : 0}`];
-    if (cache !== undefined) {
-      return cache;
-    }
-    let collision = false;
-    collision = collision || Collision.collidesWithAnyEntities(region, x, y, s);
-
-    if (mobToAvoid) {
-      // if no mobs to avoid, avoid them all
-      // Player can walk under mobs
-      collision = collision || Collision.collidesWithAnyMobs(region, x, y, s, mobToAvoid) !== null;
-    }
-    Pathing.tileCache[`${region.serialNumber}-${x}-${y}-${s}-${mobToAvoid ? mobToAvoid.serialNumber : 0}`] = !collision;
-    return !collision;
+  static canTileBePathedTo(region: Region, x: number, y: number, s: number, checkTileCollisionFlags = false) {
+    const clearOfEntities = !Collision.collidesWithAnyEntities(region, x, y, s);
+    return clearOfEntities && (!checkTileCollisionFlags || !region.hasTileCollisionFlags(x, y, s));
   }
 
   /**
@@ -168,7 +146,7 @@ export class Pathing {
         pathX = parentNode.x + iDirection.x;
         pathY = parentNode.y + iDirection.y;
 
-        if (!Pathing.canTileBePathedTo(region, pathX, pathY, 1, null)) {
+        if (!Pathing.canTileBePathedTo(region, pathX, pathY, 1)) {
           // Destination is not a valid square
           continue;
         }
@@ -176,12 +154,12 @@ export class Pathing {
           // Check neighbouring squares for diagonal moves
           let neighbourX = parentNode.x;
           let neighbourY = parentNode.y + iDirection.y;
-          if (!Pathing.canTileBePathedTo(region, neighbourX, neighbourY, 1, null)) {
+          if (!Pathing.canTileBePathedTo(region, neighbourX, neighbourY, 1)) {
             continue;
           }
           neighbourX = parentNode.x + iDirection.x;
           neighbourY = parentNode.y;
-          if (!Pathing.canTileBePathedTo(region, neighbourX, neighbourY, 1, null)) {
+          if (!Pathing.canTileBePathedTo(region, neighbourX, neighbourY, 1)) {
             continue;
           }
         }

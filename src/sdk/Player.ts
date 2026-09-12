@@ -12,7 +12,6 @@ import { Item } from "./Item";
 import { ItemName } from "./ItemName";
 import { LineOfSight } from "./LineOfSight";
 import { Location } from "./Location";
-import { Mob } from "./Mob";
 import { Pathing } from "./Pathing";
 import { PlayerRegenTimer } from "./PlayerRegenTimers";
 import { PlayerStats } from "./PlayerStats";
@@ -468,7 +467,7 @@ export class Player extends Unit {
           for (let xx = -maxDist; xx < maxDist; xx++) {
             const x = this.location.x + xx;
             const y = this.location.y + yy;
-            if (Pathing.canTileBePathedTo(this.region, x, y, 1, {} as Mob)) {
+            if (Pathing.canTileBePathedTo(this.region, x, y, 1)) {
               const distance = Pathing.dist(this.location.x, this.location.y, x, y);
               if (distance > 0 && distance < bestDistance) {
                 bestDistance = distance;
@@ -683,6 +682,9 @@ export class Player extends Unit {
     if (!path.length || !destination) {
       return;
     }
+    if (this.consumesSpace) {
+      this.region.clearTileCollisionFlags(this.location.x, this.location.y, this.size);
+    }
     if (path.length < speed) {
       // Step to the destination
       this.location = path[path.length - 1];
@@ -698,6 +700,10 @@ export class Player extends Unit {
     // advance two. Do not enqueue the second look-ahead tile for a walker or
     // the visual queue grows faster than the true tile and falls behind.
     const visualSteps = path.slice(0, this.running ? 2 : 1);
+    if (this.consumesSpace) {
+      visualSteps.forEach(({ x, y }) => this.region.clearTileCollisionFlags(x, y, this.size));
+      this.region.setTileCollisionFlags(this.location.x, this.location.y, this.size);
+    }
     const newTiles = visualSteps.map((pos) => ({
       ...pos,
       run: this.running && path.length >= 2,

@@ -171,6 +171,12 @@ export class Mob extends Unit {
     let moved = false;
     this.setHasLOS();
     if (this.canMove() && this.aggro) {
+      // NPC clipping flags persist between ticks. Only an NPC which is trying
+      // to move clears its old footprint, and it claims its resulting
+      // footprint even when the attempted movement is blocked.
+      if (this.consumesSpace) {
+        this.region.clearTileCollisionFlags(this.location.x, this.location.y, this.size);
+      }
       const previousLocation = { ...this.location };
       const { dx, dy } = this.getNextMovementStep();
 
@@ -181,13 +187,13 @@ export class Mob extends Unit {
       let yTiles = this.getYMovementTiles(xOff, yOff);
       let xSpace = every(
         xTiles.map((location: Location) =>
-          Pathing.canTileBePathedTo(this.region, location.x, location.y, 1, this.consumesSpace as Mob),
+          Pathing.canTileBePathedTo(this.region, location.x, location.y, 1, this.consumesSpace),
         ),
         Boolean,
       );
       let ySpace = every(
         yTiles.map((location: Location) =>
-          Pathing.canTileBePathedTo(this.region, location.x, location.y, 1, this.consumesSpace as Mob),
+          Pathing.canTileBePathedTo(this.region, location.x, location.y, 1, this.consumesSpace),
         ),
         Boolean,
       );
@@ -196,7 +202,7 @@ export class Mob extends Unit {
       // also be able to occupy both adjacent cardinal tiles.
       const movingDiagonally = xOff !== 0 && yOff !== 0;
       const both = movingDiagonally && this.size > 1
-        ? Pathing.canTileBePathedTo(this.region, dx, dy, this.size, this.consumesSpace as Mob)
+        ? Pathing.canTileBePathedTo(this.region, dx, dy, this.size, this.consumesSpace)
         : xSpace && ySpace;
 
       // if (this.mobName() === EntityName.JAL_AK){
@@ -207,7 +213,7 @@ export class Mob extends Unit {
         xTiles = this.getXMovementTiles(xOff, 0);
         xSpace = every(
           xTiles.map((location: Location) =>
-            Pathing.canTileBePathedTo(this.region, location.x, location.y, 1, this.consumesSpace as Mob),
+            Pathing.canTileBePathedTo(this.region, location.x, location.y, 1, this.consumesSpace),
           ),
           Boolean,
         );
@@ -215,7 +221,7 @@ export class Mob extends Unit {
           yTiles = this.getYMovementTiles(0, yOff);
           ySpace = every(
             yTiles.map((location: Location) =>
-              Pathing.canTileBePathedTo(this.region, location.x, location.y, 1, this.consumesSpace as Mob),
+              Pathing.canTileBePathedTo(this.region, location.x, location.y, 1, this.consumesSpace),
             ),
             Boolean,
           );
@@ -229,6 +235,9 @@ export class Mob extends Unit {
         this.location.x = dx;
       } else if (ySpace) {
         this.location.y = dy;
+      }
+      if (this.consumesSpace) {
+        this.region.setTileCollisionFlags(this.location.x, this.location.y, this.size);
       }
       if (this.location.x !== previousLocation.x || this.location.y !== previousLocation.y) {
         const movedMoreThanOneTile = Math.max(
@@ -388,10 +397,6 @@ export class Mob extends Unit {
   visible() {
     const hiddenWhileDying = Settings.hideDeadNpcs && this.dying >= 0;
     return this.region.world.getReadyTimer <= 0 && !hiddenWhileDying && !this.deathAnimationFinished;
-  }
-
-  get consumesSpace(): Unit {
-    return this;
   }
 
   override get combatLevel() {

@@ -48,6 +48,20 @@ export class Viewport2d implements ViewportDelegate {
       region.context.restore();
     }
 
+    if (Settings.tileCollisionDebug) {
+      region.context.save();
+      region.context.fillStyle = "rgba(255, 0, 0, 0.25)";
+      region.getTileCollisionFlagLocations().forEach(({ x, y }) => {
+        region.context.fillRect(
+          x * Settings.tileSize,
+          y * Settings.tileSize,
+          Settings.tileSize,
+          Settings.tileSize,
+        );
+      });
+      region.context.restore();
+    }
+
     // Draw all things on the map
     const renderables: Renderable[] = [...region.entities, ...region.projectileGraphics];
     const units: Unit[] = [];

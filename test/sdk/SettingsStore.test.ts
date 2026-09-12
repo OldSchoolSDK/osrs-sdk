@@ -81,6 +81,16 @@ describe("Settings legacy migration", () => {
     expect(Settings.getSnapshot().chunkDebug).toBe(true);
   });
 
+  it("persists tile collision debug rendering", () => {
+    Settings.readFromStorage();
+
+    Settings.set({ tileCollisionDebug: true });
+    Settings.readFromStorage();
+
+    expect(Settings.tileCollisionDebug).toBe(true);
+    expect(Settings.getSnapshot().tileCollisionDebug).toBe(true);
+  });
+
   it("persists the relaxed camera pitch setting", () => {
     Settings.readFromStorage();
 

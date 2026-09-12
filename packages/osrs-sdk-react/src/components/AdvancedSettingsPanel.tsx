@@ -186,6 +186,14 @@ export function AdvancedSettingsPanel({ children, onClose, open, style, ...props
               onChange={(event) => trainer.setSettings({ chunkDebug: event.currentTarget.checked })}
             />
           </SettingRow>
+          <SettingRow htmlFor="tileCollisionDebug" label="Claimed tiles">
+            <input
+              id="tileCollisionDebug"
+              type="checkbox"
+              checked={settings.tileCollisionDebug}
+              onChange={(event) => trainer.setSettings({ tileCollisionDebug: event.currentTarget.checked })}
+            />
+          </SettingRow>
         </Section>
 
         {children}

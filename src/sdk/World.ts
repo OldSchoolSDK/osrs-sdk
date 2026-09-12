@@ -6,7 +6,6 @@ import { Region } from "./Region";
 import { DelayedAction } from "./DelayedAction";
 import { Viewport } from "./Viewport";
 import MetronomeSound from "../assets/sounds/bonk.ogg";
-import { Pathing } from "./Pathing";
 import { InputController } from "./Input";
 import { ControlPanelController } from "./ControlPanelController";
 import { Projectile } from "./weapons/Projectile";
@@ -151,8 +150,6 @@ export class World {
   }
 
   tickRegion(region: Region) {
-    Pathing.purgeTileCache();
-
     if (Settings.metronome) {
       new Audio(MetronomeSound).play();
     }

@@ -13,6 +13,7 @@ export const SETTINGS_STORAGE_KEY = "osrs-sdk:settings";
 export type SettingsState = {
   antiDrag: number;
   chunkDebug: boolean;
+  tileCollisionDebug: boolean;
   relaxCameraPitch: boolean;
   combat_key: string;
   displayFeedback: boolean;
@@ -85,6 +86,7 @@ export class Settings {
   static metronome: boolean;
   static antiDrag: number;
   static chunkDebug = false;
+  static tileCollisionDebug = false;
   static relaxCameraPitch: boolean;
 
   static inventory_key: string;
@@ -206,6 +208,7 @@ export class Settings {
     return {
       antiDrag: Settings.antiDrag,
       chunkDebug: Settings.chunkDebug,
+      tileCollisionDebug: Settings.tileCollisionDebug,
       relaxCameraPitch: Settings.relaxCameraPitch,
       combat_key: Settings.combat_key,
       displayFeedback: Settings.displayFeedback,
@@ -257,6 +260,7 @@ function createDefaults(): SettingsState {
   return {
     antiDrag: 5,
     chunkDebug: false,
+    tileCollisionDebug: false,
     relaxCameraPitch: false,
     combat_key: "F5",
     displayFeedback: true,
@@ -315,6 +319,7 @@ const legacyStorage: SettingsStorage<SettingsState> = {
     return {
       antiDrag: parseInt(window.localStorage.getItem("antiDrag") ?? "5"),
       chunkDebug: defaults.chunkDebug,
+      tileCollisionDebug: defaults.tileCollisionDebug,
       relaxCameraPitch: defaults.relaxCameraPitch,
       combat_key: window.localStorage.getItem("combat_key") || defaults.combat_key,
       displayFeedback: window.localStorage.getItem("displayFeedback") !== "false",

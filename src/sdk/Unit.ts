@@ -587,6 +587,11 @@ export abstract class Unit extends Renderable {
     return 1;
   }
 
+  /** Whether this unit participates in the region's dynamic tile collision flags. */
+  get consumesSpace(): boolean {
+    return true;
+  }
+
   isDying() {
     return this.dying > 0;
   }
@@ -730,6 +735,10 @@ export abstract class Unit extends Renderable {
   }
 
   setLocation(location: Location) {
+    const updateCollisionFlags = this.region?.hasUnit(this) && this.consumesSpace;
+    if (updateCollisionFlags) {
+      this.region.clearTileCollisionFlags(this.location.x, this.location.y, this.size);
+    }
     this.location = { ...location };
     this.perceivedLocation = { ...location };
     this.renderFromLocation = { ...location };
@@ -738,6 +747,9 @@ export abstract class Unit extends Renderable {
     this.visualMovementActive = false;
     this.delayedMovementTicks = 0;
     this.region?.refreshUnitChunk(this);
+    if (updateCollisionFlags) {
+      this.region.setTileCollisionFlags(this.location.x, this.location.y, this.size);
+    }
   }
 
   attackAnimation(tickPercent: number, context: OffscreenCanvasRenderingContext2D) {

@@ -73,6 +73,8 @@ export class Viewport3d implements ViewportDelegate {
   private selectedTile: Location | null = null;
   private selectedTileMesh: THREE.Mesh;
   private chunkDebugLines: THREE.LineSegments | null = null;
+  private tileCollisionDebugMesh: THREE.InstancedMesh | null = null;
+  private tileCollisionDebugMatrix = new THREE.Matrix4();
 
   private clock = new THREE.Clock();
 
@@ -387,6 +389,26 @@ export class Viewport3d implements ViewportDelegate {
     plane.visible = Trainer.player.region.drawDefaultFloor();
     this.scene.add(plane);
 
+    const collisionTileGeometry = new THREE.PlaneGeometry(0.9, 0.9);
+    collisionTileGeometry.rotateX(-Math.PI / 2);
+    const collisionTileMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff0000,
+      depthTest: false,
+      depthWrite: false,
+      opacity: 0.25,
+      side: THREE.DoubleSide,
+      transparent: true,
+    });
+    this.tileCollisionDebugMesh = new THREE.InstancedMesh(
+      collisionTileGeometry,
+      collisionTileMaterial,
+      region.width * region.height,
+    );
+    this.tileCollisionDebugMesh.count = 0;
+    this.tileCollisionDebugMesh.frustumCulled = false;
+    this.tileCollisionDebugMesh.renderOrder = GroundOverlayRenderOrder.HOVERED_TILE + 2;
+    this.scene.add(this.tileCollisionDebugMesh);
+
     const chunkBoundaryVertices: number[] = [];
     for (let x = 0; x <= region.width; x += CHUNK_SIZE) {
       chunkBoundaryVertices.push(x, GROUND_OVERLAY_Y, -1, x, GROUND_OVERLAY_Y, region.height - 1);
@@ -485,6 +507,18 @@ export class Viewport3d implements ViewportDelegate {
     this.updateCamera(delta);
 
     if (this.chunkDebugLines) this.chunkDebugLines.visible = Settings.chunkDebug;
+    if (this.tileCollisionDebugMesh) {
+      this.tileCollisionDebugMesh.visible = Settings.tileCollisionDebug;
+      if (Settings.tileCollisionDebug) {
+        const flaggedTiles = region.getTileCollisionFlagLocations();
+        flaggedTiles.forEach(({ x, y }, index) => {
+          this.tileCollisionDebugMatrix.makeTranslation(x + 0.5, GROUND_OVERLAY_Y, y - 0.5);
+          this.tileCollisionDebugMesh.setMatrixAt(index, this.tileCollisionDebugMatrix);
+        });
+        this.tileCollisionDebugMesh.count = flaggedTiles.length;
+        this.tileCollisionDebugMesh.instanceMatrix.needsUpdate = true;
+      }
+    }
 
     this.knownActors.forEach((actor) => actor.draw(this.scene, delta, world.tickPercent));
     this.refreshProjectedClickboxes(world);
