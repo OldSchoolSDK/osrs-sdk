@@ -5,6 +5,12 @@ import { World } from "../../src/sdk/World";
 import { TestNpc } from "../../src/sdk/testing/TestNpc";
 import { TestRegion } from "../../src/sdk/testing/TestRegion";
 import { Projectile } from "../../src/sdk/weapons/Projectile";
+import { DelayedAction } from "../../src/sdk/DelayedAction";
+
+class DeathAnimationNpc extends TestNpc {
+  override get deathAnimationId() { return 123; }
+  override async playAnimation() { return Promise.resolve(); }
+}
 
 describe("region lifecycle", () => {
   test("removing a mob from newMobs works before it is promoted to mobs", () => {
@@ -58,6 +64,26 @@ describe("region lifecycle", () => {
     world.tickRegion(region);
 
     expect(region.mobs).not.toContain(mob);
+  });
+
+  test("death animation completion only hides a mob and does not advance logical death", async () => {
+    DelayedAction.reset();
+    const region = new TestRegion(10, 10);
+    region.world = new World();
+    const mob = new DeathAnimationNpc(region, { x: 5, y: 5 }, {});
+
+    mob.dead();
+    expect(mob.dying).toBe(3);
+    expect(mob.visible()).toBe(true);
+
+    DelayedAction.tick();
+    DelayedAction.tick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(mob.deathAnimationFinished).toBe(true);
+    expect(mob.visible()).toBe(false);
+    expect(mob.dying).toBe(3);
+    DelayedAction.reset();
   });
 
   test("units de-aggro when their target dies", () => {

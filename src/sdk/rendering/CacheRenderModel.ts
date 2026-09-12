@@ -276,6 +276,7 @@ export class CacheRenderModel implements Model, RenderableListener {
   private poseAnimationTime = 0;
   private animationPlaying = false;
   private animationCanBlend = false;
+  private animationPromiseResolve: (() => void) | null = null;
   private frameSoundPlayer: AnimationFrameSoundPlayer;
   private spotFrameSoundPlayers = new Map<number, AnimationFrameSoundPlayer>();
   private frameSoundsReady: Promise<void> = Promise.resolve();
@@ -369,18 +370,19 @@ export class CacheRenderModel implements Model, RenderableListener {
     const attached = this.renderable.spotAnims;
     return attached.length ? attached.slice() : (fallback ?? []).slice();
   }
-  async animationChanged(id: number, blend: boolean) {
-    if (ENABLE_CACHE_RENDER_ANIMATIONS) {
-      // SDK callers use semantic pose indices (e.g. FireBow = 6), while the
-      // bundle is keyed by the actual cache sequence ID (e.g. 426).
-      this.activeAnimation = this.poseMap[String(id)] ?? id;
-      this.animationTime = 0;
-      this.animationStartsOnNextDraw = true;
-      this.animationPlaying = true;
-      this.animationCanBlend = blend;
-      this.frameSoundPlayer.reset();
-    }
-    return Promise.resolve();
+  animationChanged(id: number, blend: boolean): Promise<void> {
+    if (!ENABLE_CACHE_RENDER_ANIMATIONS) return Promise.resolve();
+    // SDK callers use semantic pose indices (e.g. FireBow = 6), while the
+    // bundle is keyed by the actual cache sequence ID (e.g. 426).
+    this.activeAnimation = this.poseMap[String(id)] ?? id;
+    this.animationTime = 0;
+    this.animationStartsOnNextDraw = true;
+    this.animationPlaying = true;
+    this.animationCanBlend = blend;
+    this.frameSoundPlayer.reset();
+    return new Promise<void>((resolve) => {
+      this.animationPromiseResolve = resolve;
+    });
   }
   getAnimationMetadata(id: number): AnimationMetadata | undefined {
     const animation = this.animations[String(this.poseMap[String(id)] ?? id)];
@@ -708,6 +710,8 @@ export class CacheRenderModel implements Model, RenderableListener {
         this.activeAnimation = this.poseMap[String(pose)] ?? pose;
         this.animationTime = 0;
         this.animationStartsOnNextDraw = true;
+        this.animationPromiseResolve?.();
+        this.animationPromiseResolve = null;
         time = 0;
         animationEnded = true;
       } else if (total > 0) time %= total;

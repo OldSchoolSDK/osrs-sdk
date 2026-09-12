@@ -147,6 +147,7 @@ export abstract class Unit extends Renderable {
   age = 0;
   lastRotation = 0;
   hasDiedAndAwaitingRemoval = false;
+  deathAnimationFinished = false;
   nulledTicks = 0;
   forceMaxDamageRollsOnNextIncomingAttack = false;
   private maxIncomingDamageRollsConsumptionQueued = false;
@@ -746,6 +747,7 @@ export abstract class Unit extends Renderable {
   cancelDeath() {
     // e.g. when revived
     this.hasDiedAndAwaitingRemoval = false;
+    this.deathAnimationFinished = false;
     this.dying = -1;
   }
 
@@ -756,6 +758,7 @@ export abstract class Unit extends Renderable {
     this.visualMovementActive = false;
     this.delayedMovementTicks = 0;
     this.dying = this.deathAnimationLength;
+    this.deathAnimationFinished = false;
     this.region.onUnitDeath(this);
     this.region.clearAggroFor(this);
     this.setAggro(null);
@@ -766,10 +769,9 @@ export abstract class Unit extends Renderable {
           () =>
             this.playAnimation(this.deathAnimationId, false).then(() => {
               if (this.hasDiedAndAwaitingRemoval) {
-                // The death countdown controls removal. The renderer's
-                // animation promise may resolve immediately for cache frames,
-                // so do not remove the unit before its configured duration.
-                this.detectDeath();
+                // Animation completion is visual-only. The game-tick death
+                // countdown remains the sole authority for logical removal.
+                this.deathAnimationFinished = true;
               }
             }),
           1,

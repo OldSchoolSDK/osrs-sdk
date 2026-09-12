@@ -386,7 +386,7 @@ export class Mob extends Unit {
   }
 
   visible() {
-    return this.region.world.getReadyTimer <= 0;
+    return this.region.world.getReadyTimer <= 0 && !this.deathAnimationFinished;
   }
 
   get consumesSpace(): Unit {
