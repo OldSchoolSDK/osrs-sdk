@@ -21,7 +21,7 @@ export abstract class PoweredStaff extends MagicWeapon {
   }
 
   override defaultStyle() {
-    return AttackStyle.ACCURATE;
+    return AttackStyle.LONGRANGE;
   }
 
   protected abstract poweredSpellMaxHit(magicLevel: number): number;

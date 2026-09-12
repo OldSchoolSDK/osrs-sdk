@@ -16,14 +16,14 @@ describe("powered staves", () => {
     expect(weapon._baseSpellDamage(caster)).toBe(31);
   });
 
-  test("uses accurate at six tiles and longrange at eight tiles", () => {
+  test("defaults to longrange at eight tiles and uses accurate at six tiles", () => {
     const weapon = new EyeOfAyak();
 
-    expect(weapon.attackStyle()).toBe(AttackStyle.ACCURATE);
-    expect(weapon.attackRange).toBe(6);
-
-    AttackStylesController.controller.setWeaponAttackStyle(weapon, AttackStyle.LONGRANGE);
+    expect(weapon.attackStyle()).toBe(AttackStyle.LONGRANGE);
     expect(weapon.attackRange).toBe(8);
+
+    AttackStylesController.controller.setWeaponAttackStyle(weapon, AttackStyle.ACCURATE);
+    expect(weapon.attackRange).toBe(6);
   });
 
   test("has its documented normal attack speed and weight", () => {
