@@ -12,6 +12,7 @@ export const SETTINGS_STORAGE_KEY = "osrs-sdk:settings";
 
 export type SettingsState = {
   antiDrag: number;
+  chunkDebug: boolean;
   relaxCameraPitch: boolean;
   combat_key: string;
   displayFeedback: boolean;
@@ -82,6 +83,7 @@ export class Settings {
   static displayClickboxes = false;
   static metronome: boolean;
   static antiDrag: number;
+  static chunkDebug = false;
   static relaxCameraPitch: boolean;
 
   static inventory_key: string;
@@ -201,6 +203,7 @@ export class Settings {
   private static toState(): SettingsState {
     return {
       antiDrag: Settings.antiDrag,
+      chunkDebug: Settings.chunkDebug,
       relaxCameraPitch: Settings.relaxCameraPitch,
       combat_key: Settings.combat_key,
       displayFeedback: Settings.displayFeedback,
@@ -250,6 +253,7 @@ function createDefaults(): SettingsState {
   const mobile = Settings.mobileCheck();
   return {
     antiDrag: 5,
+    chunkDebug: false,
     relaxCameraPitch: false,
     combat_key: "F5",
     displayFeedback: true,
@@ -306,6 +310,7 @@ const legacyStorage: SettingsStorage<SettingsState> = {
     const menuVisible = window.localStorage.getItem("menuVisible");
     return {
       antiDrag: parseInt(window.localStorage.getItem("antiDrag") ?? "5"),
+      chunkDebug: defaults.chunkDebug,
       relaxCameraPitch: defaults.relaxCameraPitch,
       combat_key: window.localStorage.getItem("combat_key") || defaults.combat_key,
       displayFeedback: window.localStorage.getItem("displayFeedback") !== "false",

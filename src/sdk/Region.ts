@@ -18,6 +18,7 @@ import { Trainer } from "./Trainer";
 import { Button } from "./ui/Button";
 import type { Loadout as LoadoutData, LoadoutItemId } from "./Loadout";
 import type { UnitEquipment } from "./Unit";
+import { ChunkUtils } from "./utils/Chunk";
 
 interface GroundYItems {
   [key: number]: Item[];
@@ -47,6 +48,7 @@ export abstract class Region {
   newMobs: Mob[] = [];
   mobs: Mob[] = [];
   primaryBoss: Mob | null = null;
+  private nextChunkOrder = 0;
   entities: Entity[] = [];
   // Combat projectiles aimed at locations rather than units.
   projectiles: Projectile[] = [];
@@ -79,6 +81,7 @@ export abstract class Region {
 
   addPlayer(player: Player) {
     this.players.push(player);
+    this.refreshUnitChunk(player);
     player.addedToWorld();
   }
 
@@ -108,10 +111,34 @@ export abstract class Region {
   addMob(mob: Mob) {
     if (!mob.region.world) {
       this.mobs.push(mob);
+      this.refreshUnitChunk(mob);
       mob.addedToWorld();
     } else {
       this.newMobs.push(mob);
+      this.refreshUnitChunk(mob);
     }
+  }
+
+  /** Assign a fresh order when a unit first appears or crosses a chunk boundary. */
+  refreshUnitChunk(unit: Unit) {
+    const chunkPosition = ChunkUtils.fromLocation(unit.location);
+    if (unit.chunkOrder >= 0 && ChunkUtils.equals(unit.chunkPosition, chunkPosition)) return;
+
+    unit.chunkPosition = chunkPosition;
+    unit.chunkOrder = this.nextChunkOrder++;
+  }
+
+  /** Return NPCs in this chunk, with the most recent entrant first. */
+  getNpcsInChunk(chunkX: number, chunkY: number): Mob[] {
+    return [...this.mobs, ...this.newMobs]
+      .filter((mob) => mob.chunkPosition.x === chunkX && mob.chunkPosition.y === chunkY)
+      .sort((first, second) => second.chunkOrder - first.chunkOrder);
+  }
+
+  /** One-based position in the order NPCs in this chunk will be considered. */
+  getNpcChunkPriority(mob: Mob): number | null {
+    const priority = this.getNpcsInChunk(mob.chunkPosition.x, mob.chunkPosition.y).indexOf(mob);
+    return priority < 0 ? null : priority + 1;
   }
 
   /**
@@ -271,6 +298,7 @@ export abstract class Region {
     this.players = [];
     this.mobs = [];
     this.newMobs = [];
+    this.nextChunkOrder = 0;
     this.entities = [];
     this.projectiles = [];
     this.groundItems = {};

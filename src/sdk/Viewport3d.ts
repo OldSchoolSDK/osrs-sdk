@@ -26,6 +26,7 @@ import {
 } from "./utils/camera/CameraRotation";
 import { CameraFocalPoint, CameraFocalPosition } from "./utils/camera/CameraFocalPoint";
 import { cameraOrbitDistance } from "./utils/camera/CameraOrbit";
+import { CHUNK_SIZE } from "./utils/Chunk";
 
 // how many pixels wide should 2d elements be scaled to
 const SPRITE_SCALE = 32;
@@ -71,6 +72,7 @@ export class Viewport3d implements ViewportDelegate {
 
   private selectedTile: Location | null = null;
   private selectedTileMesh: THREE.Mesh;
+  private chunkDebugLines: THREE.LineSegments | null = null;
 
   private clock = new THREE.Clock();
 
@@ -385,6 +387,28 @@ export class Viewport3d implements ViewportDelegate {
     plane.visible = Trainer.player.region.drawDefaultFloor();
     this.scene.add(plane);
 
+    const chunkBoundaryVertices: number[] = [];
+    for (let x = 0; x <= region.width; x += CHUNK_SIZE) {
+      chunkBoundaryVertices.push(x, GROUND_OVERLAY_Y, -1, x, GROUND_OVERLAY_Y, region.height - 1);
+    }
+    for (let y = 0; y <= region.height; y += CHUNK_SIZE) {
+      const floorY = y - 1;
+      chunkBoundaryVertices.push(0, GROUND_OVERLAY_Y, floorY, region.width, GROUND_OVERLAY_Y, floorY);
+    }
+    const chunkBoundaryGeometry = new THREE.BufferGeometry();
+    chunkBoundaryGeometry.setAttribute("position", new THREE.Float32BufferAttribute(chunkBoundaryVertices, 3));
+    const chunkBoundaryMaterial = new THREE.LineBasicMaterial({
+      color: 0x00ffff,
+      depthTest: false,
+      depthWrite: false,
+      opacity: 0.8,
+      transparent: true,
+    });
+    this.chunkDebugLines = new THREE.LineSegments(chunkBoundaryGeometry, chunkBoundaryMaterial);
+    this.chunkDebugLines.renderOrder = GroundOverlayRenderOrder.HOVERED_TILE + 1;
+    this.chunkDebugLines.visible = Settings.chunkDebug;
+    this.scene.add(this.chunkDebugLines);
+
     this.scene.add(this.selectedTileMesh);
 
     // preload by adding a bunch of models to the scene but out of sight
@@ -459,6 +483,8 @@ export class Viewport3d implements ViewportDelegate {
       this.applyCameraFocalPosition(this.cameraFocalPoint.getPerceivedPosition(now));
     }
     this.updateCamera(delta);
+
+    if (this.chunkDebugLines) this.chunkDebugLines.visible = Settings.chunkDebug;
 
     this.knownActors.forEach((actor) => actor.draw(this.scene, delta, world.tickPercent));
     this.refreshProjectedClickboxes(world);

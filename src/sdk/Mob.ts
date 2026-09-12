@@ -565,6 +565,25 @@ export class Mob extends Unit {
     context: OffscreenCanvasRenderingContext2D,
     scale: number,
   ) {
+    if (Settings.chunkDebug) {
+      const priority = this.region.getNpcChunkPriority(this);
+      if (priority !== null) {
+        const debugPosition = projector.atHeight(projector.logicalHeight * 0.5);
+        context.save();
+        context.translate(debugPosition.x, debugPosition.y);
+        if (Settings.rotated === "south") context.rotate(Math.PI);
+        context.font = "20px OSRS";
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.lineWidth = 3;
+        context.strokeStyle = "black";
+        context.strokeText(String(priority), 0, 0);
+        context.fillStyle = "white";
+        context.fillText(String(priority), 0, 0);
+        context.restore();
+      }
+    }
+
     const overheadPosition = projector.atHeight(projector.logicalHeight);
     context.save();
     context.translate(overheadPosition.x, overheadPosition.y);

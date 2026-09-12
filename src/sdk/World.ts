@@ -173,6 +173,7 @@ export class World {
       });
       region.mobs.forEach((mob) => {
         mob.movementStep();
+        region.refreshUnitChunk(mob);
       });
       region.mobs.forEach((mob) => mob.attackStep());
 
@@ -181,6 +182,7 @@ export class World {
       });
       region.newMobs.forEach((mob) => {
         mob.movementStep();
+        region.refreshUnitChunk(mob);
       });
       region.newMobs.forEach((mob) => mob.attackStep());
     }
@@ -202,6 +204,7 @@ export class World {
     region.players.forEach((player: Player) => {
       player.timerStep();
       player.movementStep();
+      region.refreshUnitChunk(player);
       if (this.getReadyTimer <= 0) {
         player.attackStep();
       }

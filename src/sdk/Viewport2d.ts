@@ -12,6 +12,7 @@ import { Item } from "./Item";
 import _ from "lodash";
 import { Trainer } from "./Trainer";
 import { Location } from "./Location";
+import { CHUNK_SIZE } from "./utils/Chunk";
 
 export class Viewport2d implements ViewportDelegate {
   private selectedTile: Location | null = null;
@@ -29,6 +30,23 @@ export class Viewport2d implements ViewportDelegate {
     region.context.save();
     region.drawWorldBackground(region.context, Settings.tileSize);
     region.drawGroundItems(region.context);
+
+    if (Settings.chunkDebug) {
+      region.context.save();
+      region.context.beginPath();
+      for (let x = 0; x <= region.width; x += CHUNK_SIZE) {
+        region.context.moveTo(x * Settings.tileSize, 0);
+        region.context.lineTo(x * Settings.tileSize, region.height * Settings.tileSize);
+      }
+      for (let y = 0; y <= region.height; y += CHUNK_SIZE) {
+        region.context.moveTo(0, y * Settings.tileSize);
+        region.context.lineTo(region.width * Settings.tileSize, y * Settings.tileSize);
+      }
+      region.context.lineWidth = 2;
+      region.context.strokeStyle = "rgba(0, 255, 255, 0.8)";
+      region.context.stroke();
+      region.context.restore();
+    }
 
     // Draw all things on the map
     const renderables: Renderable[] = [...region.entities, ...region.projectileGraphics];

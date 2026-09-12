@@ -89,6 +89,7 @@ export * from './TrainerInstance';
 export * from './utils/Assets';
 export * from '../assets/CacheAssets';
 export * from './utils/BrowserUtils';
+export * from './utils/Chunk';
 export * from './utils/ImageLoader';
 export * from './utils/SoundCache';
 export * from './utils/Text';

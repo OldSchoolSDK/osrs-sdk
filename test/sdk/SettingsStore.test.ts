@@ -71,6 +71,16 @@ describe("Settings legacy migration", () => {
     expect(Settings.getSnapshot().displayClickboxes).toBe(false);
   });
 
+  it("persists chunk debug rendering", () => {
+    Settings.readFromStorage();
+
+    Settings.set({ chunkDebug: true });
+    Settings.readFromStorage();
+
+    expect(Settings.chunkDebug).toBe(true);
+    expect(Settings.getSnapshot().chunkDebug).toBe(true);
+  });
+
   it("persists the relaxed camera pitch setting", () => {
     Settings.readFromStorage();
 

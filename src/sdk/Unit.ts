@@ -34,6 +34,7 @@ import { DelayedAction } from "./DelayedAction";
 import { TextSegment, parseText } from "./utils/Text";
 import { UnitStats } from "./UnitStats";
 import { CacheRenderSpotAnim } from "./rendering/CacheRenderReference";
+import { ChunkPosition, ChunkUtils } from "./utils/Chunk";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export enum UnitTypes {
@@ -149,6 +150,10 @@ export abstract class Unit extends Renderable {
   nulledTicks = 0;
   forceMaxDamageRollsOnNextIncomingAttack = false;
   private maxIncomingDamageRollsConsumptionQueued = false;
+  /** Chunk containing this unit's south-west location tile. */
+  chunkPosition: ChunkPosition;
+  /** Monotonically increasing sequence assigned when this unit enters a chunk. */
+  chunkOrder = -1;
 
   /** Attach or replace a temporary cache-derived graphic without rebuilding the base model. */
   addSpotAnim(spotAnim: CacheRenderSpotAnim) {
@@ -255,6 +260,7 @@ export abstract class Unit extends Renderable {
     this.aggro = options.aggro || null;
     this.perceivedLocation = { ...location };
     this.location = { ...location };
+    this.chunkPosition = ChunkUtils.fromLocation(location);
     this.renderFromLocation = { ...location };
     this.renderPositionTimestamp = window.performance.now();
     this.setStats();
@@ -730,6 +736,7 @@ export abstract class Unit extends Renderable {
     this.visualPath = [];
     this.visualMovementActive = false;
     this.delayedMovementTicks = 0;
+    this.region?.refreshUnitChunk(this);
   }
 
   attackAnimation(tickPercent: number, context: OffscreenCanvasRenderingContext2D) {

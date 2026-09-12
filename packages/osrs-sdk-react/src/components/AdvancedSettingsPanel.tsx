@@ -166,6 +166,17 @@ export function AdvancedSettingsPanel({ children, onClose, open, style, ...props
           </SettingRow>
         </Section>
 
+        <Section title="Debug">
+          <SettingRow htmlFor="chunkDebug" label="Chunk debug">
+            <input
+              id="chunkDebug"
+              type="checkbox"
+              checked={settings.chunkDebug}
+              onChange={(event) => trainer.setSettings({ chunkDebug: event.currentTarget.checked })}
+            />
+          </SettingRow>
+        </Section>
+
         {children}
       </RuneScapePanel>
     </Modal>
