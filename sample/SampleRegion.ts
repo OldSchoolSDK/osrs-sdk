@@ -10,6 +10,7 @@ import { SampleDummy } from "./SampleDummy";
 import { SampleAnimayaNpc } from "./SampleAnimayaNpc";
 import { SampleScene } from "./SampleScene";
 import { JavelinColossus } from "./JavelinColossus";
+import { SampleSmallNpc } from "./SampleSmallNpc";
 
 export class SampleRegion extends Region {
   constructor(loadouts: LoadoutData[]) {
@@ -50,6 +51,8 @@ export class SampleRegion extends Region {
     this.addMob(new SampleAnimayaNpc(this, { x: 15, y: 25 }, { aggro: player }));
     this.addMob(new Manticore(this, { x: 25, y: 24 }));
     this.addMob(new JavelinColossus(this, { x: 28, y: 24 }));
+    this.addMob(new SampleSmallNpc(this, { x: 28, y: 25 }));
+    this.addMob(new SampleSmallNpc(this, { x: 29, y: 25 }));
 
     this.addEntity(new SampleScene(this, { x: 0, y: 0 }));
 

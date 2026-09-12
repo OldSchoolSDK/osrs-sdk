@@ -103,7 +103,7 @@ export class RangedWeapon extends Weapon {
         0.5 + ((rangedStrength * (from.bonuses.other.rangedStrength + 64)) / 640) * bonuses.gearRangeMultiplier,
       ) * this._damageMultiplier(from, to, bonuses),
     );
-    return max;
+    return Math.floor(max * (bonuses.overallMultiplier ?? 1));
   }
 
   _attackRoll(from: Unit, to: Unit, bonuses: AttackBonuses) {

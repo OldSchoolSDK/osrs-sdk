@@ -6,12 +6,18 @@ import { PlayerAnimationIndices } from "../../sdk/rendering/GLTFAnimationConstan
 import { CACHE_ASSETS } from "../../assets/CacheAssets";
 import { cacheSound } from "../../sdk/audio/CacheSoundEffects";
 import { Sound } from "../../sdk/utils/SoundCache";
+import { AttackBonuses } from "../../sdk/gear/Weapon";
+import { Unit } from "../../sdk/Unit";
+import { mergeProjectileOptions, Projectile, ProjectileOptions } from "../../sdk/weapons/Projectile";
+import { Mob } from "../../sdk/Mob";
+import { getNextVenatorBounceTarget } from "./VenatorBounce";
 
-/** Raw charged venator bow stats and ordinary bow combat profile.
- *
- * The charged bow's accuracy/passive ricochet effects are intentionally not
- * modelled; this behaves as a regular bow firing compatible arrows.
- */
+const PRIMARY_END_CYCLE = 15;
+const FIRST_BOUNCE_END_CYCLE = 30;
+const SECOND_BOUNCE_END_CYCLE = 45;
+const BOUNCE_DAMAGE_MULTIPLIER = 0.66;
+
+/** Charged Venator bow, including its two-target ricochet passive. */
 export class VenatorBow extends RangedWeapon {
   get cacheItemId(): number {
     return CACHE_ASSETS.items.venatorBow.id;
@@ -49,6 +55,79 @@ export class VenatorBow extends RangedWeapon {
         slayer: 0,
       },
     };
+  }
+
+  override attack(from: Unit, to: Unit, bonuses: AttackBonuses = {}, options: ProjectileOptions = {}): boolean {
+    const didAttack = super.attack(from, to, bonuses, mergeProjectileOptions(options, {
+      setDelay: 1,
+      visuals: { endCycleOffset: PRIMARY_END_CYCLE },
+    }));
+    if (!didAttack || !(to instanceof Mob)) return didAttack;
+
+    const firstBounce = getNextVenatorBounceTarget(to);
+    if (!firstBounce) return didAttack;
+    this.queueBounce(
+      from,
+      to,
+      firstBounce,
+      bonuses,
+      options,
+      1,
+      PRIMARY_END_CYCLE,
+      FIRST_BOUNCE_END_CYCLE,
+      CACHE_ASSETS.sounds.venatorBowRicochetFirst.id,
+    );
+
+    const secondBounce = getNextVenatorBounceTarget(firstBounce);
+    if (secondBounce) {
+      this.queueBounce(
+        from,
+        firstBounce,
+        secondBounce,
+        bonuses,
+        options,
+        2,
+        FIRST_BOUNCE_END_CYCLE,
+        SECOND_BOUNCE_END_CYCLE,
+        CACHE_ASSETS.sounds.venatorBowRicochetSecond.id,
+      );
+    }
+    return didAttack;
+  }
+
+  private queueBounce(
+    attacker: Unit,
+    visualSource: Mob,
+    target: Mob,
+    primaryBonuses: AttackBonuses,
+    primaryOptions: ProjectileOptions,
+    damageDelay: number,
+    startCycleOffset: number,
+    endCycleOffset: number,
+    soundId: number,
+  ) {
+    const visualProjectile = new Projectile(this, 0, visualSource, target, "range", {
+      visuals: {
+        spotAnim: { id: CACHE_ASSETS.spotAnims.venatorBowRicochetProjectile.id },
+        startCycleOffset,
+        endCycleOffset,
+      },
+    });
+    visualSource.region.addProjectileGraphic(visualProjectile.graphic);
+
+    super.attack(
+      attacker,
+      target,
+      {
+        ...primaryBonuses,
+        overallMultiplier: (primaryBonuses.overallMultiplier ?? 1) * BOUNCE_DAMAGE_MULTIPLIER,
+      },
+      mergeProjectileOptions(primaryOptions, {
+        setDelay: damageDelay,
+        sound: new Sound(cacheSound(soundId), 0.1),
+        visuals: { hidden: true },
+      }),
+    );
   }
 
   compatibleAmmo(): ItemName[] {

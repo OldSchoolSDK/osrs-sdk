@@ -34,6 +34,9 @@ export const SAMPLE_ASSETS = {
         death: 10877,
       },
     },
+    guard: {
+      id: 3254,
+    },
   },
   regions: {
     inferno: { id: 9043 },
