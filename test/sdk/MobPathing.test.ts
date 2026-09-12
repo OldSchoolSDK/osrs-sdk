@@ -13,6 +13,14 @@ class OneTilePathingNpc extends PathingNpc {
   override get size() { return 1; }
 }
 
+class MeleePathingNpc extends TestNpc {
+  override get attackRange() { return 1; }
+}
+
+class ThreeTilePillar extends InvisibleMovementBlocker {
+  override get size() { return 3; }
+}
+
 test("large NPCs can cut diagonal corners when their destination footprint is clear", () => {
   const region = new TestRegion(20, 20);
   const world = new World();
@@ -178,4 +186,59 @@ test("player movement clears collision flags from every traversed visual-path ti
   expect(region.hasTileCollisionFlags(2, 5, 1)).toBe(false);
   expect(region.hasTileCollisionFlags(3, 5, 1)).toBe(false);
   expect(region.hasTileCollisionFlags(4, 5, 1)).toBe(true);
+});
+
+test("mino stacking uses the collision flag cleared by the player's final path", () => {
+  const region = new TestRegion(50, 50);
+  region.world = new World();
+  const player = new Player(region, { x: 38, y: 30 });
+  const pillar = new ThreeTilePillar(region, { x: 34, y: 28 });
+  const javelin = new TestNpc(region, { x: 37, y: 29 }, { aggro: player });
+  const minotaur = new MeleePathingNpc(region, { x: 37, y: 26 }, { aggro: player });
+  player.running = true;
+  javelin.stunned = 0;
+  minotaur.stunned = 0;
+  region.addEntity(pillar);
+  region.addPlayer(player);
+  region.addMob(javelin);
+  region.addMob(minotaur);
+
+  const movementTick = () => {
+    javelin.movementStep();
+    minotaur.movementStep();
+    player.movementStep();
+  };
+
+  // Targeting the Minotaur is incidental; the following yellow click replaces
+  // that interaction and runs the player underneath the Javelin.
+  player.setAggro(minotaur);
+  player.moveTo(38, 28);
+  movementTick();
+
+  // Red-x the Javelin while underneath it. The pillar blocks the normal west
+  // exit, so the player is pushed to its east side while the Javelin stalls.
+  player.setAggro(javelin);
+  movementTick();
+  expect(javelin.location).toEqual({ x: 37, y: 29 });
+  expect(player.location).toEqual({ x: 40, y: 28 });
+
+  player.moveTo(40, 29);
+  movementTick();
+  player.moveTo(38, 30);
+  movementTick();
+  player.moveTo(36, 30);
+  movementTick();
+
+  expect(player.location).toEqual({ x: 36, y: 30 });
+  expect(region.hasTileCollisionFlags(37, 30, 1)).toBe(false);
+
+  // Allow the Minotaur's subsequent movement turns to settle into the stack.
+  // It should be able to use the cleared tile rather than stopping one tile
+  // too far east.
+  movementTick();
+  movementTick();
+  movementTick();
+
+  expect(javelin.location).toEqual({ x: 37, y: 29 });
+  expect(minotaur.location).toEqual({ x: 38, y: 30 });
 });

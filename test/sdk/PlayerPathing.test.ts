@@ -51,3 +51,32 @@ test("player underneath a 3x3 NPC is pushed east when its west side is blocked",
 
   expect(player.destinationLocation).toEqual({ x: 8, y: 4 });
 });
+
+test("red-x keeps an overlapping NPC stationary while the player walks out from underneath it", () => {
+  const region = new TestRegion(20, 20);
+  region.world = new World();
+  const player = new Player(region, { x: 6, y: 4 });
+  const mob = new PathingNpc(region, { x: 5, y: 5 }, { aggro: player });
+  player.running = false;
+  mob.stunned = 0;
+  region.addPlayer(player);
+  region.addMob(mob);
+
+  // Clicking the NPC selects its melee perimeter while also making it the
+  // player's interaction target before NPC movement is processed.
+  player.setAggro(mob);
+
+  mob.movementStep();
+  player.movementStep();
+  player.attackStep();
+
+  expect(mob.location).toEqual({ x: 5, y: 5 });
+  expect(player.location).toEqual({ x: 5, y: 4 });
+
+  mob.movementStep();
+  player.movementStep();
+  player.attackStep();
+
+  expect(mob.location).toEqual({ x: 5, y: 5 });
+  expect(player.location).toEqual({ x: 4, y: 4 });
+});

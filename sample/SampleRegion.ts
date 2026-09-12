@@ -11,6 +11,7 @@ import { SampleAnimayaNpc } from "./SampleAnimayaNpc";
 import { SampleScene } from "./SampleScene";
 import { JavelinColossus } from "./JavelinColossus";
 import { SampleSmallNpc } from "./SampleSmallNpc";
+import { SampleMinotaur } from "./SampleMinotaur";
 
 export class SampleRegion extends Region {
   constructor(loadouts: LoadoutData[]) {
@@ -47,7 +48,10 @@ export class SampleRegion extends Region {
     const sampleNpc = new SampleNpc(this, { x: 25, y: 20 }, {});
     this.addMob(sampleNpc);
     this.setBoss(sampleNpc);
-    this.addEntity(new SampleDummy(this, { x: 34, y: 28 }));
+    const samplePillarLocation = { x: 34, y: 28 };
+    this.addEntity(new SampleDummy(this, samplePillarLocation));
+    this.addMob(new JavelinColossus(this, { x: samplePillarLocation.x + 3, y: samplePillarLocation.y }));
+    this.addMob(new SampleMinotaur(this, { x: samplePillarLocation.x, y: samplePillarLocation.y - 5 }));
     this.addMob(new SampleAnimayaNpc(this, { x: 15, y: 25 }, { aggro: player }));
     this.addMob(new Manticore(this, { x: 25, y: 24 }));
     this.addMob(new JavelinColossus(this, { x: 28, y: 24 }));

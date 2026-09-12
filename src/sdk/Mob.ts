@@ -121,10 +121,6 @@ export class Mob extends Unit {
         1,
       )
     ) {
-      if (this.aggro && this.aggro.lastInteraction === this && this.aggro.lastInteractionAge === 0) {
-        // cannot move
-        return { dx: this.location.x, dy: this.location.y };
-      }
       // Random movement if player is under the mob.
       if (Random.get() < 0.5) {
         dy = this.location.y;
@@ -158,6 +154,19 @@ export class Mob extends Unit {
     // override me
   }
 
+  private isRedXStalled() {
+    return this.aggro?.type === UnitTypes.PLAYER
+      && this.aggro.aggro === this
+      && Collision.collisionMath(
+        this.location.x,
+        this.location.y,
+        this.size,
+        this.aggro.location.x,
+        this.aggro.location.y,
+        1,
+      );
+  }
+
   override movementStep() {
     if (this.dying === 0) {
       return;
@@ -170,7 +179,9 @@ export class Mob extends Unit {
     }
     let moved = false;
     this.setHasLOS();
-    if (this.canMove() && this.aggro) {
+    // Red-x prevents the overlapping NPC from entering its movement cycle at
+    // all.
+    if (this.canMove() && this.aggro && !this.isRedXStalled()) {
       // NPC clipping flags persist between ticks. Only an NPC which is trying
       // to move clears its old footprint, and it claims its resulting
       // footprint even when the attempted movement is blocked.

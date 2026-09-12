@@ -19,6 +19,16 @@ export const SAMPLE_ASSETS = {
         death: 10894,
       },
     },
+    minotaur: {
+      id: 12812,
+      animations: {
+        defend: 10841,
+        attack: 10843,
+        heal: 10844,
+        spawn: 10845,
+        death: 10846,
+      },
+    },
     verzik: {
       id: 8373,
     },
