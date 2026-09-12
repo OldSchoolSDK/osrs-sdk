@@ -4,7 +4,6 @@ import InventImage from "../../assets/images/equipment/Necklace_of_rupture.png";
 import { ItemName } from "../../sdk/ItemName";
 import { CACHE_ASSETS } from "../../assets/CacheAssets";
 
-/** Necklace of rupture. Its passive effects are intentionally not simulated. */
 export class NecklaceOfRupture extends Necklace {
   get cacheItemId(): number { return CACHE_ASSETS.items.necklaceOfRupture.id; }
   inventorySprite: HTMLImageElement = ImageLoader.createImage(this.inventoryImage);

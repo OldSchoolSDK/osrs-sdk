@@ -80,7 +80,7 @@ export const CACHE_ASSETS = {
     masoriChapsF: { id: 27241 },
     masoriMaskF: { id: 27235 },
     necklaceOfAnguish: { id: 19547 },
-    necklaceOfRupture: { id: 33639 },
+    necklaceOfRupture: { id: 19547}, // { id: 33639 }, specifically not available in cache yet sadly
     occultNecklace: { id: 12002 },
     pegasianBoots: { id: 13237 },
     rangerBoots: { id: 2577 },
@@ -109,7 +109,7 @@ export const CACHE_ASSETS = {
     ferociousGloves: { id: 22981 },
     ultorRing: { id: 25485 },
     dragonArrows: { id: 11212 },
-    seekingDragonArrows: { id: 33595 },
+    seekingDragonArrows: { id: 11212 }, // { id: 33595 }, not in our cache yet
     scytheOfVitur: { id: 22325 },
     twistedBow: { id: 20997 },
     toxicBlowpipe: { id: 12926 },
