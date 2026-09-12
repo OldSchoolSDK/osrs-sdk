@@ -363,6 +363,7 @@ export abstract class Region {
     this.mobs = [];
     this.newMobs = [];
     this.nextChunkOrder = 0;
+    this.tileCollisionFlags?.fill(0);
     this.entities = [];
     this.projectiles = [];
     this.groundItems = {};

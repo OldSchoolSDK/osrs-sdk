@@ -459,34 +459,11 @@ export class Player extends Unit {
       );
       this.setHasLOS();
 
-      if (isUnderAggrodMob) {
-        const maxDist = Math.ceil(this.aggro.size / 2);
-        let bestDistance = 9999;
-        let winner = null;
-        for (let yy = -maxDist; yy < maxDist; yy++) {
-          for (let xx = -maxDist; xx < maxDist; xx++) {
-            const x = this.location.x + xx;
-            const y = this.location.y + yy;
-            if (Pathing.canTileBePathedTo(this.region, x, y, 1)) {
-              const distance = Pathing.dist(this.location.x, this.location.y, x, y);
-              if (distance > 0 && distance < bestDistance) {
-                bestDistance = distance;
-                winner = { x, y };
-              }
-            }
-          }
-        }
-        if (winner) {
-          this.destinationLocation = { x: winner.x, y: winner.y };
-        } else {
-          console.log("I don't understand what could cause this, but i'd like to find out");
-        }
-      } else if (!this.hasLOS) {
+      if (isUnderAggrodMob || !this.hasLOS) {
         const seekingTiles: Location[] = [];
         // "When clicking on an npc, object, or player, the requested tiles will be all tiles"
         // "within melee range of the npc, object, or player."
-        // For implementation reasons we also ensure the north/south tiles are added to seekingTiles *first* so that
-        // in cases of ties, the north and south tiles are picked by minBy below.
+        // Start at the south-west tile so constructPaths can use it as the centre of its fallback search.
         const aggroSize = this.aggro.size;
         range(0, aggroSize).forEach((xx) => {
           [-1, this.aggro.size].forEach((yy) => {

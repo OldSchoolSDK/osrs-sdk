@@ -13,7 +13,32 @@ class DeathAnimationNpc extends TestNpc {
   override async playAnimation() { return Promise.resolve(); }
 }
 
+class ResettableRegion extends TestRegion {
+  nextPlayerLocation = { x: 2, y: 2 };
+
+  override initialiseRegion() {
+    const player = new Player(this, { ...this.nextPlayerLocation });
+    this.addPlayer(player);
+    return { player };
+  }
+}
+
 describe("region lifecycle", () => {
+  test("reset clears stale tile collision flags before initialising the region", () => {
+    const region = new ResettableRegion(10, 10);
+    region.world = new World();
+    Viewport.viewport = {
+      reset: jest.fn(),
+      setPlayer: jest.fn(),
+    } as never;
+    region.setTileCollisionFlags(7, 7, 1);
+
+    region.reset(false);
+
+    expect(region.hasTileCollisionFlags(7, 7, 1)).toBe(false);
+    expect(region.hasTileCollisionFlags(2, 2, 1)).toBe(true);
+  });
+
   test("removing a mob from newMobs works before it is promoted to mobs", () => {
     const region = new TestRegion(10, 10);
     region.world = new World();
