@@ -579,7 +579,7 @@ export class Player extends Unit {
     let usingForwardMovementPose = true;
 
     const canRotate = true;
-    if (currentAngle !== this.nextAngle && canRotate) {
+    if (currentAngle !== this.nextAngle && canRotate && !this.aggro) {
       if (ENABLE_POSITION_DEBUG) console.log("must rotate", this.visualPath.length, run);
       movementSpeed = baseMovementSpeed / 2;
       const lateralThreshold = (Math.PI * 3) / 8;

@@ -229,6 +229,26 @@ test("does not downgrade a running step to walk during a small-angle turn", () =
   expect(new Set(poses)).toEqual(new Set([PlayerAnimationIndices.Run]));
 });
 
+test("does not apply the turn slowdown while moving toward an attack target", () => {
+  const region = new TestRegion(20, 20);
+  const target = new Mob(region, { x: 8, y: 8 }, {});
+  const untargeted = new Player(region, { x: 2, y: 2 });
+  const targeted = new Player(region, { x: 2, y: 2 });
+  targeted.setAggro(target);
+
+  for (const player of [untargeted, targeted]) {
+    player.visualPath = [{ x: 3, y: 2, run: false }];
+    (player as any)._angle = 0;
+    (player as any).nextAngle = Math.PI / 2;
+  }
+
+  untargeted.clientTick(0, 20);
+  targeted.clientTick(0, 20);
+
+  expect(untargeted.perceivedLocation.x - 2).toBeCloseTo(1 / 60);
+  expect(targeted.perceivedLocation.x - 2).toBeCloseTo(1 / 30);
+});
+
 test("turns mobs at the same gradual rate as players", () => {
   const region = new TestRegion(20, 20);
   const target = new Mob(region, { x: 0, y: 4 }, {});
