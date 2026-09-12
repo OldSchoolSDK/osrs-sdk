@@ -20,6 +20,8 @@ export class TumekensShadow extends PoweredStaff {
     super({
       visuals: {
         spotAnim: { id: CACHE_ASSETS.spotAnims.tumekensShadowProjectile.id },
+        startCycleOffset: 30,
+        verticalOffset: 2.0,
       },
     });
     this.bonuses = {
