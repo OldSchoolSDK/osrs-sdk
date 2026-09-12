@@ -7,7 +7,6 @@ import * as THREE from "three";
 import Stats from "three/examples/jsm/libs/stats.module";
 
 import { Settings } from "./Settings";
-import { Player } from "./Player";
 import { Mob } from "./Mob";
 import { Renderable, UILayerProjector } from "./Renderable";
 import { Location } from "./Location";
@@ -25,6 +24,7 @@ import {
   RELAXED_MAX_CAMERA_PITCH,
   RELAXED_MIN_CAMERA_PITCH,
 } from "./CameraRotation";
+import { CameraFocalPoint, CameraFocalPosition } from "./CameraFocalPoint";
 
 // how many pixels wide should 2d elements be scaled to
 const SPRITE_SCALE = 32;
@@ -56,6 +56,7 @@ export class Viewport3d implements ViewportDelegate {
   private yawDelta = 0;
   private pitchDelta = 0;
   private clientCameraRotation = new ClientCameraRotation();
+  private cameraFocalPoint = new CameraFocalPoint();
 
   private touchStart: Touch | null = null;
   private touchStart2: Touch | null = null;
@@ -122,7 +123,7 @@ export class Viewport3d implements ViewportDelegate {
     });
 
     // Set up camera positioning
-    this.camera.position.set(0, 1, 0);
+    this.camera.position.set(0, 0, 0);
     this.pivot.position.set(0, 0, 0);
     // Face south
     if (faceCameraSouth) {
@@ -391,6 +392,7 @@ export class Viewport3d implements ViewportDelegate {
   reset() {
     this.knownActors.forEach((actor) => actor.destroy(this.scene));
     this.knownActors = new Map();
+    this.cameraFocalPoint.reset();
   }
 
   draw(world: World, region: Region) {
@@ -420,8 +422,11 @@ export class Viewport3d implements ViewportDelegate {
     this.pitch.rotation.x = angles.pitch;
   }
 
-  clientTick() {
+  clientTick(timestamp = window.performance.now()) {
     this.clientCameraRotation.clientTick();
+    if (Trainer.player) {
+      this.cameraFocalPoint.follow(Trainer.player.perceivedLocation, timestamp);
+    }
   }
 
   private get minimumCameraPitch() {
@@ -432,17 +437,20 @@ export class Viewport3d implements ViewportDelegate {
     return Settings.relaxCameraPitch ? RELAXED_MAX_CAMERA_PITCH : MAX_CAMERA_PITCH;
   }
 
+  private applyCameraFocalPosition({ x, y }: CameraFocalPosition) {
+    this.pivot.position.set(x, 0, y);
+  }
+
   draw3dScene(world: World, region: Region) {
     this.reconcileActors(region);
 
     const delta = this.clock.getDelta();
-    region.players.forEach((player: Player) => {
-      const location = player.getPerceivedLocation(world.tickPercent);
-      const target = new THREE.Vector3(location.x + 0.5, 0, location.y - 0.5);
-      // Frame-rate independent smoothing keeps camera and player sampling in
-      // the same interpolated coordinate space.
-      this.pivot.position.lerp(target, 1 - Math.exp(-8 * delta));
-    });
+    if (Trainer.player) {
+      // Seed a newly constructed/reset viewport without flying in from the origin.
+      const now = window.performance.now();
+      this.cameraFocalPoint.initialise(Trainer.player.perceivedLocation, now);
+      this.applyCameraFocalPosition(this.cameraFocalPoint.getPerceivedPosition(now));
+    }
     this.updateCamera(delta);
 
     this.knownActors.forEach((actor) => actor.draw(this.scene, delta, world.tickPercent));

@@ -53,7 +53,7 @@ const BOSS_BAR_INNER_PADDING = 2;
 export interface ViewportDelegate {
   initialise(world: World, region: Region): Promise<void>;
   reset();
-  clientTick?(): void;
+  clientTick?(timestamp?: number): void;
 
   draw(world: World, region: Region): ViewportDrawResult;
 
@@ -184,8 +184,8 @@ export class Viewport {
     }
   }
 
-  clientTick() {
-    this.delegate.clientTick?.();
+  clientTick(timestamp?: number) {
+    this.delegate.clientTick?.(timestamp);
   }
 
   getMapRotation() {
