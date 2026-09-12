@@ -18,12 +18,10 @@ import { Trainer } from "./Trainer";
 import { Pathing } from "./Pathing";
 import { createTileIndicator, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./rendering/RenderUtils";
 import { convexHull, projectedHullContains, ScreenPoint } from "./rendering/ProjectedClickbox";
+import { ClientCameraRotation, MAX_CAMERA_PITCH, MIN_CAMERA_PITCH } from "./CameraRotation";
 
 // how many pixels wide should 2d elements be scaled to
 const SPRITE_SCALE = 32;
-
-const MIN_PITCH = -Math.PI / 2;
-const MAX_PITCH = 0.1;
 
 const FLOOR_Y_POS = -0.5;
 
@@ -51,6 +49,7 @@ export class Viewport3d implements ViewportDelegate {
 
   private yawDelta = 0;
   private pitchDelta = 0;
+  private clientCameraRotation = new ClientCameraRotation();
 
   private touchStart: Touch | null = null;
   private touchStart2: Touch | null = null;
@@ -166,13 +165,21 @@ export class Viewport3d implements ViewportDelegate {
 
   // implementation from https://codepen.io/seanwasere/pen/BaMBoPd
   onDocumentMouseMove(e: MouseEvent) {
-    if ((e.buttons & 4) !== 4) return;
-    this.yaw.rotation.y -= e.movementX * ROTATE_MULT;
-    const v = this.pitch.rotation.x - e.movementY * ROTATE_MULT;
-    if (v > MIN_PITCH && v < MAX_PITCH) {
-      this.pitch.rotation.x = v;
-    }
-    return false;
+    this.clientCameraRotation.setPointerPosition(e.clientX, e.clientY);
+  }
+
+  onDocumentMouseDown(e: MouseEvent) {
+    this.clientCameraRotation.setPointerPosition(e.clientX, e.clientY);
+    if (e.button === 1) this.clientCameraRotation.setMiddleMouseDown(true);
+  }
+
+  onDocumentMouseUp(e: MouseEvent) {
+    this.clientCameraRotation.setPointerPosition(e.clientX, e.clientY);
+    if (e.button === 1) this.clientCameraRotation.setMiddleMouseDown(false);
+  }
+
+  onWindowBlur() {
+    this.clientCameraRotation.setMiddleMouseDown(false);
   }
 
   onDocumentMouseWheel(e: WheelEvent) {
@@ -203,9 +210,7 @@ export class Viewport3d implements ViewportDelegate {
       const deltaY = (e.touches[0].clientY - this.touchStart.clientY) * TOUCH_MULT;
       this.yaw.rotation.y -= deltaX * ROTATE_MULT;
       const v = this.pitch.rotation.x - deltaY * ROTATE_MULT;
-      if (v > MIN_PITCH && v < MAX_PITCH) {
-        this.pitch.rotation.x = v;
-      }
+      this.pitch.rotation.x = Math.max(MIN_CAMERA_PITCH, Math.min(MAX_CAMERA_PITCH, v));
       this.touchStart = e.touches[0];
     } else if (e.touches.length === 2 && this.touchStart2 !== null) {
       // pinch - zoom
@@ -285,6 +290,9 @@ export class Viewport3d implements ViewportDelegate {
 
   initCameraEvents(canvas) {
     canvas.addEventListener("mousemove", this.onDocumentMouseMove.bind(this), false);
+    canvas.addEventListener("mousedown", this.onDocumentMouseDown.bind(this), false);
+    window.addEventListener("mouseup", this.onDocumentMouseUp.bind(this), false);
+    window.addEventListener("blur", this.onWindowBlur.bind(this), false);
     canvas.addEventListener("wheel", this.onDocumentMouseWheel.bind(this), false);
     canvas.addEventListener("touchstart", this.onDocumentTouchStart.bind(this), false);
     canvas.addEventListener("touchmove", this.onDocumentTouchMove.bind(this), false);
@@ -394,7 +402,20 @@ export class Viewport3d implements ViewportDelegate {
 
   updateCamera(delta: number) {
     this.yaw.rotation.y += this.yawDelta * delta;
-    this.pitch.rotation.x = Math.max(Math.min(this.pitch.rotation.x + this.pitchDelta * delta, MAX_PITCH), MIN_PITCH);
+    this.pitch.rotation.x = Math.max(
+      Math.min(this.pitch.rotation.x + this.pitchDelta * delta, MAX_CAMERA_PITCH),
+      MIN_CAMERA_PITCH,
+    );
+    const angles = this.clientCameraRotation.frame({
+      yaw: this.yaw.rotation.y,
+      pitch: this.pitch.rotation.x,
+    }, delta);
+    this.yaw.rotation.y = angles.yaw;
+    this.pitch.rotation.x = angles.pitch;
+  }
+
+  clientTick() {
+    this.clientCameraRotation.clientTick();
   }
 
   draw3dScene(world: World, region: Region) {

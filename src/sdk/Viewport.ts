@@ -53,6 +53,7 @@ const BOSS_BAR_INNER_PADDING = 2;
 export interface ViewportDelegate {
   initialise(world: World, region: Region): Promise<void>;
   reset();
+  clientTick?(): void;
 
   draw(world: World, region: Region): ViewportDrawResult;
 
@@ -181,6 +182,10 @@ export class Viewport {
     if (MapController.controller && Trainer.player) {
       MapController.controller.updateOrbsMask(Trainer.player.currentStats, Trainer.player.stats);
     }
+  }
+
+  clientTick() {
+    this.delegate.clientTick?.();
   }
 
   getMapRotation() {

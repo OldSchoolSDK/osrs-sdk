@@ -145,6 +145,7 @@ export class World {
 
   tickClient(tickPercent: number, timestamp?: number) {
     InputController.controller.onClientTick();
+    Viewport.viewport?.clientTick();
     this.regions.forEach((region: Region) => this.clientTick(region, tickPercent, timestamp));
     this._clientTickCounter++;
   }
