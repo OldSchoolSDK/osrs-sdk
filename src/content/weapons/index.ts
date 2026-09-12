@@ -12,3 +12,5 @@ export { NoxiousHalberd } from "./NoxiousHalberd";
 export { ScytheOfVitur } from "./ScytheOfVitur";
 export { TwistedBow } from "./TwistedBow";
 export { EyeOfAyak } from "./EyeOfAyak";
+export { TumekensShadow } from "./TumekensShadow";
+export { VenatorBow } from "./VenatorBow";

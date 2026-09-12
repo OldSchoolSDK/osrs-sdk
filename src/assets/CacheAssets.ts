@@ -10,6 +10,9 @@ export const CACHE_ASSETS = {
     scytheEast: { id: 1172 },
     scytheSouth: { id: 478 },
     scytheWest: { id: 1231 },
+    tumekensShadowProjectile: { id: 2126 },
+    venatorBowProjectile: { id: 2291 },
+    venatorBowRicochetProjectile: { id: 2007 },
   },
   playerAnimations: {
     idle: { id: 808 },
@@ -112,6 +115,9 @@ export const CACHE_ASSETS = {
     superCombatPotion: { id: 12695 },
     superRestore: { id: 3024 },
     eyeOfAyak: { id: 31113 },
+    conflictionGauntlets: { id: 31106 },
+    tumekensShadow: { id: 27275 },
+    venatorBow: { id: 27612 },
   },
   objects: {},
   sounds: {
@@ -157,6 +163,10 @@ export const CACHE_ASSETS = {
     piety: { id: 3825 },
     rigour: { id: 2685 },
     augury: { id: 2670 },
+    tumekensShadowAttack: { id: 6410 },
+    venatorBowAttack: { id: 6797 },
+    venatorBowRicochetFirst: { id: 6672 },
+    venatorBowRicochetSecond: { id: 6735 },
 
   },
 } as const satisfies CacheAssets;

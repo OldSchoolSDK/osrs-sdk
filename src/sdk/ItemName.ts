@@ -85,4 +85,7 @@ export enum ItemName {
   OATHPLATE_CHEST = "Oathplate chest",
   OATHPLATE_LEGS = "Oathplate legs",
   EYE_OF_AYAK = "Eye of Ayak",
+  CONFLICTION_GAUNTLETS = "Confliction gauntlets",
+  TUMEKENS_SHADOW = "Tumeken's shadow",
+  VENATOR_BOW = "Venator bow",
 }

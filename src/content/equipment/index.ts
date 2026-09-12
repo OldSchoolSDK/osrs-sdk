@@ -64,3 +64,4 @@ export { OathplateChest } from "./OathplateChest";
 export { OathplateLegs } from "./OathplateLegs";
 export { UltorRing } from "./UltorRing";
 export { ZaryteVambraces } from "./ZaryteVambraces";
+export { ConflictionGauntlets } from "./ConflictionGauntlets";
