@@ -317,6 +317,10 @@ export class Manticore extends Mob {
     return ManticoreAnimations.Death;
   }
 
+  override get deathAnimationLength() {
+    return 4;
+  }
+
   override canMeleeIfClose() {
     return "crush" as const;
   }
