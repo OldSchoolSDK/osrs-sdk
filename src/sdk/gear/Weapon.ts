@@ -13,6 +13,7 @@ import { AttackStylesController, AttackStyle, AttackStyleTypes } from "../Attack
 import { Random } from "../Random";
 import { Sound } from "../utils/SoundCache";
 import { PlayerAnimationIndices } from "../rendering/GLTFAnimationConstants";
+import type { CacheRenderSpotAnim } from "../rendering/CacheRenderReference";
 import { XpDrop } from "../XpDrop";
 
 interface EffectivePrayers {
@@ -204,6 +205,14 @@ export class Weapon extends Equipment {
     this.registerProjectile(from, to, bonuses, mergeProjectileOptions(options, {
       consumeTargetMaxDamageRoll: modifiers.maxDamage && modifiers.consumeAfterDamage,
     }));
+    const attackSpotAnim = this.attackSpotAnim;
+    if (attackSpotAnim) {
+      from.addSpotAnim({
+        ...attackSpotAnim,
+        channel: attackSpotAnim.channel ?? "weapon-attack",
+        animation: attackSpotAnim.animation ?? this.attackAnimationId ?? undefined,
+      });
+    }
     return true;
   }
 
@@ -320,5 +329,30 @@ export class Weapon extends Equipment {
 
   get idleAnimationId() {
     return PlayerAnimationIndices.Idle;
+  }
+
+  get walkAnimationId() {
+    return PlayerAnimationIndices.Walk;
+  }
+
+  get runAnimationId() {
+    return PlayerAnimationIndices.Run;
+  }
+
+  get rotate180AnimationId() {
+    return PlayerAnimationIndices.Rotate180;
+  }
+
+  get strafeLeftAnimationId() {
+    return PlayerAnimationIndices.StrafeLeft;
+  }
+
+  get strafeRightAnimationId() {
+    return PlayerAnimationIndices.StrafeRight;
+  }
+
+  /** Graphic attached to the wielder when an ordinary attack begins. */
+  get attackSpotAnim(): CacheRenderSpotAnim | null {
+    return null;
   }
 }

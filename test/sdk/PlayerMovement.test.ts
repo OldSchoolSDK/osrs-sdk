@@ -4,6 +4,7 @@ import { World } from "../../src/sdk/World";
 import { TestRegion } from "../../src/sdk/testing/TestRegion";
 import { PlayerAnimationIndices } from "../../src/sdk/rendering/GLTFAnimationConstants";
 import { Mob } from "../../src/sdk/Mob";
+import { Weapon } from "../../src/sdk/gear/Weapon";
 
 test("running keeps both straight-line tile steps in the visual queue", () => {
   const region = new TestRegion(20, 20);
@@ -27,6 +28,30 @@ test("walking enqueues only the authoritative one-tile step", () => {
 
   expect(player.location).toEqual({ x: 3, y: 2 });
   expect(player.visualPath.map(({ x, y }) => ({ x, y }))).toEqual([{ x: 3, y: 2 }]);
+});
+
+test("uses movement poses supplied by the equipped weapon", () => {
+  class CustomPoseWeapon extends Weapon {
+    override get idleAnimationId() { return 101; }
+    override get walkAnimationId() { return 102; }
+    override get runAnimationId() { return 103; }
+  }
+
+  const region = new TestRegion(20, 20);
+  const player = new Player(region, { x: 2, y: 2 });
+  player.equipment.weapon = new CustomPoseWeapon();
+  player.equipmentChanged();
+  expect(player.currentPoseAnimation).toBe(101);
+
+  (player as any)._angle = 0;
+  (player as any).nextAngle = 0;
+  player.visualPath = [{ x: 3, y: 2, run: false }];
+  player.clientTick(0, 20);
+  expect(player.currentPoseAnimation).toBe(102);
+
+  player.visualPath = [{ x: 4, y: 2, run: true }];
+  player.clientTick(0, 40);
+  expect(player.currentPoseAnimation).toBe(103);
 });
 
 test("snaps visual movement across a path discontinuity larger than two tiles", () => {

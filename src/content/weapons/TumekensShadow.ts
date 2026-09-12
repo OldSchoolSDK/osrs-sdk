@@ -4,6 +4,7 @@ import { ItemName } from "../../sdk/ItemName";
 import { CACHE_ASSETS } from "../../assets/CacheAssets";
 import { cacheSound } from "../../sdk/audio/CacheSoundEffects";
 import { Sound } from "../../sdk/utils/SoundCache";
+import { PlayerAnimationIndices } from "../../sdk/rendering/GLTFAnimationConstants";
 
 /** Tumeken's shadow's base item stats and powered-staff attack profile.
  *
@@ -76,6 +77,26 @@ export class TumekensShadow extends PoweredStaff {
 
   get inventoryImage() {
     return InventImage;
+  }
+
+  override get idleAnimationId() {
+    return PlayerAnimationIndices.TumekensShadowIdle;
+  }
+
+  override get walkAnimationId() {
+    return PlayerAnimationIndices.TumekensShadowWalk;
+  }
+
+  override get runAnimationId() {
+    return PlayerAnimationIndices.TumekensShadowRun;
+  }
+
+  override get attackAnimationId() {
+    return PlayerAnimationIndices.TumekensShadowAttack;
+  }
+
+  override get attackSpotAnim() {
+    return { id: CACHE_ASSETS.spotAnims.tumekensShadowAttack.id };
   }
 
   protected override poweredSpellMaxHit(magicLevel: number): number {

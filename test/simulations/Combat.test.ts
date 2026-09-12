@@ -15,8 +15,28 @@ import { DragonClaws } from "../../src/content/weapons/DragonClaws";
 import { CACHE_ASSETS } from "../../src/assets/CacheAssets";
 import { GraphicsObject } from "../../src/sdk/GraphicsObject";
 import { Projectile } from "../../src/sdk/weapons/Projectile";
+import { Weapon } from "../../src/sdk/gear/Weapon";
 
 describe("basic combat scenario", () => {
+  test("attaches a weapon firing graphic to its attack animation", () => {
+    class FiringGraphicWeapon extends Weapon {
+      override get attackAnimationId() { return 123; }
+      override get attackSpotAnim() { return { id: 456 }; }
+      override rollDamage() {
+        this.damageRoll = 0;
+        this.damage = 0;
+      }
+    }
+
+    const region = new TestRegion(10, 10);
+    const attacker = new Player(region, { x: 4, y: 4 });
+    const target = new TestNpc(region, { x: 5, y: 4 }, {});
+
+    new FiringGraphicWeapon().attack(attacker, target, {});
+
+    expect(attacker.spotAnims).toEqual([{ id: 456, channel: "weapon-attack", animation: 123 }]);
+  });
+
   test("when player tries to kill a fake jalxil...", () => {
     Settings.inputDelay = 0;
     const region = new TestRegion(60, 60);

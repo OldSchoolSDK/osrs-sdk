@@ -15,4 +15,13 @@ export enum PlayerAnimationIndices {
   Eat = 12,
   Dying = 13,
   CastSpell = 14,
+  DragonClawsAttack = 15,
+  TumekensShadowIdle = 16,
+  TumekensShadowWalk = 17,
+  TumekensShadowRun = 18,
+  TumekensShadowAttack = 19,
+  VenatorBowIdle = 20,
+  VenatorBowWalk = 21,
+  VenatorBowRun = 22,
+  VenatorBowAttack = 23,
 }

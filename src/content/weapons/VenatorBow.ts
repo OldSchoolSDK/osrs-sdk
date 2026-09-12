@@ -96,6 +96,22 @@ export class VenatorBow extends RangedWeapon {
   }
 
   get attackAnimationId() {
-    return PlayerAnimationIndices.FireBow;
+    return PlayerAnimationIndices.VenatorBowAttack;
+  }
+
+  override get idleAnimationId() {
+    return PlayerAnimationIndices.VenatorBowIdle;
+  }
+
+  override get walkAnimationId() {
+    return PlayerAnimationIndices.VenatorBowWalk;
+  }
+
+  override get runAnimationId() {
+    return PlayerAnimationIndices.VenatorBowRun;
+  }
+
+  override get attackSpotAnim() {
+    return { id: CACHE_ASSETS.spotAnims.venatorBowAttack.id };
   }
 }

@@ -187,6 +187,7 @@ export class Player extends Unit {
 
   equipmentChanged() {
     this.interruptCombat();
+    this.clearSpotAnim("weapon-attack");
 
     const gear = [
       this.equipment.weapon,
@@ -529,6 +530,26 @@ export class Player extends Unit {
     return this.equipment.weapon ? this.equipment.weapon.idleAnimationId : PlayerAnimationIndices.Idle;
   }
 
+  private getWalkPoseId() {
+    return this.equipment.weapon ? this.equipment.weapon.walkAnimationId : PlayerAnimationIndices.Walk;
+  }
+
+  private getRunPoseId() {
+    return this.equipment.weapon ? this.equipment.weapon.runAnimationId : PlayerAnimationIndices.Run;
+  }
+
+  private getRotate180PoseId() {
+    return this.equipment.weapon ? this.equipment.weapon.rotate180AnimationId : PlayerAnimationIndices.Rotate180;
+  }
+
+  private getStrafeLeftPoseId() {
+    return this.equipment.weapon ? this.equipment.weapon.strafeLeftAnimationId : PlayerAnimationIndices.StrafeLeft;
+  }
+
+  private getStrafeRightPoseId() {
+    return this.equipment.weapon ? this.equipment.weapon.strafeRightAnimationId : PlayerAnimationIndices.StrafeRight;
+  }
+
   // WARNING: client ticks do NOT happen in line with render or logic ticks. Do not use this for anything other than
   // visual logic.
   // Movement synchronisation details: docs/PLAYER_MOVEMENT_SYNC.md
@@ -554,7 +575,8 @@ export class Player extends Unit {
     const baseMovementSpeed = 1 / (Settings.tickMs / 20);
     let movementSpeed = baseMovementSpeed;
 
-    this.currentPoseAnimation = PlayerAnimationIndices.Walk;
+    this.currentPoseAnimation = this.getWalkPoseId();
+    let usingForwardMovementPose = true;
 
     const canRotate = true;
     if (currentAngle !== this.nextAngle && canRotate) {
@@ -562,15 +584,18 @@ export class Player extends Unit {
       movementSpeed = baseMovementSpeed / 2;
       const lateralThreshold = (Math.PI * 3) / 8;
       if (angleDelta >= lateralThreshold && angleDelta < (Math.PI * 3) / 4) {
-        this.currentPoseAnimation = PlayerAnimationIndices.StrafeRight;
+        this.currentPoseAnimation = this.getStrafeRightPoseId();
+        usingForwardMovementPose = false;
       } else if (angleDelta <= -lateralThreshold && angleDelta > (-Math.PI * 3) / 4) {
-        this.currentPoseAnimation = PlayerAnimationIndices.StrafeLeft;
+        this.currentPoseAnimation = this.getStrafeLeftPoseId();
+        usingForwardMovementPose = false;
       } else if (Math.abs(angleDelta) >= (Math.PI * 3) / 4) {
-        this.currentPoseAnimation = PlayerAnimationIndices.Rotate180;
+        this.currentPoseAnimation = this.getRotate180PoseId();
+        usingForwardMovementPose = false;
       }
     }
-    if (this.currentPoseAnimation === PlayerAnimationIndices.Walk && run) {
-      this.currentPoseAnimation = PlayerAnimationIndices.Run;
+    if (usingForwardMovementPose && run) {
+      this.currentPoseAnimation = this.getRunPoseId();
     }
     const reachedStep = this.advanceVisualPath(baseMovementSpeed, movementSpeed, tickTimestamp);
     if (reachedStep) {
@@ -1005,7 +1030,11 @@ export class Player extends Unit {
         ]
           .filter((e) => !!e)
           .map((e) => e.cacheItemId ?? e.itemName),
-        { idle: PlayerAnimationIndices.Idle, walk: PlayerAnimationIndices.Walk, run: PlayerAnimationIndices.Run },
+        {
+          idle: this.getIdlePoseId(),
+          walk: this.getWalkPoseId(),
+          run: this.getRunPoseId()
+        },
       ),
     );
   }
