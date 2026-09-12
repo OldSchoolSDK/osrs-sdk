@@ -91,6 +91,17 @@ describe("Settings legacy migration", () => {
     expect(Settings.getSnapshot().relaxCameraPitch).toBe(true);
   });
 
+  it("persists hiding dead NPCs and defaults it off", () => {
+    Settings.readFromStorage();
+    expect(Settings.hideDeadNpcs).toBe(false);
+
+    Settings.set({ hideDeadNpcs: true });
+    Settings.readFromStorage();
+
+    expect(Settings.hideDeadNpcs).toBe(true);
+    expect(Settings.getSnapshot().hideDeadNpcs).toBe(true);
+  });
+
   it("persists tile indicator colors independently from their enabled state", () => {
     Settings.readFromStorage();
 

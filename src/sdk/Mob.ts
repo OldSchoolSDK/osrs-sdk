@@ -386,7 +386,8 @@ export class Mob extends Unit {
   }
 
   visible() {
-    return this.region.world.getReadyTimer <= 0 && !this.deathAnimationFinished;
+    const hiddenWhileDying = Settings.hideDeadNpcs && this.dying >= 0;
+    return this.region.world.getReadyTimer <= 0 && !hiddenWhileDying && !this.deathAnimationFinished;
   }
 
   get consumesSpace(): Unit {
@@ -468,6 +469,7 @@ export class Mob extends Unit {
     scale: number,
     drawUnderTile: boolean,
   ) {
+    if (!this.visible()) return;
     super.draw(tickPercent, context, offset, scale, drawUnderTile);
     if (Settings.displayMobLoS) {
       LineOfSight.drawLOS(
@@ -565,6 +567,7 @@ export class Mob extends Unit {
     context: OffscreenCanvasRenderingContext2D,
     scale: number,
   ) {
+    if (!this.visible()) return;
     if (Settings.chunkDebug) {
       const priority = this.region.getNpcChunkPriority(this);
       if (priority !== null) {

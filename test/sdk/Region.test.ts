@@ -6,6 +6,7 @@ import { TestNpc } from "../../src/sdk/testing/TestNpc";
 import { TestRegion } from "../../src/sdk/testing/TestRegion";
 import { Projectile } from "../../src/sdk/weapons/Projectile";
 import { DelayedAction } from "../../src/sdk/DelayedAction";
+import { Settings } from "../../src/sdk/Settings";
 
 class DeathAnimationNpc extends TestNpc {
   override get deathAnimationId() { return 123; }
@@ -68,6 +69,7 @@ describe("region lifecycle", () => {
 
   test("death animation completion only hides a mob and does not advance logical death", async () => {
     DelayedAction.reset();
+    Settings.hideDeadNpcs = false;
     const region = new TestRegion(10, 10);
     region.world = new World();
     const mob = new DeathAnimationNpc(region, { x: 5, y: 5 }, {});
@@ -84,6 +86,20 @@ describe("region lifecycle", () => {
     expect(mob.visible()).toBe(false);
     expect(mob.dying).toBe(3);
     DelayedAction.reset();
+  });
+
+  test("optionally hides a mob for its entire logical death period", () => {
+    const region = new TestRegion(10, 10);
+    region.world = new World();
+    const mob = new TestNpc(region, { x: 5, y: 5 }, {});
+
+    Settings.hideDeadNpcs = false;
+    mob.dead();
+    expect(mob.visible()).toBe(true);
+
+    Settings.hideDeadNpcs = true;
+    expect(mob.visible()).toBe(false);
+    Settings.hideDeadNpcs = false;
   });
 
   test("units de-aggro when their target dies", () => {

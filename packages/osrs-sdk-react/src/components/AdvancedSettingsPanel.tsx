@@ -124,6 +124,17 @@ export function AdvancedSettingsPanel({ children, onClose, open, style, ...props
           </SettingRow>
         </Section>
 
+        <Section title="Game Settings">
+          <SettingRow htmlFor="hideDeadNpcs" label="Hide dead NPCs">
+            <input
+              id="hideDeadNpcs"
+              type="checkbox"
+              checked={settings.hideDeadNpcs}
+              onChange={(event) => trainer.setSettings({ hideDeadNpcs: event.currentTarget.checked })}
+            />
+          </SettingRow>
+        </Section>
+
         <Section title="Camera">
           <SettingRow htmlFor="relaxCameraPitch" label="Unclamp camera pitch">
             <input

@@ -53,6 +53,7 @@ export type SettingsState = {
   trueTileEnabled: boolean;
   hoveredTileColor: string;
   hoveredTileEnabled: boolean;
+  hideDeadNpcs: boolean;
   use3dView: boolean;
   westPillar: boolean;
   zoomScale: number;
@@ -105,6 +106,7 @@ export class Settings {
 
   static hoveredTileColor: string;
   static hoveredTileEnabled: boolean;
+  static hideDeadNpcs = false;
 
   static loadout: string;
   static customLoadout: Loadout | null;
@@ -242,6 +244,7 @@ export class Settings {
       trueTileEnabled: Settings.trueTileEnabled,
       hoveredTileColor: Settings.hoveredTileColor,
       hoveredTileEnabled: Settings.hoveredTileEnabled,
+      hideDeadNpcs: Settings.hideDeadNpcs,
       use3dView: Settings.use3dView,
       westPillar: Settings.westPillar,
       zoomScale: Settings.zoomScale,
@@ -292,6 +295,7 @@ function createDefaults(): SettingsState {
     trueTileEnabled: false,
     hoveredTileColor: "#FFFFFF",
     hoveredTileEnabled: true,
+    hideDeadNpcs: false,
     use3dView: true,
     westPillar: true,
     zoomScale: 1,
@@ -349,6 +353,7 @@ const legacyStorage: SettingsStorage<SettingsState> = {
       trueTileEnabled: defaults.trueTileEnabled,
       hoveredTileColor: defaults.hoveredTileColor,
       hoveredTileEnabled: defaults.hoveredTileEnabled,
+      hideDeadNpcs: defaults.hideDeadNpcs,
       use3dView: window.localStorage.getItem("use3dView") !== "false",
       westPillar: window.localStorage.getItem("westPillar") !== "false",
       zoomScale: parseFloat(window.localStorage.getItem("zoomScale")) || 1,

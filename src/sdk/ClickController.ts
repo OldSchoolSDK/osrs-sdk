@@ -122,14 +122,15 @@ export class ClickController {
     });
     this.recentlySelectedMobs = [];
     if (hoveredOn && hoveredOn.type === "entities") {
-      const firstMob = hoveredOn.mobs.find(() => true);
+      const visibleMobs = hoveredOn.mobs.filter((mob) => mob.visible());
+      const firstMob = visibleMobs.find(() => true);
       if (firstMob) {
         firstMob.selected = true;
         this.recentlySelectedMobs.push(firstMob);
       }
       const firstAction = this.contextActionsFor(
         Trainer.player.region,
-        hoveredOn.mobs,
+        visibleMobs,
         hoveredOn.players,
         hoveredOn.groundItems,
         hoveredOn.location.x,
@@ -170,7 +171,7 @@ export class ClickController {
 
   private contextActionsFor(region: Region, mobs: Mob[], players: Player[], groundItems: Item[], x: number, y: number) {
     let menuOptions: MenuOption[] = [];
-    mobs.forEach((mob) => {
+    mobs.filter((mob) => mob.visible()).forEach((mob) => {
       menuOptions = menuOptions.concat(mob.contextActions(region, x, y));
     });
     players.forEach((player) => {
@@ -229,7 +230,7 @@ export class ClickController {
     const players: Player[] = [];
     const groundItems: Item[] = [];
     if (clickedOn.type === "entities") {
-      mobs.push(...clickedOn.mobs);
+      mobs.push(...clickedOn.mobs.filter((mob) => mob.visible()));
       players.push(...clickedOn.players);
       groundItems.push(...clickedOn.groundItems);
     }
@@ -359,6 +360,7 @@ export class ClickController {
   }
 
   playerAttackClick(mob: Unit) {
+    if (mob instanceof Mob && !mob.visible()) return;
     Trainer.player.setAggro(mob);
   }
 
