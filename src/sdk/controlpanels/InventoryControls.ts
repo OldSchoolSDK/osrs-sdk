@@ -155,9 +155,10 @@ export class InventoryControls extends BaseControls {
         return Collision.collisionMath(x, y, 1, itemX * scale, itemY * scale, 32 * scale);
       }),
     ) as Item;
+    const clickedUpIsPlaceholder = !!(clickedUpItem as any)?.isPlaceholder;
 
     // swapping gear
-    if (!isPlaceholder && clickedUpItem) {
+    if (!clickedUpIsPlaceholder && clickedUpItem) {
       const theItemWereReplacing = clickedUpItem;
       const theItemWereReplacingPosition = clickedUpItem.inventoryPosition(Trainer.player);
       const thisPosition = this.clickedDownItem.inventoryPosition(Trainer.player);
