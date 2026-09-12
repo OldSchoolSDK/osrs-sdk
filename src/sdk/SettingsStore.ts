@@ -122,6 +122,13 @@ export function createJsonSettingsStorage<T extends object>(
   version = 1,
   migrate?: (stored: unknown, storedVersion: number) => Partial<T>,
 ): SettingsStorage<T> {
+  const warnCorruptedSettings = (reason: unknown) => {
+    console.warn(
+      `[osrs-sdk] Ignoring corrupted settings in localStorage key "${storageKey}" and using defaults. The stored value has not been removed.`,
+      reason,
+    );
+  };
+
   return {
     load(defaults) {
       const raw = window.localStorage.getItem(storageKey);
@@ -136,9 +143,13 @@ export function createJsonSettingsStorage<T extends object>(
         const storedVersion = isEnvelope ? Number((parsed as StoredSettings).version) : 0;
         const stored = isEnvelope ? (parsed as StoredSettings).values : parsed;
         const values = migrate ? migrate(stored, storedVersion) : stored;
-        if (!values || typeof values !== "object") return { ...defaults };
+        if (!values || typeof values !== "object" || Array.isArray(values)) {
+          warnCorruptedSettings("Expected the settings payload to be an object.");
+          return { ...defaults };
+        }
         return { ...defaults, ...values } as T;
-      } catch {
+      } catch (error) {
+        warnCorruptedSettings(error);
         return { ...defaults };
       }
     },

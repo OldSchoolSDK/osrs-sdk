@@ -175,4 +175,39 @@ describe("SettingsStore", () => {
     expect(store.getSnapshot()).toEqual({ enabled: false, label: "", showClickboxes: false, volume: 0 });
     expect(store.getSnapshot()).toBe(store.getSnapshot());
   });
+
+  it("warns and preserves malformed stored JSON while loading defaults", () => {
+    const warning = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    window.localStorage.setItem("broken:settings", "{not-json");
+    const store = createSettingsStore({
+      defaults: { enabled: true },
+      storageKey: "broken:settings",
+      version: 1,
+    });
+
+    expect(store.load()).toEqual({ enabled: true });
+    expect(warning).toHaveBeenCalledWith(
+      expect.stringContaining('localStorage key "broken:settings"'),
+      expect.any(SyntaxError),
+    );
+    expect(window.localStorage.getItem("broken:settings")).toBe("{not-json");
+    warning.mockRestore();
+  });
+
+  it("warns when the stored settings payload is not an object", () => {
+    const warning = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    window.localStorage.setItem("broken:settings", JSON.stringify({ version: 1, values: [] }));
+    const store = createSettingsStore({
+      defaults: { enabled: true },
+      storageKey: "broken:settings",
+      version: 1,
+    });
+
+    expect(store.load()).toEqual({ enabled: true });
+    expect(warning).toHaveBeenCalledWith(
+      expect.stringContaining('localStorage key "broken:settings"'),
+      "Expected the settings payload to be an object.",
+    );
+    warning.mockRestore();
+  });
 });
