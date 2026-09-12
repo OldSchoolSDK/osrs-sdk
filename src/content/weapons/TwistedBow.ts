@@ -56,7 +56,7 @@ export class TwistedBow extends RangedWeapon {
   }
 
   compatibleAmmo(): ItemName[] {
-    return [ItemName.DRAGON_ARROWS];
+    return [ItemName.DRAGON_ARROWS, ItemName.SEEKING_DRAGON_ARROWS];
   }
 
   attackStyles() {

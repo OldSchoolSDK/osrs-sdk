@@ -107,6 +107,7 @@ export const CACHE_ASSETS = {
     ferociousGloves: { id: 22981 },
     ultorRing: { id: 25485 },
     dragonArrows: { id: 11212 },
+    seekingDragonArrows: { id: 33595 },
     scytheOfVitur: { id: 22325 },
     twistedBow: { id: 20997 },
     toxicBlowpipe: { id: 12926 },

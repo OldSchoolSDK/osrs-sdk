@@ -28,6 +28,7 @@ export { DevoutBoots } from "./DevoutBoots";
 export { DiamondBoltsE } from "./DiamondBoltsE";
 export { DizanasQuiver } from "./DizanasQuiver";
 export { DragonArrows } from "./DragonArrows";
+export { SeekingDragonArrows } from "./SeekingDragonArrows";
 export { DragonDefender } from "./DragonDefender";
 export { FerociousGloves } from "./FerociousGloves";
 export { GuthixRobeTop } from "./GuthixRobeTop";
