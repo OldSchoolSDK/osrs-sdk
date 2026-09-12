@@ -71,6 +71,16 @@ describe("Settings legacy migration", () => {
     expect(Settings.getSnapshot().displayClickboxes).toBe(false);
   });
 
+  it("persists the relaxed camera pitch setting", () => {
+    Settings.readFromStorage();
+
+    Settings.set({ relaxCameraPitch: true });
+    Settings.readFromStorage();
+
+    expect(Settings.relaxCameraPitch).toBe(true);
+    expect(Settings.getSnapshot().relaxCameraPitch).toBe(true);
+  });
+
   it("persists tile indicator colors independently from their enabled state", () => {
     Settings.readFromStorage();
 

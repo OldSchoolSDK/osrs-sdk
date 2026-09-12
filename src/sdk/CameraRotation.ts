@@ -1,6 +1,8 @@
 export const CLIENT_ANGLE_RADIANS = Math.PI / 1024;
 export const MIN_CAMERA_PITCH = -383 * CLIENT_ANGLE_RADIANS;
+export const RELAXED_MIN_CAMERA_PITCH = -512 * CLIENT_ANGLE_RADIANS;
 export const MAX_CAMERA_PITCH = -128 * CLIENT_ANGLE_RADIANS;
+export const RELAXED_MAX_CAMERA_PITCH = 0;
 
 export type CameraAngles = {
   yaw: number;
@@ -53,11 +55,13 @@ export class ClientCameraRotation {
   }
 
   /** Integrate the sampled velocity at the unlocked render rate. */
-  frame({ yaw, pitch }: CameraAngles, deltaSeconds: number): CameraAngles {
+  frame({ yaw, pitch }: CameraAngles, deltaSeconds: number, relaxPitch = false): CameraAngles {
     const clientCycles = deltaSeconds / 0.02;
     yaw += (this.yawVelocity / 2) * CLIENT_ANGLE_RADIANS * clientCycles;
     pitch -= (this.pitchVelocity / 2) * CLIENT_ANGLE_RADIANS * clientCycles;
-    pitch = Math.max(MIN_CAMERA_PITCH, Math.min(MAX_CAMERA_PITCH, pitch));
+    const minimumPitch = relaxPitch ? RELAXED_MIN_CAMERA_PITCH : MIN_CAMERA_PITCH;
+    const maximumPitch = relaxPitch ? RELAXED_MAX_CAMERA_PITCH : MAX_CAMERA_PITCH;
+    pitch = Math.max(minimumPitch, Math.min(maximumPitch, pitch));
     return { yaw, pitch };
   }
 }

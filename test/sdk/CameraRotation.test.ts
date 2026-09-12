@@ -3,6 +3,8 @@ import {
   ClientCameraRotation,
   MAX_CAMERA_PITCH,
   MIN_CAMERA_PITCH,
+  RELAXED_MAX_CAMERA_PITCH,
+  RELAXED_MIN_CAMERA_PITCH,
 } from "../../src/sdk/CameraRotation";
 
 test("samples the latest middle-mouse position once per client cycle", () => {
@@ -73,6 +75,30 @@ test("decelerates after release and clamps pitch to the client range", () => {
   rotation.clientTick();
   angles = rotation.frame({ ...angles, pitch: MIN_CAMERA_PITCH }, 0.02);
   expect(angles.pitch).toBe(MIN_CAMERA_PITCH);
+});
+
+test("supports relaxed camera pitch limits in both directions", () => {
+  const rotation = new ClientCameraRotation();
+  rotation.setPointerPosition(0, 0);
+  rotation.clientTick();
+  rotation.setMiddleMouseDown(true);
+  rotation.setPointerPosition(0, 1000);
+  rotation.clientTick();
+
+  const initial = { yaw: 0, pitch: MIN_CAMERA_PITCH };
+  const standard = rotation.frame(initial, 0.02);
+  const relaxed = rotation.frame(initial, 0.02, true);
+
+  expect(standard.pitch).toBe(MIN_CAMERA_PITCH);
+  expect(relaxed.pitch).toBe(RELAXED_MIN_CAMERA_PITCH);
+
+  rotation.setPointerPosition(0, -1000);
+  rotation.clientTick();
+  const standardFlat = rotation.frame({ yaw: 0, pitch: MAX_CAMERA_PITCH }, 0.02);
+  const relaxedFlat = rotation.frame({ yaw: 0, pitch: MAX_CAMERA_PITCH }, 0.02, true);
+
+  expect(standardFlat.pitch).toBe(MAX_CAMERA_PITCH);
+  expect(relaxedFlat.pitch).toBe(RELAXED_MAX_CAMERA_PITCH);
 });
 
 test("render rate does not change total rotation over a client cycle", () => {

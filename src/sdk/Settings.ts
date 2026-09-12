@@ -12,6 +12,7 @@ export const SETTINGS_STORAGE_KEY = "osrs-sdk:settings";
 
 export type SettingsState = {
   antiDrag: number;
+  relaxCameraPitch: boolean;
   combat_key: string;
   displayFeedback: boolean;
   displayBossHealthBar: boolean;
@@ -81,6 +82,7 @@ export class Settings {
   static displayClickboxes = false;
   static metronome: boolean;
   static antiDrag: number;
+  static relaxCameraPitch: boolean;
 
   static inventory_key: string;
   static spellbook_key: string;
@@ -199,6 +201,7 @@ export class Settings {
   private static toState(): SettingsState {
     return {
       antiDrag: Settings.antiDrag,
+      relaxCameraPitch: Settings.relaxCameraPitch,
       combat_key: Settings.combat_key,
       displayFeedback: Settings.displayFeedback,
       displayBossHealthBar: Settings.displayBossHealthBar,
@@ -247,6 +250,7 @@ function createDefaults(): SettingsState {
   const mobile = Settings.mobileCheck();
   return {
     antiDrag: 5,
+    relaxCameraPitch: false,
     combat_key: "F5",
     displayFeedback: true,
     displayBossHealthBar: true,
@@ -302,6 +306,7 @@ const legacyStorage: SettingsStorage<SettingsState> = {
     const menuVisible = window.localStorage.getItem("menuVisible");
     return {
       antiDrag: parseInt(window.localStorage.getItem("antiDrag") ?? "5"),
+      relaxCameraPitch: defaults.relaxCameraPitch,
       combat_key: window.localStorage.getItem("combat_key") || defaults.combat_key,
       displayFeedback: window.localStorage.getItem("displayFeedback") !== "false",
       displayBossHealthBar: defaults.displayBossHealthBar,

@@ -18,7 +18,13 @@ import { Trainer } from "./Trainer";
 import { Pathing } from "./Pathing";
 import { createTileIndicator, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./rendering/RenderUtils";
 import { convexHull, projectedHullContains, ScreenPoint } from "./rendering/ProjectedClickbox";
-import { ClientCameraRotation, MAX_CAMERA_PITCH, MIN_CAMERA_PITCH } from "./CameraRotation";
+import {
+  ClientCameraRotation,
+  MAX_CAMERA_PITCH,
+  MIN_CAMERA_PITCH,
+  RELAXED_MAX_CAMERA_PITCH,
+  RELAXED_MIN_CAMERA_PITCH,
+} from "./CameraRotation";
 
 // how many pixels wide should 2d elements be scaled to
 const SPRITE_SCALE = 32;
@@ -210,7 +216,7 @@ export class Viewport3d implements ViewportDelegate {
       const deltaY = (e.touches[0].clientY - this.touchStart.clientY) * TOUCH_MULT;
       this.yaw.rotation.y -= deltaX * ROTATE_MULT;
       const v = this.pitch.rotation.x - deltaY * ROTATE_MULT;
-      this.pitch.rotation.x = Math.max(MIN_CAMERA_PITCH, Math.min(MAX_CAMERA_PITCH, v));
+      this.pitch.rotation.x = Math.max(this.minimumCameraPitch, Math.min(this.maximumCameraPitch, v));
       this.touchStart = e.touches[0];
     } else if (e.touches.length === 2 && this.touchStart2 !== null) {
       // pinch - zoom
@@ -403,19 +409,27 @@ export class Viewport3d implements ViewportDelegate {
   updateCamera(delta: number) {
     this.yaw.rotation.y += this.yawDelta * delta;
     this.pitch.rotation.x = Math.max(
-      Math.min(this.pitch.rotation.x + this.pitchDelta * delta, MAX_CAMERA_PITCH),
-      MIN_CAMERA_PITCH,
+      Math.min(this.pitch.rotation.x + this.pitchDelta * delta, this.maximumCameraPitch),
+      this.minimumCameraPitch,
     );
     const angles = this.clientCameraRotation.frame({
       yaw: this.yaw.rotation.y,
       pitch: this.pitch.rotation.x,
-    }, delta);
+    }, delta, Settings.relaxCameraPitch);
     this.yaw.rotation.y = angles.yaw;
     this.pitch.rotation.x = angles.pitch;
   }
 
   clientTick() {
     this.clientCameraRotation.clientTick();
+  }
+
+  private get minimumCameraPitch() {
+    return Settings.relaxCameraPitch ? RELAXED_MIN_CAMERA_PITCH : MIN_CAMERA_PITCH;
+  }
+
+  private get maximumCameraPitch() {
+    return Settings.relaxCameraPitch ? RELAXED_MAX_CAMERA_PITCH : MAX_CAMERA_PITCH;
   }
 
   draw3dScene(world: World, region: Region) {

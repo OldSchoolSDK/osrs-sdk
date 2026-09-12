@@ -124,6 +124,17 @@ export function AdvancedSettingsPanel({ children, onClose, open, style, ...props
           </SettingRow>
         </Section>
 
+        <Section title="Camera">
+          <SettingRow htmlFor="relaxCameraPitch" label="Unclamp camera pitch">
+            <input
+              id="relaxCameraPitch"
+              type="checkbox"
+              checked={settings.relaxCameraPitch}
+              onChange={(event) => trainer.setSettings({ relaxCameraPitch: event.currentTarget.checked })}
+            />
+          </SettingRow>
+        </Section>
+
         <Section title="Graphics">
           <SettingRow htmlFor="renderFps" label="FPS limit">
             <select
