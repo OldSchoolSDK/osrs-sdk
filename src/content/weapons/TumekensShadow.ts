@@ -5,12 +5,11 @@ import { CACHE_ASSETS } from "../../assets/CacheAssets";
 import { cacheSound } from "../../sdk/audio/CacheSoundEffects";
 import { Sound } from "../../sdk/utils/SoundCache";
 import { PlayerAnimationIndices } from "../../sdk/rendering/GLTFAnimationConstants";
+import { Unit } from "../../sdk/Unit";
+import { AttackBonuses } from "../../sdk/gear/Weapon";
 
-/** Tumeken's shadow's base item stats and powered-staff attack profile.
- *
- * The Shadow's equipment/passive multiplier is deliberately omitted. Its
- * built-in spell uses the unmodified powered-staff base hit formula here.
- */
+const TUMEKEN_MULTIPLIER = 3;
+
 export class TumekensShadow extends PoweredStaff {
   get cacheItemId(): number {
     return CACHE_ASSETS.items.tumekensShadow.id;
@@ -103,5 +102,13 @@ export class TumekensShadow extends PoweredStaff {
 
   protected override poweredSpellMaxHit(magicLevel: number): number {
     return Math.floor(magicLevel / 3 + 1);
+  }
+
+  override _equipmentBonus(from: Unit, to: Unit, bonuses: AttackBonuses) {
+    return from.bonuses.attack.magic * TUMEKEN_MULTIPLIER;
+  }
+  
+  override _magicDamageBonusMultiplier(from: Unit, to: Unit, bonuses: AttackBonuses) {
+    return (from.bonuses.other.magicDamage - 1.0) * TUMEKEN_MULTIPLIER + 1.0;
   }
 }

@@ -31,12 +31,14 @@ export interface AttackBonuses {
   // aggressive/controlled
   styleStrengthBonus?: number;
   voidMultiplier?: number;
+  // these three multipliers are applied to the overall attack roll (think: slayer helmet)
   gearMeleeMultiplier?: number;
   gearMageMultiplier?: number;
   gearRangeMultiplier?: number;
+
+  overallMultiplier?: number;
   attackStyle?: string;
   magicBaseSpellDamage?: number;
-  overallMultiplier?: number;
   effectivePrayers?: EffectivePrayers;
   isSpecialAttack?: boolean;
 }
