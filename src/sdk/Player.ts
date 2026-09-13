@@ -514,8 +514,8 @@ export class Player extends Unit {
     return this.equipment.weapon ? this.equipment.weapon.runAnimationId : PlayerAnimationIndices.Run;
   }
 
-  private getRotate180PoseId() {
-    return this.equipment.weapon ? this.equipment.weapon.rotate180AnimationId : PlayerAnimationIndices.Rotate180;
+  private getWalkBackPoseId() {
+    return this.equipment.weapon ? this.equipment.weapon.walkBackAnimationId : PlayerAnimationIndices.WalkBack;
   }
 
   private getStrafeLeftPoseId() {
@@ -555,18 +555,25 @@ export class Player extends Unit {
     let usingForwardMovementPose = true;
 
     const canRotate = true;
-    if (currentAngle !== this.nextAngle && canRotate && !this.aggro) {
+    let movementAngleDelta = ((this.lastTravelAngle - currentAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    if (Math.abs(Math.abs(movementAngleDelta) - Math.PI) < 1e-6) movementAngleDelta = Math.PI;
+    if (Math.abs(movementAngleDelta) > 1e-6 && canRotate) {
       if (ENABLE_POSITION_DEBUG) console.log("must rotate", this.visualPath.length, run);
-      movementSpeed = baseMovementSpeed / 2;
-      const lateralThreshold = (Math.PI * 3) / 8;
-      if (angleDelta >= lateralThreshold && angleDelta < (Math.PI * 3) / 4) {
+      // Only apply turn turn slowdown when the player has no interaction target.
+      if (!this.aggro) {
+        movementSpeed = baseMovementSpeed / 2;
+      }
+      const lateralThreshold = Math.PI / 4;
+      // Directional movement poses
+      const thresholdEpsilon = 1e-6;
+      if (movementAngleDelta > lateralThreshold + thresholdEpsilon && movementAngleDelta < (Math.PI * 3) / 4) {
         this.currentPoseAnimation = this.getStrafeRightPoseId();
         usingForwardMovementPose = false;
-      } else if (angleDelta <= -lateralThreshold && angleDelta > (-Math.PI * 3) / 4) {
+      } else if (movementAngleDelta < -lateralThreshold - thresholdEpsilon && movementAngleDelta > (-Math.PI * 3) / 4) {
         this.currentPoseAnimation = this.getStrafeLeftPoseId();
         usingForwardMovementPose = false;
-      } else if (Math.abs(angleDelta) >= (Math.PI * 3) / 4) {
-        this.currentPoseAnimation = this.getRotate180PoseId();
+      } else if (Math.abs(movementAngleDelta) >= (Math.PI * 3) / 4) {
+        this.currentPoseAnimation = this.getWalkBackPoseId();
         usingForwardMovementPose = false;
       }
     }
@@ -1024,6 +1031,12 @@ export class Player extends Unit {
 
   override get animationIndex() {
     return this.currentPoseAnimation;
+  }
+
+  override get shouldBlendAnimationWithPose() {
+    return this.visualPath.length > 0
+      || this.perceivedLocation.x !== this.location.x
+      || this.perceivedLocation.y !== this.location.y;
   }
 
   override get drawOutline() {

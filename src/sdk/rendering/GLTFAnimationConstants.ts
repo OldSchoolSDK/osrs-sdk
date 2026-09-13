@@ -3,7 +3,7 @@ export enum PlayerAnimationIndices {
   Idle = 0,
   Walk = 1,
   Run = 2,
-  Rotate180 = 3,
+  WalkBack = 3,
   StrafeLeft = 4,
   StrafeRight = 5,
   FireBow = 6,

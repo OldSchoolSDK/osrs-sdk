@@ -341,8 +341,8 @@ export class Weapon extends Equipment {
     return PlayerAnimationIndices.Run;
   }
 
-  get rotate180AnimationId() {
-    return PlayerAnimationIndices.Rotate180;
+  get walkBackAnimationId() {
+    return PlayerAnimationIndices.WalkBack;
   }
 
   get strafeLeftAnimationId() {

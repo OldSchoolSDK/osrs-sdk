@@ -74,6 +74,11 @@ export abstract class Renderable {
     return false;
   }
 
+  /** Whether a currently playing action should compose with the pose now. */
+  get shouldBlendAnimationWithPose(): boolean {
+    return false;
+  }
+
   // If null, use the default ground-overlay priority. Otherwise sets the renderOrder
   // above other ground overlays with lower render orders.
   get trueTileRenderOrder(): number | null {

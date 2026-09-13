@@ -275,7 +275,7 @@ export class CacheRenderModel implements Model, RenderableListener {
   private animationStartsOnNextDraw = false;
   private poseAnimationTime = 0;
   private animationPlaying = false;
-  private animationCanBlend = false;
+  private animationCanBlendWithPose = false;
   private animationPromiseResolve: (() => void) | null = null;
   private frameSoundPlayer: AnimationFrameSoundPlayer;
   private spotFrameSoundPlayers = new Map<number, AnimationFrameSoundPlayer>();
@@ -378,7 +378,7 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.animationTime = 0;
     this.animationStartsOnNextDraw = true;
     this.animationPlaying = true;
-    this.animationCanBlend = blend;
+    this.animationCanBlendWithPose = blend;
     this.frameSoundPlayer.reset();
     return new Promise<void>((resolve) => {
       this.animationPromiseResolve = resolve;
@@ -417,7 +417,7 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.animationStartsOnNextDraw = false;
     this.poseAnimationTime = 0;
     this.animationPlaying = false;
-    this.animationCanBlend = false;
+    this.animationCanBlendWithPose = false;
     this.frameSoundPlayer.reset();
     this.spotFrameSoundPlayers.clear();
     this.frameSoundsReady = Promise.resolve();
@@ -706,7 +706,7 @@ export class CacheRenderModel implements Model, RenderableListener {
         this.frameSoundPlayer.advance(animationId, animation, total, false, soundLocation);
         this.frameSoundPlayer.reset();
         this.animationPlaying = false;
-        this.animationCanBlend = false;
+        this.animationCanBlendWithPose = false;
         this.activeAnimation = this.poseMap[String(pose)] ?? pose;
         this.animationTime = 0;
         this.animationStartsOnNextDraw = true;
@@ -771,7 +771,13 @@ export class CacheRenderModel implements Model, RenderableListener {
           // this in one function is important: smoothing must not discard the
           // lower-body pose when interpolating an attack animation.
           const applyAnimationFrame = (target: Float32Array, rawFrame: RawFrame, targetAlphas?: Float32Array) => {
-            if (this.animationPlaying && this.animationCanBlend && interleave.length && poseAnimation?.rawFrames?.length) {
+            if (
+              this.animationPlaying
+              && this.animationCanBlendWithPose
+              && this.renderable.shouldBlendAnimationWithPose
+              && interleave.length
+              && poseAnimation?.rawFrames?.length
+            ) {
               const poseTotal = poseAnimation.lengths.reduce((sum, length) => sum + length, 0) / 50;
               const poseTime = poseTotal > 0 ? this.poseAnimationTime % poseTotal : 0;
               let poseElapsed = 0, poseFrame = 0;

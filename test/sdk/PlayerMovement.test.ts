@@ -68,12 +68,16 @@ test("snaps visual movement across a path discontinuity larger than two tiles", 
 test.each([
   [Math.PI / 2, PlayerAnimationIndices.StrafeRight],
   [-Math.PI / 2, PlayerAnimationIndices.StrafeLeft],
-  [Math.PI, PlayerAnimationIndices.Rotate180],
+  [Math.PI, PlayerAnimationIndices.WalkBack],
 ])("selects the directional movement pose for heading delta %p", (heading, expectedPose) => {
   const region = new TestRegion(20, 20);
   const player = new Player(region, { x: 2, y: 2 });
   player.visualPath = [{ x: 3, y: 2, run: false }];
-  (player as any).nextAngle = heading;
+  // Travel east while already facing away from that travel heading. Pose
+  // selection must compare the path heading with current rotation, not with
+  // the actor's target-facing heading.
+  (player as any)._angle = -heading;
+  (player as any).nextAngle = -heading;
 
   player.clientTick(0, 20);
 
@@ -211,15 +215,14 @@ test("keeps the run pose stable while diagonally approaching an aggro target", (
   expect(poses).not.toContain(PlayerAnimationIndices.Idle);
 });
 
-test("does not downgrade a running step to walk during a small-angle turn", () => {
+test("keeps the running pose at the client forty-five-degree forward boundary", () => {
   const region = new TestRegion(20, 20);
   const player = new Player(region, { x: 2, y: 2 });
   player.running = true;
   player.visualPath = [{ x: 3, y: 3, run: true }];
-  // Small enough to remain a forward movement pose, but large enough to
-  // trigger the reference turn slowdown.
+  // Exactly forty-five degrees remains a forward movement pose in the client.
   (player as any)._angle = 0;
-  (player as any).nextAngle = 0.2;
+  (player as any).nextAngle = -0.2;
 
   const poses: number[] = [];
   for (let cycle = 1; cycle <= 8; cycle++) {
@@ -238,15 +241,59 @@ test("does not apply the turn slowdown while moving toward an attack target", ()
 
   for (const player of [untargeted, targeted]) {
     player.visualPath = [{ x: 3, y: 2, run: false }];
-    (player as any)._angle = 0;
-    (player as any).nextAngle = Math.PI / 2;
+    (player as any)._angle = -Math.PI / 2;
   }
+  // An untargeted actor turns toward its eastward path. A targeted actor
+  // remains facing north toward its target while travelling east.
+  (untargeted as any).nextAngle = 0;
+  (targeted as any).nextAngle = -Math.PI / 2;
 
   untargeted.clientTick(0, 20);
   targeted.clientTick(0, 20);
 
   expect(untargeted.perceivedLocation.x - 2).toBeCloseTo(1 / 60);
   expect(targeted.perceivedLocation.x - 2).toBeCloseTo(1 / 30);
+  expect(untargeted.currentPoseAnimation).toBe(PlayerAnimationIndices.StrafeRight);
+  expect(targeted.currentPoseAnimation).toBe(PlayerAnimationIndices.StrafeRight);
+});
+
+test("uses the client forty-five-degree threshold for strafing", () => {
+  const region = new TestRegion(20, 20);
+  const player = new Player(region, { x: 2, y: 2 });
+  player.visualPath = [{ x: 3, y: 2, run: false }];
+  (player as any)._angle = -Math.PI * 50 / 180;
+  (player as any).nextAngle = 0;
+
+  player.clientTick(0, 20);
+
+  expect(player.currentPoseAnimation).toBe(PlayerAnimationIndices.StrafeRight);
+});
+
+test("blends an attack begun on the same tick that movement is queued", () => {
+  const region = new TestRegion(20, 20);
+  const player = new Player(region, { x: 2, y: 2 });
+  const playAnimation = jest.spyOn(player, "playAnimation").mockResolvedValue();
+  player.visualPath = [{ x: 3, y: 2, run: false }];
+
+  player.playAttackAnimation(123);
+
+  expect(playAnimation).toHaveBeenCalledWith(123, true);
+  expect(player.shouldBlendAnimationWithPose).toBe(true);
+});
+
+test("an attack begun while stationary can start blending when the player runs", () => {
+  const region = new TestRegion(20, 20);
+  const player = new Player(region, { x: 2, y: 2 });
+  const playAnimation = jest.spyOn(player, "playAnimation").mockResolvedValue();
+
+  player.playAttackAnimation(123);
+
+  expect(playAnimation).toHaveBeenCalledWith(123, true);
+  expect(player.shouldBlendAnimationWithPose).toBe(false);
+
+  player.visualPath = [{ x: 3, y: 2, run: true }];
+
+  expect(player.shouldBlendAnimationWithPose).toBe(true);
 });
 
 test("turns mobs at the same gradual rate as players", () => {
@@ -352,7 +399,9 @@ test("uses the final path segment rather than a transient turn target for restin
   // boundary. Zero is the old east-facing fallback.
   (player as any).nextAngle = 0;
 
-  for (let cycle = 1; cycle <= 80; cycle++) player.clientTick(0, cycle * 20);
+  // Walking backward while untargeted uses the client's half-speed turn
+  // movement, then rotates to the final travel heading after arrival.
+  for (let cycle = 1; cycle <= 100; cycle++) player.clientTick(0, cycle * 20);
 
   expect((player as any).restingAngle).toBeCloseTo(-Math.PI);
   // +π and -π are the same heading; rotation may legitimately settle on

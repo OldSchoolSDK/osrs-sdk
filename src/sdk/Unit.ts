@@ -379,10 +379,15 @@ export abstract class Unit extends Renderable {
 
   playAttackAnimation(attackAnimationId = this.attackAnimationId) {
     if (attackAnimationId) {
-      // only blend if not idle
-      const doBlend = this.animationIndex !== this.idlePoseId && this.canBlendAttackAnimation;
-      this.playAnimation(attackAnimationId, doBlend);
+      // Pass whether this action supports pose composition. Whether the actor
+      // is moving is evaluated dynamically while the action is playing.
+      this.playAnimation(attackAnimationId, this.canBlendAttackAnimation);
     }
+  }
+
+  /** Whether the current pose should be composed beneath an attack sequence. */
+  override get shouldBlendAnimationWithPose() {
+    return this.animationIndex !== this.idlePoseId;
   }
 
   getPerceivedLocation(_tickPercent: number) {
