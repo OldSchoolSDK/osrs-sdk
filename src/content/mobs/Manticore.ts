@@ -1,3 +1,4 @@
+import CheckmarkGreenIcon from "../../assets/images/interface/resource-pack/icon/checkmark_green.png";
 import { DelayedAction } from "../../sdk/DelayedAction";
 import { cacheSound } from "../../sdk/audio/CacheSoundEffects";
 import { Mob } from "../../sdk/Mob";
@@ -9,8 +10,8 @@ import { Model } from "../../sdk/rendering/Model";
 import { MagicWeapon } from "../../sdk/weapons/MagicWeapon";
 import { MeleeWeapon } from "../../sdk/weapons/MeleeWeapon";
 import { RangedWeapon } from "../../sdk/weapons/RangedWeapon";
+import { ImageLoader } from "../../sdk/utils/ImageLoader";
 import { Sound } from "../../sdk/utils/SoundCache";
-
 
 /** Semantic pose indices mapped to the cache sequences extracted for NPC 12818. */
 export enum ManticoreAnimations {
@@ -56,6 +57,8 @@ const PROJECTILE_FLIGHT_CLIENT_CYCLES = 30;
  */
 export class Manticore extends Mob {
   static readonly NPC_ID = 12818;
+
+  private readonly attackReadyImage = ImageLoader.createImage(CheckmarkGreenIcon);
 
   private attackStyles: Orbs[] | null = null;
   private preselectedAttackStyles: Orbs[] | null = null;
@@ -153,7 +156,7 @@ export class Manticore extends Mob {
     // override default behaviour
     this.attackDelay = 10;
     this.region.mobs.forEach((mob) => {
-      if (!(mob instanceof Manticore) || mob === this) return;
+      if (!(mob instanceof Manticore) || mob === this || mob.attackStyles === null) return;
 
       // NPCs decrement their cooldown inside their own sequential attackStep.
       // An unprocessed peer at 1 or below is ready on this tick. Set it to 6
@@ -183,7 +186,7 @@ export class Manticore extends Mob {
     this.hasAttacked = true;
   }
 
-  private selectAttackStyle(): Orbs[] {
+  private selectKnownAttackStyle(): Orbs[] | null {
     if (this.attackStyles) {
       return this.attackStyles;
     }
@@ -203,6 +206,15 @@ export class Manticore extends Mob {
       return this.attackStyles;
     }
 
+    return null;
+  }
+
+  private selectAttackStyle(): Orbs[] {
+    const knownAttackStyles = this.selectKnownAttackStyle();
+    if (knownAttackStyles) {
+      return knownAttackStyles;
+    }
+
     this.attackStyles = [];
     // 50% chance of range or mage first
     const firstStyle = Math.random() < 0.5 ? Orbs.Range : Orbs.Mage;
@@ -218,6 +230,10 @@ export class Manticore extends Mob {
   override attackStep() {
     this.lastAttackStepTick = this.region.world.globalTickCounter;
     super.attackStep();
+    if (this.aggro && this.hasLOS && !this.attackStyles) {
+      this.selectAttackStyle();
+      this.attackDelay = 10;
+    }
     if (this.attackStyles?.length === 3) {
       if (this.attackDelay === 6) {
         this.playAnimation(ManticoreAnimations.TripleCharge);
@@ -338,18 +354,29 @@ export class Manticore extends Mob {
     return CacheRenderModel.forRenderable(this, CacheRenderReferences.npc(Manticore.NPC_ID));
   }
 
-    override drawUILayer(
-      tickPercent: number,
-      projector: UILayerProjector,
-      context: OffscreenCanvasRenderingContext2D,
-      scale: number,
-    ) {
-      super.drawUILayer(tickPercent, projector, context, scale);
-  
-      // draw attack delay
-      const hitsplatPosition = projector.atHeight(projector.logicalHeight * 0.5);
-      context.save();
-      context.translate(hitsplatPosition.x, hitsplatPosition.y);
+  override drawUILayer(
+    tickPercent: number,
+    projector: UILayerProjector,
+    context: OffscreenCanvasRenderingContext2D,
+    scale: number,
+  ) {
+    super.drawUILayer(tickPercent, projector, context, scale);
+
+    // draw attack delay
+    const hitsplatPosition = projector.atHeight(projector.logicalHeight * 0.5);
+    context.save();
+    context.translate(hitsplatPosition.x, hitsplatPosition.y);
+    if (!this.attackStyles && !this.preselectedAttackStyles) {
+      context.font = "18px Stats_11";
+      context.textAlign = "center";
+      context.lineWidth = 3;
+      context.strokeStyle = "#000000";
+      context.strokeText("?", 0, 42);
+      context.fillStyle = "#FFFF00";
+      context.fillText("?", 0, 42);
+    } else if (this.attackDelay <= 0) {
+      context.drawImage(this.attackReadyImage, -6, 28);
+    } else {
       context.font = "18px Stats_11";
       context.textAlign = "center";
       context.lineWidth = 3;
@@ -357,7 +384,7 @@ export class Manticore extends Mob {
       context.strokeText(String(this.attackDelay), 0, 42);
       context.fillStyle = "#FFFF00";
       context.fillText(String(this.attackDelay), 0, 42);
-      context.restore();
     }
-  
+    context.restore();
+  }
 }
