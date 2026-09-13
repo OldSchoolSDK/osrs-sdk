@@ -5,6 +5,7 @@ export * from "./GameOverlay";
 export * from "./Loadout";
 export * from "./LoadoutManager";
 export * from "./Modal";
+export * from "./PauseController";
 export * from "./RuneScapeButton";
 export * from "./RuneScapePanel";
 export * from "./Section";

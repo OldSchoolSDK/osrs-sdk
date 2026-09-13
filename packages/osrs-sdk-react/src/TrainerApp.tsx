@@ -1,6 +1,6 @@
 import React, { CanvasHTMLAttributes, HTMLAttributes, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { TrainerInstance, TrainerLoadingState } from "osrs-sdk";
-import { GameOverlayProvider, PlayableArea } from "./components";
+import { GameOverlayProvider, PauseController, PlayableArea } from "./components";
 import { TrainerProvider } from "./TrainerContext";
 
 export type TrainerAppProps = HTMLAttributes<HTMLDivElement> & {
@@ -75,6 +75,7 @@ export function TrainerApp({
           </PlayableArea>
           {children}
         </div>
+        <PauseController />
       </GameOverlayProvider>
     </TrainerProvider>
   );

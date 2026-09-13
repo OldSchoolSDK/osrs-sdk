@@ -33,26 +33,7 @@ export class World {
   clientTickTimer = 0;
   private clientTickAccumulator = 0;
   fps = 50; // updates to track realtime framerate
-  private pausedForVisibility = false;
   private browserLoopStarted = false;
-
-  constructor() {
-    // Browsers heavily throttle timers and rendering for background tabs. Do
-    // not accumulate a large client-tick backlog while the tab is hidden.
-    if (typeof document !== "undefined") {
-      document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "hidden") {
-          this.pausedForVisibility = !this.isPaused;
-          if (this.pausedForVisibility) this.stopTicking();
-        } else if (this.pausedForVisibility) {
-          this.pausedForVisibility = false;
-          this.deltaTimeSincePause = -1;
-          this.deltaTimeSinceLastTick = -1;
-          this.startTicking();
-        }
-      });
-    }
-  }
 
   addRegion(region: Region) {
     this.regions.push(region);
