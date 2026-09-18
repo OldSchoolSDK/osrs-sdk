@@ -64,7 +64,7 @@ export class Entity extends Renderable {
     ];
   }
 
-  entityName() {
+  entityName(): string | null {
     return null;
   }
 

@@ -6,7 +6,7 @@ import {
 } from "../src";
 import type { Loadout as LoadoutData } from "../src";
 import { SampleNpc } from "./SampleNpc";
-import { SampleDummy } from "./SampleDummy";
+import { SamplePillar } from "./SamplePillar";
 import { SampleAnimayaNpc } from "./SampleAnimayaNpc";
 import { SampleScene } from "./SampleScene";
 import { JavelinColossus } from "./JavelinColossus";
@@ -45,18 +45,20 @@ export class SampleRegion extends Region {
     });
     this.addPlayer(player);
 
-    const sampleNpc = new SampleNpc(this, { x: 25, y: 20 }, {});
+    const sampleNpc = new SampleNpc(this, { x: 40, y: 30 }, {});
     this.addMob(sampleNpc);
     this.setBoss(sampleNpc);
-    const samplePillarLocation = { x: 34, y: 28 };
-    this.addEntity(new SampleDummy(this, samplePillarLocation));
-    this.addMob(new JavelinColossus(this, { x: samplePillarLocation.x + 3, y: samplePillarLocation.y }));
-    this.addMob(new SampleMinotaur(this, { x: samplePillarLocation.x, y: samplePillarLocation.y - 5 }));
-    this.addMob(new SampleAnimayaNpc(this, { x: 15, y: 25 }, { aggro: player }));
-    this.addMob(new Manticore(this, { x: 25, y: 24 }));
-    this.addMob(new JavelinColossus(this, { x: 28, y: 24 }));
-    this.addMob(new SampleSmallNpc(this, { x: 28, y: 25 }));
-    this.addMob(new SampleSmallNpc(this, { x: 29, y: 25 }));
+
+    this.addEntity(new SamplePillar(this, { x: 40, y: 28 }));
+
+    const northWestPillarLocation = { x: 24, y: 22 };
+    this.addEntity(new SamplePillar(this, { ...northWestPillarLocation }, false));
+    this.addMob(new JavelinColossus(this, { x: northWestPillarLocation.x + 3, y: northWestPillarLocation.y }));
+    this.addMob(new SampleMinotaur(this, { x: northWestPillarLocation.x, y: northWestPillarLocation.y - 5 }));
+    this.addMob(new SampleAnimayaNpc(this, { x: 15, y: 35 }, { aggro: player }));
+    this.addMob(new Manticore(this, { x: 25, y: 34 }));
+    this.addMob(new SampleSmallNpc(this, { x: 28, y: 35 }));
+    this.addMob(new SampleSmallNpc(this, { x: 29, y: 35 }));
 
     this.addEntity(new SampleScene(this, { x: 0, y: 0 }));
 

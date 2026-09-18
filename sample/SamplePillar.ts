@@ -1,8 +1,11 @@
-import { CacheRenderModel, CacheRenderReferences, CollisionType, Entity, LineOfSightMask } from "../src";
+import { CacheRenderModel, CacheRenderReferences, CollisionType, Entity, LineOfSightMask, Region, Location } from "../src";
 import { SAMPLE_ASSETS } from "./assets";
 
 /** Static pillar object based on InfernoTrainer's pillar entity. */
-export class SampleDummy extends Entity {
+export class SamplePillar extends Entity {
+  constructor(region: Region, location: Location, private isVisible = true) {
+    super(region, location);
+  }
 
   override entityName() {
     return "Sample Pillar";
@@ -34,6 +37,10 @@ export class SampleDummy extends Entity {
 
   override get lineOfSight(): LineOfSightMask {
     return LineOfSightMask.FULL_MASK;
+  }
+
+  override visible(tickPercent: number) {
+    return this.isVisible;
   }
 
   override create3dModel() {
