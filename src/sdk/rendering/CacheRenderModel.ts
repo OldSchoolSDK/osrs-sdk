@@ -11,6 +11,7 @@ import { AnimationFrameSoundPlayer, preloadAnimationFrameSounds } from "./Animat
 import { applyBlendedRawFrames, applyMayaFrame, applyRawFrame, sampleAnimation } from "./utils/animations";
 import { cachedPayload, mergePayloads } from "./utils/payloadUtils";
 import { CLIENT_CYCLES_PER_SECOND } from "../utils/constants";
+import { cacheAlphaToOpacity, cacheColorsToRgb, cacheColorsToRgba, cacheColorToRgb, normalizeCacheAlpha, resolveCacheColor } from "./utils/colors";
 
 const DRAW_CLICKBOX_DEBUG = false;
 const DRAW_CACHE_MODEL_WIREFRAME = false;
@@ -275,15 +276,13 @@ export class CacheRenderModel implements Model, RenderableListener {
       geometry.setAttribute("position", new THREE.Float32BufferAttribute(payload.positions, 3));
       if (payload.uvs?.length === (payload.positions.length / 3) * 2) geometry.setAttribute("uv", new THREE.Float32BufferAttribute(payload.uvs, 2));
       if (payload.colors && payload.colors.length * 3 === payload.positions.length) {
-        const colorValues: number[] = [];
-        payload.colors.forEach((value) => { const color = new THREE.Color(value); colorValues.push(color.r, color.g, color.b); });
-        geometry.setAttribute("color", new THREE.Float32BufferAttribute(colorValues, 3));
+        geometry.setAttribute("color", new THREE.Float32BufferAttribute(cacheColorsToRgb(payload.colors), 3));
       }
       const rawAlphas = payload.alphas?.length === payload.positions.length / 3
-        ? payload.alphas.map((value) => value & 255)
+        ? payload.alphas.map(normalizeCacheAlpha)
         : Array(payload.positions.length / 3).fill(0);
       const hasVertexAlpha = needsVertexAlpha(payload);
-      const alphaValues = rawAlphas.map((value) => 1 - value / 255);
+      const alphaValues = rawAlphas.map(cacheAlphaToOpacity);
       geometry.setAttribute("cacheAlpha", new THREE.Float32BufferAttribute(alphaValues, 1));
       geometry.setIndex(payload.indices ?? []);
       geometry.computeVertexNormals();
@@ -373,10 +372,10 @@ export class CacheRenderModel implements Model, RenderableListener {
       spotPayloads.forEach((spotPayload) => {
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute("position", new THREE.Float32BufferAttribute(spotPayload.positions, 3));
+        const spotAlphas = spotPayload.alphas?.map(normalizeCacheAlpha)
+          ?? Array(spotPayload.positions.length / 3).fill(0);
         if (spotPayload.colors && spotPayload.colors.length * 3 === spotPayload.positions.length) {
-          const values: number[] = [];
-          spotPayload.colors.forEach((value, index) => { const color = new THREE.Color(value); values.push(color.r, color.g, color.b, 1 - (spotPayload.alphas?.[index] ?? 0) / 255); });
-          geometry.setAttribute("color", new THREE.Float32BufferAttribute(values, 4));
+          geometry.setAttribute("color", new THREE.Float32BufferAttribute(cacheColorsToRgba(spotPayload.colors, spotAlphas), 4));
         }
         geometry.setIndex(spotPayload.indices ?? []);
         geometry.computeVertexNormals();
@@ -398,7 +397,7 @@ export class CacheRenderModel implements Model, RenderableListener {
         );
         effect.rotation.y = ((placement?.rotation ?? metadata.rotation) ?? 0) * Math.PI / 1024;
         this.root.add(effect);
-        this.spotAnims.push({ mesh: effect, basePositions: new Float32Array(spotPayload.positions), vertexGroups: spotPayload.vertexGroups ?? [], sourceVertices: spotPayload.sourceVertices ?? [], baseAlphas: new Float32Array(spotPayload.alphas ?? Array(spotPayload.positions.length / 3).fill(0)), alphaGroups: spotPayload.alphaGroups ?? [], animationId: metadata.animationId, animation: metadata.animationId >= 0 ? spotPayload.animations?.[String(metadata.animationId)] : undefined, scaleX: metadata.resizeX ?? 128, scaleY: metadata.resizeY ?? 128, rotation: metadata.rotation ?? 0, height: placement?.height ?? 0, delay: placement?.delay ?? 0 });
+        this.spotAnims.push({ mesh: effect, basePositions: new Float32Array(spotPayload.positions), vertexGroups: spotPayload.vertexGroups ?? [], sourceVertices: spotPayload.sourceVertices ?? [], baseAlphas: new Float32Array(spotAlphas), alphaGroups: spotPayload.alphaGroups ?? [], animationId: metadata.animationId, animation: metadata.animationId >= 0 ? spotPayload.animations?.[String(metadata.animationId)] : undefined, scaleX: metadata.resizeX ?? 128, scaleY: metadata.resizeY ?? 128, rotation: metadata.rotation ?? 0, height: placement?.height ?? 0, delay: placement?.delay ?? 0 });
       });
       // A queued actor animation may have begun while its cache geometry was
       // loading. Start it once the mesh is ready so short spawn sequences are
@@ -590,7 +589,7 @@ export class CacheRenderModel implements Model, RenderableListener {
         this.updateLogicalHeight(position);
         const cacheAlpha = this.mesh?.geometry.getAttribute("cacheAlpha") as THREE.BufferAttribute | undefined;
         if (cacheAlpha && transformedAlphas) {
-          for (let i = 0; i < transformedAlphas.length; i++) cacheAlpha.array[i] = 1 - Math.max(0, Math.min(255, transformedAlphas[i])) / 255;
+          for (let i = 0; i < transformedAlphas.length; i++) cacheAlpha.array[i] = cacheAlphaToOpacity(transformedAlphas[i]);
           cacheAlpha.needsUpdate = true;
         }
         this.mesh?.geometry.computeVertexNormals();
@@ -653,15 +652,11 @@ export class CacheRenderModel implements Model, RenderableListener {
         const baseColors = spot.mesh.userData.cacheBaseColors as number[];
         const faceColors = spot.mesh.userData.cacheFaceColors as number[];
         for (let i = 0; i < alphaValues.length; i++) {
-          const replacement = recolor[String(faceColors[i])];
-          if (replacement != null) {
-            const rgb = new THREE.Color(replacement);
-            color.array[i * 4] = rgb.r; color.array[i * 4 + 1] = rgb.g; color.array[i * 4 + 2] = rgb.b;
-          } else if (baseColors[i] != null) {
-            const rgb = new THREE.Color(baseColors[i]);
-            color.array[i * 4] = rgb.r; color.array[i * 4 + 1] = rgb.g; color.array[i * 4 + 2] = rgb.b;
+          if (baseColors[i] != null) {
+            const rgb = cacheColorToRgb(resolveCacheColor(baseColors[i], faceColors[i], recolor));
+            color.array[i * 4] = rgb[0]; color.array[i * 4 + 1] = rgb[1]; color.array[i * 4 + 2] = rgb[2];
           }
-          color.array[i * 4 + 3] = 1 - alphaValues[i] / 255;
+          color.array[i * 4 + 3] = cacheAlphaToOpacity(alphaValues[i]);
         }
         color.needsUpdate = true;
       }

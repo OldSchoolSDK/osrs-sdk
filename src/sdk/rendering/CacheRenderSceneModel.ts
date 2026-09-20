@@ -3,6 +3,7 @@ import { Location3 } from "../Location";
 import { CacheRender } from "./CacheRenderBundle";
 import { Model } from "./Model";
 import { cachedPayload } from "./utils/payloadUtils";
+import { cacheColorsToRgba, normalizeCacheAlpha } from "./utils/colors";
 
 /** Renders pipeline-compiled static scene meshes (opaque + transparent). */
 export type CacheRenderSceneModelOptions = {
@@ -35,16 +36,11 @@ export class CacheRenderSceneModel implements Model {
         });
         chunks.forEach((chunk) => {
           const geometry = new THREE.BufferGeometry(); geometry.setAttribute("position", new THREE.Float32BufferAttribute(chunk.positions, 3));
-          const colors: number[] = [];
-          chunk.colors.forEach((value, index) => {
-            // The Kotlin scene exporter writes its terrain palette bytes
-            // directly into glTF vertex colours. Retain that convention here
-            // so compiled terrain matches the static arena GLBs.
-            // The cache palette values are display/sRGB colours. Convert them
-            // to Three's linear vertex-colour space before rendering.
-            const color = new THREE.Color(value);
-            colors.push(color.r, color.g, color.b, 1 - (chunk.alphas[index] & 255) / 255);
-          });
+          // The Kotlin scene exporter writes its terrain palette bytes directly
+          // into glTF vertex colours. Retain that convention so compiled terrain
+          // matches the static arena GLBs.
+          const alphas = chunk.alphas.map(normalizeCacheAlpha);
+          const colors = cacheColorsToRgba(chunk.colors, alphas);
           geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 4)); geometry.setIndex(chunk.indices); geometry.computeVertexNormals();
           this.root.add(new THREE.Mesh(geometry, material));
         });

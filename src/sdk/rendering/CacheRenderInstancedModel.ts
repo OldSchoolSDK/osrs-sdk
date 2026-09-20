@@ -9,6 +9,7 @@ import { Model } from "./Model";
 import { applyMayaFrame, applyRawFrame, sampleAnimation } from "./utils/animations";
 import { cachedPayload, mergePayloads } from "./utils/payloadUtils";
 import { CLIENT_CYCLES_PER_SECOND } from "../utils/constants";
+import { cacheColorsToRgba, normalizeCacheAlpha } from "./utils/colors";
 
 // Animated instances cannot all mutate one shared geometry when their start
 // delays differ. A pool therefore owns one pre-posed geometry per cache frame;
@@ -117,7 +118,9 @@ export class CacheRenderInstancedModel implements Model {
         pool!.scaleY = (payload.scale ?? 1) * (metadata.resizeY ?? 128) / 128;
         const groups = payload.vertexGroups ?? [];
         const sources = payload.sourceVertices ?? [];
-        const baseAlphas = new Float32Array(payload.alphas ?? Array(payload.positions.length / 3).fill(0));
+        const baseAlphas = new Float32Array(
+          payload.alphas?.map(normalizeCacheAlpha) ?? Array(payload.positions.length / 3).fill(0),
+        );
         const alphaGroups = payload.alphaGroups ?? [];
         const animationId = this.reference.kind === "spotAnim" ? metadata.animationId : payload.poseMap?.["0"] ?? 0;
         const animation = payload.animations?.[String(animationId)];
@@ -154,11 +157,7 @@ export class CacheRenderInstancedModel implements Model {
           const geometry = new THREE.BufferGeometry();
           geometry.setAttribute("position", new THREE.Float32BufferAttribute(frame.positions, 3));
           if (payload.colors && payload.colors.length * 3 === payload.positions.length) {
-            const colors: number[] = [];
-            payload.colors.forEach((value, index) => {
-              const color = new THREE.Color(recolor[String(spotPayload?.faceColors?.[index])] ?? value);
-              colors.push(color.r, color.g, color.b, 1 - (frame.alphas[index] & 255) / 255);
-            });
+            const colors = cacheColorsToRgba(payload.colors, frame.alphas, spotPayload?.faceColors, recolor);
             geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 4));
           }
           geometry.setIndex(payload.indices ?? []);
