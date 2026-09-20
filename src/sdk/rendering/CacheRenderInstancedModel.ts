@@ -4,9 +4,10 @@ import { Location3 } from "../Location";
 import { Renderable } from "../Renderable";
 import { AnimationFrameSoundPlayer, preloadAnimationFrameSounds } from "./AnimationFrameSounds";
 import { CacheRender } from "./CacheRenderBundle";
-import { applyRawFrame, cachedPayload, mergePayloads } from "./CacheRenderModel";
+import { cachedPayload, mergePayloads } from "./CacheRenderModel";
 import { CacheRenderReference } from "./CacheRenderReference";
 import { Model } from "./Model";
+import { applyMayaFrame, applyRawFrame } from "./utils/animations";
 
 // Animated instances cannot all mutate one shared geometry when their start
 // delays differ. A pool therefore owns one pre-posed geometry per cache frame;
@@ -81,29 +82,7 @@ function posedFrames(
     if (rawFrames[frame]) {
       applyRawFrame(posedPositions, vertexGroups, sourceVertices, rawFrames[frame], undefined, posedAlphas, alphaGroups);
     } else if (mayaFrames[frame]) {
-      for (let vertex = 0; vertex < posedPositions.length / 3; vertex++) {
-        const bones = animayaGroups[vertex] ?? [];
-        const scales = animayaScales[vertex] ?? [];
-        if (!bones.length) continue;
-        const x = posedPositions[vertex * 3];
-        const y = posedPositions[vertex * 3 + 1];
-        const z = posedPositions[vertex * 3 + 2];
-        let outputX = 0, outputY = 0, outputZ = 0, hasWeight = false;
-        bones.forEach((bone, index) => {
-          const matrix = mayaFrames[frame][bone];
-          if (!matrix) return;
-          const scale = (scales[index] ?? 255) / 255;
-          hasWeight = true;
-          outputX += (matrix[0] * x + matrix[4] * y + matrix[8] * z + matrix[12] / 128) * scale;
-          outputY += (matrix[1] * x + matrix[5] * y + matrix[9] * z + matrix[13] / 128) * scale;
-          outputZ += (matrix[2] * x + matrix[6] * y + matrix[10] * z + matrix[14] / 128) * scale;
-        });
-        if (hasWeight) {
-          posedPositions[vertex * 3] = outputX;
-          posedPositions[vertex * 3 + 1] = outputY;
-          posedPositions[vertex * 3 + 2] = outputZ;
-        }
-      }
+      applyMayaFrame(posedPositions, mayaFrames[frame], animayaGroups, animayaScales);
     } else if (expandedFrames[frame]?.length === posedPositions.length) {
       posedPositions.set(expandedFrames[frame]);
     }

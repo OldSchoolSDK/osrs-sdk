@@ -1,4 +1,5 @@
-import { advanceAnimationTimeForDraw, applyBlendedRawFrames, applyRawFrame, CacheRenderModel, decodeCacheRenderPayload, mergePayloads } from "../src/sdk/rendering/CacheRenderModel";
+import { advanceAnimationTimeForDraw, CacheRenderModel, decodeCacheRenderPayload, mergePayloads } from "../src/sdk/rendering/CacheRenderModel";
+import { applyBlendedRawFrames, applyRawFrame } from "../src/sdk/rendering/utils/animations";
 import { validateCacheRenderBundleManifest } from "../src/sdk/rendering/CacheRenderBundle";
 import { crc32 } from "../src/cache-render-format";
 import { TextDecoder, TextEncoder } from "util";

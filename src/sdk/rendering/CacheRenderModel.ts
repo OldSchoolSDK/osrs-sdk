@@ -10,6 +10,7 @@ import { Settings } from "../Settings";
 import { CACHE_RENDER_PAYLOAD_MAGIC, CACHE_RENDER_PAYLOAD_VERSION } from "../../cache-render-format";
 import type { CacheRenderAnimation, CacheRenderPayload, CacheRenderRawFrame, CacheRenderTexture } from "../../cache-render-format";
 import { AnimationFrameSoundPlayer, preloadAnimationFrameSounds } from "./AnimationFrameSounds";
+import { applyBlendedRawFrames, applyMayaFrame, applyRawFrame } from "./utils/animations";
 
 const DRAW_CLICKBOX_DEBUG = false;
 const DRAW_CACHE_MODEL_WIREFRAME = false;
@@ -162,68 +163,6 @@ export function mergePayloads(payloads: Payload[]): Payload {
     poseMap: Object.assign({}, ...payloads.map((payload) => payload.poseMap ?? {})),
     geometryClickbox: payloads.find((payload) => payload.geometryClickbox)?.geometryClickbox,
   };
-}
-
-type TransformSelection = { indices: Set<number>; include: boolean };
-
-/** Apply one legacy cache frame to a composed model.
- *
- * `selection` mirrors the client's two-pass animate2 operation: origin slots
- * always run, while other transform slots are selected by the primary
- * sequence's opcode-3 interleave list.
- */
-export function applyRawFrame(positions: Float32Array, groups: number[][], sourceVertices: number[], frame: RawFrame, selection?: TransformSelection, alphas?: Float32Array, alphaGroups?: number[][]) {
-  const x = new Float64Array(positions.length / 3), y = new Float64Array(x.length), z = new Float64Array(x.length);
-  // Work in the cache's native model units. Besides avoiding accumulating
-  // scale error, this lets the fixed-point rotations match the game/client
-  // implementation's signed >> 16 arithmetic.
-  for (let i = 0; i < x.length; i++) { x[i] = positions[i * 3] * 128; y[i] = -positions[i * 3 + 1] * 128; z[i] = -positions[i * 3 + 2] * 128; }
-  const pivot = { x: 0, y: 0, z: 0 };
-  for (let i = 0; i < frame.indexFrameIds.length; i++) {
-    const transform = frame.indexFrameIds[i];
-    const type = frame.types[transform], map = frame.maps[transform] ?? [];
-    if (type !== 0 && selection && selection.indices.has(transform) !== selection.include) continue;
-    const dx0 = frame.x[i] ?? 0, dy0 = frame.y[i] ?? 0, dz0 = frame.z[i] ?? 0;
-    if (type === 5) {
-      if (!alphas) continue;
-      for (const group of map) for (const index of alphaGroups?.[group] ?? []) alphas[index] = Math.max(0, Math.min(255, alphas[index] + dx0 * 8));
-      continue;
-    }
-    if (type === 0) {
-      let count = 0; pivot.x = pivot.y = pivot.z = 0; const seen = new Set<number>();
-      for (const group of map) for (const index of groups[group] ?? []) {
-        // Textures/flat face colours expand a cache vertex into several render
-        // vertices. Count that source vertex once when calculating a pivot,
-        // but do not weld unrelated coincident vertices from different items.
-        const source = sourceVertices[index] ?? index;
-        if (seen.has(source)) continue;
-        seen.add(source); pivot.x += x[index]; pivot.y += y[index]; pivot.z += z[index]; count++;
-      }
-      if (count) { pivot.x = dx0 + pivot.x / count; pivot.y = dy0 + pivot.y / count; pivot.z = dz0 + pivot.z / count; }
-      else { pivot.x = dx0; pivot.y = dy0; pivot.z = dz0; }
-      continue;
-    }
-    for (const group of map) for (const index of groups[group] ?? []) {
-      if (type === 1) { x[index] += dx0; y[index] += dy0; z[index] += dz0; continue; }
-      x[index] -= pivot.x; y[index] -= pivot.y; z[index] -= pivot.z;
-      if (type === 2) {
-        let angle = (dz0 & 255) * 8, s = Math.floor(65536 * Math.sin(angle * Math.PI / 1024)), c = Math.floor(65536 * Math.cos(angle * Math.PI / 1024));
-        let t = (s * y[index] + c * x[index]) >> 16; y[index] = (c * y[index] - s * x[index]) >> 16; x[index] = t;
-        angle = (dx0 & 255) * 8; s = Math.floor(65536 * Math.sin(angle * Math.PI / 1024)); c = Math.floor(65536 * Math.cos(angle * Math.PI / 1024));
-        t = (c * y[index] - s * z[index]) >> 16; z[index] = (s * y[index] + c * z[index]) >> 16; y[index] = t;
-        angle = (dy0 & 255) * 8; s = Math.floor(65536 * Math.sin(angle * Math.PI / 1024)); c = Math.floor(65536 * Math.cos(angle * Math.PI / 1024));
-        t = (s * z[index] + c * x[index]) >> 16; z[index] = (c * z[index] - s * x[index]) >> 16; x[index] = t;
-      } else if (type === 3) { x[index] *= dx0 / 128; y[index] *= dy0 / 128; z[index] *= dz0 / 128; }
-      x[index] += pivot.x; y[index] += pivot.y; z[index] += pivot.z;
-    }
-  }
-  for (let i = 0; i < x.length; i++) { positions[i * 3] = x[i] / 128; positions[i * 3 + 1] = -y[i] / 128; positions[i * 3 + 2] = -z[i] / 128; }
-}
-
-export function applyBlendedRawFrames(positions: Float32Array, groups: number[][], sourceVertices: number[], primary: RawFrame, pose: RawFrame, interleave: number[], alphas?: Float32Array, alphaGroups?: number[][]) {
-  const selection = new Set(interleave.filter((index) => index !== 9999999));
-  applyRawFrame(positions, groups, sourceVertices, primary, { indices: selection, include: false }, alphas, alphaGroups);
-  applyRawFrame(positions, groups, sourceVertices, pose, { indices: selection, include: true }, alphas, alphaGroups);
 }
 
 export function decodeCacheRenderPayload(bytes: ArrayBuffer): Payload {
@@ -621,7 +560,7 @@ export class CacheRenderModel implements Model, RenderableListener {
 
     const size = this.renderable.size;
     const soundLocation = { x: location.x + (size - 1) / 2, y: location.y - (size - 1) / 2 };
-    
+
     const pose = this.renderable.animationIndex;
     this.updateActorAnimation(clockDelta, soundLocation, pose);
     this.updateSpotAnimations(clockDelta, soundLocation);
@@ -745,32 +684,11 @@ export class CacheRenderModel implements Model, RenderableListener {
       if (position && this.basePositions) {
         const transformed = new Float32Array(this.basePositions);
         const transformedAlphas = this.baseAlphas ? new Float32Array(this.baseAlphas) : undefined;
-        const applyMayaFrame = (target: Float32Array, mayaFrame: number[][]) => {
-          for (let vertex = 0; vertex < target.length / 3; vertex++) {
-            const bones = this.animayaGroups[vertex] ?? [];
-            const scales = this.animayaScales[vertex] ?? [];
-            if (!bones.length) continue;
-            const x = target[vertex * 3], y = target[vertex * 3 + 1], z = target[vertex * 3 + 2];
-            let ox = 0, oy = 0, oz = 0, hasWeight = false;
-            bones.forEach((bone, index) => {
-              const matrix = mayaFrame[bone]; if (!matrix) return;
-              const scale = (scales[index] ?? 255) / 255; hasWeight = true;
-              ox += (matrix[0] * x + matrix[4] * y + matrix[8] * z + matrix[12] / 128) * scale;
-              oy += (matrix[1] * x + matrix[5] * y + matrix[9] * z + matrix[13] / 128) * scale;
-              oz += (matrix[2] * x + matrix[6] * y + matrix[10] * z + matrix[14] / 128) * scale;
-            });
-            // Animaya weights are byte contributions to an accumulated skin
-            // matrix. Match the client/reader and do not renormalise them;
-            // doing so changes vertices whose authored weights do not sum to
-            // exactly 255.
-            if (hasWeight) { target[vertex * 3] = ox; target[vertex * 3 + 1] = oy; target[vertex * 3 + 2] = oz; }
-          }
-        };
         if (animation.mayaFrames?.[frame]) {
-          applyMayaFrame(transformed, animation.mayaFrames[frame]);
+          applyMayaFrame(transformed, animation.mayaFrames[frame], this.animayaGroups, this.animayaScales);
           if (Settings.smoothCacheAnimations && animation.mayaFrames[next] && next !== frame) {
             const nextTransformed = new Float32Array(this.basePositions);
-            applyMayaFrame(nextTransformed, animation.mayaFrames[next]);
+            applyMayaFrame(nextTransformed, animation.mayaFrames[next], this.animayaGroups, this.animayaScales);
             for (let i = 0; i < transformed.length; i++) transformed[i] += (nextTransformed[i] - transformed[i]) * blend;
           }
           position.array.set(transformed);
