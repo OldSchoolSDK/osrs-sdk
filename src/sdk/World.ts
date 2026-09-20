@@ -10,8 +10,7 @@ import { InputController } from "./Input";
 import { ControlPanelController } from "./ControlPanelController";
 import { Projectile } from "./weapons/Projectile";
 import { filter } from "lodash";
-
-const CLIENT_TICK_MS = 20;
+import { CLIENT_CYCLES_PER_SECOND, CLIENT_CYCLE_MS } from "./utils/constants";
 
 export class World {
   regions: Region[] = [];
@@ -75,13 +74,13 @@ export class World {
     // re-anchoring movement to an imprecise setInterval callback.
     // Avoid unbounded catch-up after a timer stall; visibility handling also
     // prevents background accumulation.
-    const maxCatchupMs = CLIENT_TICK_MS * 50;
+    const maxCatchupMs = CLIENT_CYCLE_MS * CLIENT_CYCLES_PER_SECOND;
     if (this.clientTickAccumulator > maxCatchupMs) this.clientTickAccumulator = maxCatchupMs;
-    while (this.clientTickAccumulator >= CLIENT_TICK_MS) {
+    while (this.clientTickAccumulator >= CLIENT_CYCLE_MS) {
       const tickPercent = Math.min(1, Math.max(0, (now - this.tickTimer) / Settings.tickMs));
-      const tickTimestamp = now - Math.max(0, this.clientTickAccumulator - CLIENT_TICK_MS);
+      const tickTimestamp = now - Math.max(0, this.clientTickAccumulator - CLIENT_CYCLE_MS);
       this.tickClient(tickPercent, tickTimestamp);
-      this.clientTickAccumulator -= CLIENT_TICK_MS;
+      this.clientTickAccumulator -= CLIENT_CYCLE_MS;
     }
   }
 

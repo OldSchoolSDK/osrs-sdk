@@ -14,6 +14,7 @@ import { CacheRenderReferences, CacheRenderSpotAnim } from "../rendering/CacheRe
 import { Settings } from "../Settings";
 import { Viewport } from "../Viewport";
 import { Trainer } from "../Trainer";
+import { CLIENT_CYCLE_MS } from "../utils/constants";
 
 export interface ProjectileMotionInterpolator {
   interpolate(from: Location3, to: Location3, percent: number): Location3;
@@ -97,7 +98,6 @@ export function mergeProjectileOptions(...sources: ProjectileOptions[]): Project
   }), {});
 }
 
-const CLIENT_TICK_MS = 20;
 const targetIsLocation = (x: Unit | Location): x is Location => (x as Location).x !== undefined;
 export class Projectile {
   damage: number;
@@ -255,7 +255,7 @@ export class ProjectileGraphic extends Renderable {
     this.startHeight = projectile.from.height * 0.75 + visuals.verticalOffset;
     this.interpolator = visuals.motionInterpolator ?? new LinearProjectileMotionInterpolator();
     this.image = projectile.weapon?.image;
-    const clientTicksPerGameTick = Math.max(1, Math.round(Settings.tickMs / CLIENT_TICK_MS));
+    const clientTicksPerGameTick = Math.max(1, Math.round(Settings.tickMs / CLIENT_CYCLE_MS));
     this.startCycle = visuals.startCycleOffset
       ?? visuals.visualDelayTicks * clientTicksPerGameTick;
     this.endCycle = visuals.endCycleOffset

@@ -46,7 +46,6 @@ class PlayerEffects {
 // player can rotate this many JAUs per client tick
 // Player turn speed in the 2048-unit orientation space.
 const PLAYER_ROTATION_RATE_JAU = 64;
-const CLIENT_TICKS_PER_SECOND = 50;
 const JAU_PER_RADIAN = 512;
 const ROTATION_RADIANS_PER_CLIENT_TICK = PLAYER_ROTATION_RATE_JAU / JAU_PER_RADIAN;
 
