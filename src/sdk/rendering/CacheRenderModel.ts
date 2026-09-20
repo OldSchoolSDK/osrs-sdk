@@ -11,9 +11,6 @@ import { CACHE_RENDER_PAYLOAD_MAGIC, CACHE_RENDER_PAYLOAD_VERSION } from "../../
 import type { CacheRenderAnimation, CacheRenderPayload, CacheRenderRawFrame, CacheRenderTexture } from "../../cache-render-format";
 import { AnimationFrameSoundPlayer, preloadAnimationFrameSounds } from "./AnimationFrameSounds";
 
-// CPU-side frame-map animation is used for standard sequences. Animaya
-// sequences continue to use the extracted baked-frame fallback.
-const ENABLE_CACHE_RENDER_ANIMATIONS = true;
 const DRAW_CLICKBOX_DEBUG = false;
 const DRAW_CACHE_MODEL_WIREFRAME = false;
 
@@ -371,7 +368,6 @@ export class CacheRenderModel implements Model, RenderableListener {
     return attached.length ? attached.slice() : (fallback ?? []).slice();
   }
   animationChanged(id: number, blend: boolean): Promise<void> {
-    if (!ENABLE_CACHE_RENDER_ANIMATIONS) return Promise.resolve();
     // SDK callers use semantic pose indices (e.g. FireBow = 6), while the
     // bundle is keyed by the actual cache sequence ID (e.g. 426).
     this.activeAnimation = this.poseMap[String(id)] ?? id;
@@ -614,21 +610,36 @@ export class CacheRenderModel implements Model, RenderableListener {
     })();
     return this.ready;
   }
+
   draw(scene: THREE.Scene, clockDelta: number, _tickPercent: number, location: Location3, rotation: number, pitch: number, visible: boolean, modelOffsets: Location3[]) {
     this.ensureLoaded().catch((error) => {
       // Keep cache integration failures visible (bad URL, integrity failure, or
       // an absent render reference).
       console.error("[osrs-sdk] Cache render preload failed", error);
     });
-    this.spotAnimClock += Math.max(0, clockDelta);
+    this.updateSceneObjects(scene, location, rotation, pitch, visible, modelOffsets);
+
+    const size = this.renderable.size;
+    const soundLocation = { x: location.x + (size - 1) / 2, y: location.y - (size - 1) / 2 };
+    
+    const pose = this.renderable.animationIndex;
+    this.updateActorAnimation(clockDelta, soundLocation, pose);
+    this.updateSpotAnimations(clockDelta, soundLocation);
+    // Do not mark the pose as handled until the replacement mesh exists.
+    // During an equipment swap ensureLoaded() is asynchronous; recording the
+    // pose while mesh is null would prevent it from being initialized once
+    // the new payload arrives.
+    if (this.mesh && this.meshGeneration === this.modelGeneration) {
+      this.lastPose = pose;
+    }
+  }
+
+  private updateSceneObjects(scene: THREE.Scene, location: Location3, rotation: number, pitch: number, visible: boolean, modelOffsets: Location3[]) {
     if (this.root.parent !== scene) {
       scene.add(this.root);
       this.renderable.setAnimationListener(this);
     }
     const size = this.renderable.size;
-    // Cache area sounds use the actor's centre tile, while SDK locations are
-    // the south-west/base tile for multi-tile actors.
-    const soundLocation = { x: location.x + (size - 1) / 2, y: location.y - (size - 1) / 2 };
     this.root.visible = visible && (this.mesh !== null || this.spotAnims.length > 0);
     const outlineColor = Settings.entityIndicatorColor;
     if (this.outline) {
@@ -683,8 +694,8 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.root.children.forEach((child, index) => {
       const offset = modelOffsets[index]; child.position.set(offset?.x ?? 0, offset?.z ?? 0, offset?.y ?? 0);
     });
-    const pose = this.renderable.animationIndex;
-    if (!ENABLE_CACHE_RENDER_ANIMATIONS) { this.lastPose = pose; return; }
+  }
+  private updateActorAnimation(clockDelta: number, soundLocation: { x: number; y: number }, pose: number) {
     if (pose !== this.lastPose) this.poseAnimationTime = 0;
     else this.poseAnimationTime += clockDelta;
     if (!this.animationPlaying && pose !== this.lastPose) {
@@ -808,6 +819,9 @@ export class CacheRenderModel implements Model, RenderableListener {
         this.mesh?.geometry.computeVertexNormals();
       }
     }
+  }
+  private updateSpotAnimations(clockDelta: number, soundLocation: { x: number; y: number }) {
+    this.spotAnimClock += Math.max(0, clockDelta);
     for (const spot of this.spotAnims) {
       const animation = spot.animation;
       const placement = this.activeSpotAnims.filter((spotAnim) => spotAnim.id === spot.mesh.userData.spotAnimId)[0];
@@ -894,11 +908,6 @@ export class CacheRenderModel implements Model, RenderableListener {
       // basis correction as every other world renderable.
       spot.mesh.rotation.y = (placement?.rotation ?? spot.rotation) * Math.PI / 1024;
     }
-    // Do not mark the pose as handled until the replacement mesh exists.
-    // During an equipment swap ensureLoaded() is asynchronous; recording the
-    // pose while mesh is null would prevent it from being initialized once
-    // the new payload arrives.
-    if (this.mesh && this.meshGeneration === this.modelGeneration) this.lastPose = pose;
   }
   private updateLogicalHeight(position: THREE.BufferAttribute) {
     let maxY = -Infinity;

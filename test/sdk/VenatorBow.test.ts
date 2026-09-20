@@ -101,7 +101,7 @@ describe("Venator bow", () => {
     ]);
     expect(visibleProjectiles[1].projectile.from).toBe(primary);
     expect(visibleProjectiles[1].projectile.to).toBe(second);
-    expect(visibleProjectiles[1].projectile.options.visuals.startCycleOffset).toBe(10);
+    expect(visibleProjectiles[1].projectile.options.visuals.startCycleOffset).toBe(15);
     expect(visibleProjectiles[1].projectile.options.visuals.endCycleOffset).toBe(20);
     expect(visibleProjectiles[2].projectile.from).toBe(second);
     expect(visibleProjectiles[2].projectile.to).toBe(third);
