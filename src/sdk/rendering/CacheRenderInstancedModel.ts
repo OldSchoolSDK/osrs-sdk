@@ -4,10 +4,10 @@ import { Location3 } from "../Location";
 import { Renderable } from "../Renderable";
 import { AnimationFrameSoundPlayer, preloadAnimationFrameSounds } from "./AnimationFrameSounds";
 import { CacheRender } from "./CacheRenderBundle";
-import { cachedPayload, mergePayloads } from "./CacheRenderModel";
 import { CacheRenderReference } from "./CacheRenderReference";
 import { Model } from "./Model";
 import { applyMayaFrame, applyRawFrame } from "./utils/animations";
+import { cachedPayload, mergePayloads } from "./utils/payloadUtils";
 
 // Animated instances cannot all mutate one shared geometry when their start
 // delays differ. A pool therefore owns one pre-posed geometry per cache frame;

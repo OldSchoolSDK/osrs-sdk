@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import { Location3 } from "../Location";
 import { CacheRender } from "./CacheRenderBundle";
-import { cachedPayload } from "./CacheRenderModel";
 import { Model } from "./Model";
+import { cachedPayload } from "./utils/payloadUtils";
 
 /** Renders pipeline-compiled static scene meshes (opaque + transparent). */
 export type CacheRenderSceneModelOptions = {
