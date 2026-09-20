@@ -671,7 +671,8 @@ export class CacheRenderModel implements Model, RenderableListener {
       this.trueTile.position.set(trueLocation.x, GROUND_OVERLAY_Y, trueLocation.y);
       const trueTileColor = Settings.trueTileColor;
       (this.trueTile.material as THREE.LineBasicMaterial).color.set(trueTileColor);
-      const indicatorCoversTrueTile = Settings.entityIndicatorEnabled
+      const indicatorCoversTrueTile = this.outline?.visible
+        && Settings.entityIndicatorEnabled
         && location.x === trueLocation.x
         && location.y === trueLocation.y;
       this.trueTile.visible = this.renderable.drawTrueTile
