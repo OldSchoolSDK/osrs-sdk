@@ -1,6 +1,49 @@
 import type { CacheRenderRawFrame } from "../../../cache-render-format";
+import type { CacheRenderAnimation } from "../../../cache-render-format";
+import { CLIENT_CYCLES_PER_SECOND } from "../../utils/constants";
 
 export type TransformSelection = { indices: Set<number>; include: boolean };
+
+export type AnimationFrameSample = {
+  /** Elapsed time mapped into the animation's playable range. */
+  time: number;
+  /** Total animation duration in seconds. */
+  total: number;
+  /** Frame selected for the sampled time, or -1 before playback starts. */
+  frame: number;
+  /** Following frame used for interpolation. */
+  nextFrame: number;
+  /** Interpolation progress between `frame` and `nextFrame`. */
+  blend: number;
+};
+
+/** Resolve elapsed time to the current and next cache animation frames. */
+export function sampleAnimation(animation: CacheRenderAnimation, elapsed: number, looping: boolean): AnimationFrameSample {
+  const total = animation.lengths.reduce((sum, length) => sum + length, 0) / CLIENT_CYCLES_PER_SECOND;
+  const frameCount = animation.mayaFrames?.length || animation.rawFrames?.length || animation.frames.length;
+  if (frameCount <= 0 || elapsed < 0) return { time: elapsed, total, frame: -1, nextFrame: -1, blend: 0 };
+
+  const time = total <= 0
+    ? 0
+    : looping
+      ? elapsed % total
+      : Math.max(0, Math.min(elapsed, Math.max(0, total - Number.EPSILON)));
+  let frameStart = 0;
+  let frame = 0;
+  while (
+    frame < Math.min(animation.lengths.length, frameCount) - 1
+    && time >= frameStart + animation.lengths[frame] / CLIENT_CYCLES_PER_SECOND
+  ) {
+    frameStart += animation.lengths[frame] / CLIENT_CYCLES_PER_SECOND;
+    frame++;
+  }
+
+  frame = Math.min(frame, frameCount - 1);
+  const nextFrame = looping ? (frame + 1) % frameCount : Math.min(frame + 1, frameCount - 1);
+  const frameDuration = animation.lengths[frame] / CLIENT_CYCLES_PER_SECOND;
+  const blend = frameDuration ? Math.min(1, (time - frameStart) / frameDuration) : 0;
+  return { time, total, frame, nextFrame, blend };
+}
 
 enum FrameType {
   Pivot = 0,

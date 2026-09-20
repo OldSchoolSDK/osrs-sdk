@@ -2,9 +2,9 @@ import type { CacheRenderAnimation, CacheRenderFrameSound } from "../../cache-re
 import type { Location } from "../Location";
 import { cacheSound } from "../audio/CacheSoundEffects";
 import { Sound, SoundCache } from "../utils/SoundCache";
+import { CLIENT_CYCLES_PER_SECOND } from "../utils/constants";
 
 const CACHE_ANIMATION_SOUND_VOLUME = 0.1;
-const CLIENT_FRAMES_PER_SECOND = 50;
 
 type TimedFrameSounds = { at: number; sounds: CacheRenderFrameSound[] };
 
@@ -14,7 +14,7 @@ function timedFrameSounds(animation: CacheRenderAnimation): TimedFrameSounds[] {
   let elapsed = 0;
   for (let frame = 0; frame < animation.lengths.length; frame++) {
     starts[frame] = elapsed;
-    elapsed += (animation.lengths[frame] ?? 0) / CLIENT_FRAMES_PER_SECOND;
+    elapsed += (animation.lengths[frame] ?? 0) / CLIENT_CYCLES_PER_SECOND;
   }
   return Object.entries(byFrame)
     .map(([frame, sounds]) => ({ at: starts[Number(frame)], sounds }))
@@ -32,7 +32,7 @@ export function frameSoundsBetween(
   if (elapsed < 0) return [];
   const events = timedFrameSounds(animation);
   if (!events.length) return [];
-  const total = animation.lengths.reduce((sum, length) => sum + length, 0) / CLIENT_FRAMES_PER_SECOND;
+  const total = animation.lengths.reduce((sum, length) => sum + length, 0) / CLIENT_CYCLES_PER_SECOND;
   if (total <= 0) return [];
   let from = previousElapsed == null || elapsed < previousElapsed ? -Number.EPSILON : previousElapsed;
 

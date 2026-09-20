@@ -6,14 +6,14 @@ import { AnimationFrameSoundPlayer, preloadAnimationFrameSounds } from "./Animat
 import { CacheRender } from "./CacheRenderBundle";
 import { CacheRenderReference } from "./CacheRenderReference";
 import { Model } from "./Model";
-import { applyMayaFrame, applyRawFrame } from "./utils/animations";
+import { applyMayaFrame, applyRawFrame, sampleAnimation } from "./utils/animations";
 import { cachedPayload, mergePayloads } from "./utils/payloadUtils";
+import { CLIENT_CYCLES_PER_SECOND } from "../utils/constants";
 
 // Animated instances cannot all mutate one shared geometry when their start
 // delays differ. A pool therefore owns one pre-posed geometry per cache frame;
 // instances move between frame buckets while retaining their own clock.
 const DEFAULT_MAX_INSTANCES = 256;
-const CLIENT_FRAMES_PER_SECOND = 50;
 let hiddenMatrixValue: THREE.Matrix4 | undefined;
 const hiddenMatrix = () => hiddenMatrixValue ??= new THREE.Matrix4().makeScale(0, 0, 0);
 
@@ -41,25 +41,6 @@ function poolKey(reference: CacheRenderReference, ids: string[], bundleVersion: 
   // Placement, rotation, height and animation delay belong to the instance.
   // Recolouring changes shared vertex data and therefore still needs a pool.
   return `${bundleVersion}:${reference.kind}:${ids.join(",")}:${stableRecolorKey(spot?.recolor)}`;
-}
-
-export function cacheAnimationDuration(lengths: number[]) {
-  return lengths.reduce((sum, length) => sum + length, 0) / CLIENT_FRAMES_PER_SECOND;
-}
-
-/** Resolve an elapsed animation time to a discrete cache frame. */
-export function cacheAnimationFrameAt(lengths: number[], elapsed: number, frameCount: number, oneShot: boolean) {
-  if (frameCount <= 0 || elapsed < 0) return -1;
-  const total = cacheAnimationDuration(lengths);
-  if (total <= 0) return 0;
-  const time = oneShot ? Math.min(elapsed, Math.max(0, total - Number.EPSILON)) : elapsed % total;
-  let boundary = 0;
-  let frame = 0;
-  while (frame < Math.min(lengths.length, frameCount) - 1 && time >= boundary + lengths[frame] / CLIENT_FRAMES_PER_SECOND) {
-    boundary += lengths[frame] / CLIENT_FRAMES_PER_SECOND;
-    frame++;
-  }
-  return Math.min(frame, frameCount - 1);
 }
 
 function posedFrames(
@@ -142,7 +123,7 @@ export class CacheRenderInstancedModel implements Model {
         const animation = payload.animations?.[String(animationId)];
         pool!.animationId = animationId;
         pool!.animation = animation;
-        pool!.animationTotal = cacheAnimationDuration(animation?.lengths ?? []);
+        pool!.animationTotal = animation ? sampleAnimation(animation, 0, false).total : 0;
         pool!.frameSoundsReady = preloadAnimationFrameSounds(animation ? [animation] : [])
           .catch((error) => console.error("[osrs-sdk] Cache animation sound preload failed", error));
 
@@ -242,8 +223,9 @@ export class CacheRenderInstancedModel implements Model {
       }
 
       const placement = this.reference.kind === "spotAnim" ? this.reference.spotAnims[0] : undefined;
-      const animationTime = (oneShot ? this.elapsed : pool.loopElapsed) - (placement?.delay ?? 0) / CLIENT_FRAMES_PER_SECOND;
+      const animationTime = (oneShot ? this.elapsed : pool.loopElapsed) - (placement?.delay ?? 0) / CLIENT_CYCLES_PER_SECOND;
       const hasAnimation = Boolean(pool.animation && (pool.animation.rawFrames?.length || pool.animation.frames.length || pool.animation.mayaFrames?.length));
+      const animationSample = pool.animation ? sampleAnimation(pool.animation, animationTime, !oneShot) : undefined;
       const animationEnded = oneShot && animationTime >= 0 && (!hasAnimation || pool.animationTotal <= 0 || animationTime >= pool.animationTotal);
       if (animationEnded && !this.completionNotified) {
         this.completionNotified = true;
@@ -276,7 +258,7 @@ export class CacheRenderInstancedModel implements Model {
 
       const shown = visible && animationTime >= 0 && !animationEnded;
       const frame = shown
-        ? (hasAnimation ? cacheAnimationFrameAt(pool.animation?.lengths ?? [], animationTime, pool.frames.length, oneShot) : 0)
+        ? (hasAnimation ? animationSample!.frame : 0)
         : -1;
       this.setFrame(scene, pool, frame, this.transform.matrix);
     }).catch((error) => console.error("[osrs-sdk] Cache render instance preload failed", error));

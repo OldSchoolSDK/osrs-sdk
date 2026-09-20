@@ -1,23 +1,24 @@
-import { cacheAnimationDuration, cacheAnimationFrameAt } from "../src/sdk/rendering/CacheRenderInstancedModel";
+import { sampleAnimation } from "../src/sdk/rendering/utils/animations";
 
 describe("cache-render instanced animation sampling", () => {
   const lengths = [2, 3, 1];
+  const animation = { lengths, frames: [[], [], []] };
 
   it("uses client-cycle durations and advances at exact frame boundaries", () => {
-    expect(cacheAnimationDuration(lengths)).toBe(0.12);
-    expect(cacheAnimationFrameAt(lengths, 0, 3, true)).toBe(0);
-    expect(cacheAnimationFrameAt(lengths, 0.039, 3, true)).toBe(0);
-    expect(cacheAnimationFrameAt(lengths, 0.04, 3, true)).toBe(1);
-    expect(cacheAnimationFrameAt(lengths, 0.1, 3, true)).toBe(2);
+    expect(sampleAnimation(animation, 0, false).total).toBe(0.12);
+    expect(sampleAnimation(animation, 0, false).frame).toBe(0);
+    expect(sampleAnimation(animation, 0.039, false).frame).toBe(0);
+    expect(sampleAnimation(animation, 0.04, false).frame).toBe(1);
+    expect(sampleAnimation(animation, 0.1, false).frame).toBe(2);
   });
 
   it("clamps one-shots and loops persistent instances", () => {
-    expect(cacheAnimationFrameAt(lengths, 1, 3, true)).toBe(2);
-    expect(cacheAnimationFrameAt(lengths, 0.12, 3, false)).toBe(0);
-    expect(cacheAnimationFrameAt(lengths, 0.16, 3, false)).toBe(1);
+    expect(sampleAnimation(animation, 1, false).frame).toBe(2);
+    expect(sampleAnimation(animation, 0.12, true).frame).toBe(0);
+    expect(sampleAnimation(animation, 0.16, true).frame).toBe(1);
   });
 
   it("does not select a frame before an instance delay has elapsed", () => {
-    expect(cacheAnimationFrameAt(lengths, -0.001, 3, true)).toBe(-1);
+    expect(sampleAnimation(animation, -0.001, false).frame).toBe(-1);
   });
 });

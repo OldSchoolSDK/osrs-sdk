@@ -8,8 +8,9 @@ import { drawLineOnTop, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./Ren
 import { Settings } from "../Settings";
 import type { CacheRenderAnimation, CacheRenderPayload, CacheRenderRawFrame } from "../../cache-render-format";
 import { AnimationFrameSoundPlayer, preloadAnimationFrameSounds } from "./AnimationFrameSounds";
-import { applyBlendedRawFrames, applyMayaFrame, applyRawFrame } from "./utils/animations";
+import { applyBlendedRawFrames, applyMayaFrame, applyRawFrame, sampleAnimation } from "./utils/animations";
 import { cachedPayload, mergePayloads } from "./utils/payloadUtils";
+import { CLIENT_CYCLES_PER_SECOND } from "../utils/constants";
 
 const DRAW_CLICKBOX_DEBUG = false;
 const DRAW_CACHE_MODEL_WIREFRAME = false;
@@ -517,11 +518,10 @@ export class CacheRenderModel implements Model, RenderableListener {
     const animationId = this.activeAnimation;
     const animation = this.animations[String(animationId)];
     if (animation && (animation.frames.length || animation.rawFrames?.length || animation.mayaFrames?.length) && this.root.children.length) {
-      const total = animation.lengths.reduce((sum, length) => sum + length, 0) / 50;
-      let time = this.animationTime;
+      let sample = sampleAnimation(animation, this.animationTime, !this.animationPlaying);
       let animationEnded = false;
-      if (this.animationPlaying && time >= total) {
-        this.frameSoundPlayer.advance(animationId, animation, total, false, soundLocation);
+      if (this.animationPlaying && this.animationTime >= sample.total) {
+        this.frameSoundPlayer.advance(animationId, animation, sample.total, false, soundLocation);
         this.frameSoundPlayer.reset();
         this.animationPlaying = false;
         this.animationCanBlendWithPose = false;
@@ -530,21 +530,16 @@ export class CacheRenderModel implements Model, RenderableListener {
         this.animationStartsOnNextDraw = true;
         this.animationPromiseResolve?.();
         this.animationPromiseResolve = null;
-        time = 0;
+        sample = sampleAnimation(animation, 0, false);
         animationEnded = true;
-      } else if (total > 0) time %= total;
+      }
       if (!animationEnded) this.frameSoundPlayer.advance(animationId, animation, this.animationTime, !this.animationPlaying, soundLocation);
-      let elapsed = 0;
-      let frame = 0;
-      for (; frame < animation.lengths.length - 1 && time >= elapsed + animation.lengths[frame] / 50; frame++) elapsed += animation.lengths[frame] / 50;
       // Looping pose animations need to blend the final frame back to the
       // first frame; holding the final frame creates a visible snap at the
       // run-cycle boundary. One-shot attack animations still clamp normally.
-      const frameCount = animation.mayaFrames?.length || animation.rawFrames?.length || animation.frames.length;
-      const next = !this.animationPlaying
-        ? (frame + 1) % frameCount
-        : Math.min(frame + 1, frameCount - 1);
-      const blend = animation.lengths[frame] ? Math.min(1, (time - elapsed) / (animation.lengths[frame] / 50)) : 0;
+      const frame = sample.frame;
+      const next = sample.nextFrame;
+      const blend = sample.blend;
       const vertices = animation.frames[frame];
       const nextVertices = animation.frames[next];
       const position = this.mesh?.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
@@ -575,10 +570,7 @@ export class CacheRenderModel implements Model, RenderableListener {
               && interleave.length
               && poseAnimation?.rawFrames?.length
             ) {
-              const poseTotal = poseAnimation.lengths.reduce((sum, length) => sum + length, 0) / 50;
-              const poseTime = poseTotal > 0 ? this.poseAnimationTime % poseTotal : 0;
-              let poseElapsed = 0, poseFrame = 0;
-              for (; poseFrame < poseAnimation.lengths.length - 1 && poseTime >= poseElapsed + poseAnimation.lengths[poseFrame] / 50; poseFrame++) poseElapsed += poseAnimation.lengths[poseFrame] / 50;
+              const poseFrame = sampleAnimation(poseAnimation, this.poseAnimationTime, true).frame;
               applyBlendedRawFrames(target, this.vertexGroups, this.sourceVertices, rawFrame, poseAnimation.rawFrames[poseFrame] ?? poseAnimation.rawFrames[0], interleave, targetAlphas, this.alphaGroups);
             } else applyRawFrame(target, this.vertexGroups, this.sourceVertices, rawFrame, undefined, targetAlphas, this.alphaGroups);
           };
@@ -612,13 +604,14 @@ export class CacheRenderModel implements Model, RenderableListener {
       const placement = this.activeSpotAnims.filter((spotAnim) => spotAnim.id === spot.mesh.userData.spotAnimId)[0];
       const delay = placement?.delay ?? spot.delay;
       const placementStart = placement == null ? this.spotAnimClock : this.spotAnimStarts.get(spotAnimChannel(placement)) ?? this.spotAnimClock;
-      const effectTime = this.spotAnimClock - placementStart - delay / 50;
+      const effectTime = this.spotAnimClock - placementStart - delay / CLIENT_CYCLES_PER_SECOND;
       const activationAnimation = placement?.animation == null ? true : (this.poseMap[String(placement.animation)] ?? placement.animation) === this.activeAnimation;
       // Attached spotanims are normally one-shot graphics. Projectile
       // spotanims repeat until their owning ProjectileGraphic is destroyed.
-      const total = animation?.lengths.reduce((sum, length) => sum + length, 0) / 50 || 0;
-      const hasFrames = Boolean(animation?.frames.length || animation?.rawFrames?.length || animation?.mayaFrames?.length);
       const looping = this.options.loopSpotAnims === true;
+      const sample = animation ? sampleAnimation(animation, effectTime, looping) : undefined;
+      const total = sample?.total ?? 0;
+      const hasFrames = Boolean(animation?.frames.length || animation?.rawFrames?.length || animation?.mayaFrames?.length);
       spot.mesh.visible = activationAnimation && Boolean(placement) && effectTime >= 0
         && (looping ? total > 0 : effectTime < total) && hasFrames;
       const spotAnimationId = spot.animationId ?? -1;
@@ -642,14 +635,9 @@ export class CacheRenderModel implements Model, RenderableListener {
         continue;
       }
       spotSoundPlayer.advance(spotAnimationId, animation, effectTime, looping, soundLocation);
-      const time = looping
-        ? effectTime % total
-        : Math.max(0, Math.min(effectTime, Math.max(0, total - 1e-6)));
-      let elapsed = 0, frame = 0;
-      for (; frame < animation.lengths.length - 1 && time >= elapsed + animation.lengths[frame] / 50; frame++) elapsed += animation.lengths[frame] / 50;
-      const frameCount = animation.mayaFrames?.length || animation.rawFrames?.length || animation.frames.length;
-      const next = looping ? (frame + 1) % frameCount : Math.min(frame + 1, frameCount - 1);
-      const blend = animation.lengths[frame] ? Math.min(1, (time - elapsed) / (animation.lengths[frame] / 50)) : 0;
+      const frame = sample!.frame;
+      const next = sample!.nextFrame;
+      const blend = sample!.blend;
       const transformed = new Float32Array(spot.basePositions);
       const alphaValues = new Float32Array(spot.baseAlphas);
       if (animation.rawFrames?.[frame]) applyRawFrame(transformed, spot.vertexGroups, spot.sourceVertices, animation.rawFrames[frame], undefined, alphaValues, spot.alphaGroups);
