@@ -525,7 +525,7 @@ export class CacheRenderModel implements Model, RenderableListener {
           new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.7, depthTest: false, depthWrite: false, wireframe: true }),
         );
         clickGeometryDebug.renderOrder = 10;
-        clickGeometryDebug.raycast = () => {};
+        clickGeometryDebug.raycast = () => { };
         this.root.add(clickGeometryDebug);
       }
       const clickboxRadius = this.renderable.clickboxRadius;
@@ -806,98 +806,98 @@ export class CacheRenderModel implements Model, RenderableListener {
         }
         this.mesh?.geometry.computeVertexNormals();
       }
+    }
+    for (const spot of this.spotAnims) {
+      const animation = spot.animation;
+      const placement = this.activeSpotAnims.filter((spotAnim) => spotAnim.id === spot.mesh.userData.spotAnimId)[0];
+      const delay = placement?.delay ?? spot.delay;
+      const placementStart = placement == null ? this.spotAnimClock : this.spotAnimStarts.get(spotAnimChannel(placement)) ?? this.spotAnimClock;
+      const effectTime = this.spotAnimClock - placementStart - delay / 50;
+      const activationAnimation = placement?.animation == null ? true : (this.poseMap[String(placement.animation)] ?? placement.animation) === this.activeAnimation;
+      // Attached spotanims are normally one-shot graphics. Projectile
+      // spotanims repeat until their owning ProjectileGraphic is destroyed.
+      const total = animation?.lengths.reduce((sum, length) => sum + length, 0) / 50 || 0;
+      const hasFrames = Boolean(animation?.frames.length || animation?.rawFrames?.length || animation?.mayaFrames?.length);
+      const looping = this.options.loopSpotAnims === true;
+      spot.mesh.visible = activationAnimation && Boolean(placement) && effectTime >= 0
+        && (looping ? total > 0 : effectTime < total) && hasFrames;
+      const spotAnimationId = spot.animationId ?? -1;
+      let spotSoundPlayer = this.spotFrameSoundPlayers.get(spotAnimationId);
+      if (!spotSoundPlayer) {
+        spotSoundPlayer = new AnimationFrameSoundPlayer(this.options.frameSoundDelayMs);
+        this.spotFrameSoundPlayers.set(spotAnimationId, spotSoundPlayer);
       }
-      for (const spot of this.spotAnims) {
-        const animation = spot.animation;
-        const placement = this.activeSpotAnims.filter((spotAnim) => spotAnim.id === spot.mesh.userData.spotAnimId)[0];
-        const delay = placement?.delay ?? spot.delay;
-        const placementStart = placement == null ? this.spotAnimClock : this.spotAnimStarts.get(spotAnimChannel(placement)) ?? this.spotAnimClock;
-        const effectTime = this.spotAnimClock - placementStart - delay / 50;
-        const activationAnimation = placement?.animation == null ? true : (this.poseMap[String(placement.animation)] ?? placement.animation) === this.activeAnimation;
-        // Attached spotanims are normally one-shot graphics. Projectile
-        // spotanims repeat until their owning ProjectileGraphic is destroyed.
-        const total = animation?.lengths.reduce((sum, length) => sum + length, 0) / 50 || 0;
-        const hasFrames = Boolean(animation?.frames.length || animation?.rawFrames?.length || animation?.mayaFrames?.length);
-        const looping = this.options.loopSpotAnims === true;
-        spot.mesh.visible = activationAnimation && Boolean(placement) && effectTime >= 0
-          && (looping ? total > 0 : effectTime < total) && hasFrames;
-        const spotAnimationId = spot.animationId ?? -1;
-        let spotSoundPlayer = this.spotFrameSoundPlayers.get(spotAnimationId);
-        if (!spotSoundPlayer) {
-          spotSoundPlayer = new AnimationFrameSoundPlayer(this.options.frameSoundDelayMs);
-          this.spotFrameSoundPlayers.set(spotAnimationId, spotSoundPlayer);
-        }
-        if (
-          !looping &&
-          this.reference.kind === "spotAnim" &&
-          !this.spotAnimCompletionNotified &&
-          effectTime >= 0 &&
-          (!animation || !hasFrames || total <= 0 || effectTime >= total)
-        ) {
-          this.spotAnimCompletionNotified = true;
-          this.options.onSpotAnimComplete?.();
-        }
-        if (!spot.mesh.visible || !animation) {
-          spotSoundPlayer.reset();
-          continue;
-        }
-        spotSoundPlayer.advance(spotAnimationId, animation, effectTime, looping, soundLocation);
-        const time = looping
-          ? effectTime % total
-          : Math.max(0, Math.min(effectTime, Math.max(0, total - 1e-6)));
-        let elapsed = 0, frame = 0;
-        for (; frame < animation.lengths.length - 1 && time >= elapsed + animation.lengths[frame] / 50; frame++) elapsed += animation.lengths[frame] / 50;
-        const frameCount = animation.mayaFrames?.length || animation.rawFrames?.length || animation.frames.length;
-        const next = looping ? (frame + 1) % frameCount : Math.min(frame + 1, frameCount - 1);
-        const blend = animation.lengths[frame] ? Math.min(1, (time - elapsed) / (animation.lengths[frame] / 50)) : 0;
-        const transformed = new Float32Array(spot.basePositions);
-        const alphaValues = new Float32Array(spot.baseAlphas);
-        if (animation.rawFrames?.[frame]) applyRawFrame(transformed, spot.vertexGroups, spot.sourceVertices, animation.rawFrames[frame], undefined, alphaValues, spot.alphaGroups);
-        else if (animation.frames[frame] && transformed.length === animation.frames[frame].length) {
-          const nextFrame = animation.frames[next] ?? animation.frames[frame];
-          for (let i = 0; i < transformed.length; i++) transformed[i] = animation.frames[frame][i] + (nextFrame[i] - animation.frames[frame][i]) * blend;
-        }
-        (spot.mesh.geometry.getAttribute("position") as THREE.BufferAttribute).array.set(transformed);
-        (spot.mesh.geometry.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
-        const color = spot.mesh.geometry.getAttribute("color") as THREE.BufferAttribute | undefined;
-        if (color && color.itemSize === 4) {
-          const recolor = placement?.recolor ?? {};
-          const baseColors = spot.mesh.userData.cacheBaseColors as number[];
-          const faceColors = spot.mesh.userData.cacheFaceColors as number[];
-          for (let i = 0; i < alphaValues.length; i++) {
-            const replacement = recolor[String(faceColors[i])];
-            if (replacement != null) {
-              const rgb = new THREE.Color(replacement);
-              color.array[i * 4] = rgb.r; color.array[i * 4 + 1] = rgb.g; color.array[i * 4 + 2] = rgb.b;
-            } else if (baseColors[i] != null) {
-              const rgb = new THREE.Color(baseColors[i]);
-              color.array[i * 4] = rgb.r; color.array[i * 4 + 1] = rgb.g; color.array[i * 4 + 2] = rgb.b;
-            }
-            color.array[i * 4 + 3] = 1 - alphaValues[i] / 255;
+      if (
+        !looping &&
+        this.reference.kind === "spotAnim" &&
+        !this.spotAnimCompletionNotified &&
+        effectTime >= 0 &&
+        (!animation || !hasFrames || total <= 0 || effectTime >= total)
+      ) {
+        this.spotAnimCompletionNotified = true;
+        this.options.onSpotAnimComplete?.();
+      }
+      if (!spot.mesh.visible || !animation) {
+        spotSoundPlayer.reset();
+        continue;
+      }
+      spotSoundPlayer.advance(spotAnimationId, animation, effectTime, looping, soundLocation);
+      const time = looping
+        ? effectTime % total
+        : Math.max(0, Math.min(effectTime, Math.max(0, total - 1e-6)));
+      let elapsed = 0, frame = 0;
+      for (; frame < animation.lengths.length - 1 && time >= elapsed + animation.lengths[frame] / 50; frame++) elapsed += animation.lengths[frame] / 50;
+      const frameCount = animation.mayaFrames?.length || animation.rawFrames?.length || animation.frames.length;
+      const next = looping ? (frame + 1) % frameCount : Math.min(frame + 1, frameCount - 1);
+      const blend = animation.lengths[frame] ? Math.min(1, (time - elapsed) / (animation.lengths[frame] / 50)) : 0;
+      const transformed = new Float32Array(spot.basePositions);
+      const alphaValues = new Float32Array(spot.baseAlphas);
+      if (animation.rawFrames?.[frame]) applyRawFrame(transformed, spot.vertexGroups, spot.sourceVertices, animation.rawFrames[frame], undefined, alphaValues, spot.alphaGroups);
+      else if (animation.frames[frame] && transformed.length === animation.frames[frame].length) {
+        const nextFrame = animation.frames[next] ?? animation.frames[frame];
+        for (let i = 0; i < transformed.length; i++) transformed[i] = animation.frames[frame][i] + (nextFrame[i] - animation.frames[frame][i]) * blend;
+      }
+      (spot.mesh.geometry.getAttribute("position") as THREE.BufferAttribute).array.set(transformed);
+      (spot.mesh.geometry.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
+      const color = spot.mesh.geometry.getAttribute("color") as THREE.BufferAttribute | undefined;
+      if (color && color.itemSize === 4) {
+        const recolor = placement?.recolor ?? {};
+        const baseColors = spot.mesh.userData.cacheBaseColors as number[];
+        const faceColors = spot.mesh.userData.cacheFaceColors as number[];
+        for (let i = 0; i < alphaValues.length; i++) {
+          const replacement = recolor[String(faceColors[i])];
+          if (replacement != null) {
+            const rgb = new THREE.Color(replacement);
+            color.array[i * 4] = rgb.r; color.array[i * 4 + 1] = rgb.g; color.array[i * 4 + 2] = rgb.b;
+          } else if (baseColors[i] != null) {
+            const rgb = new THREE.Color(baseColors[i]);
+            color.array[i * 4] = rgb.r; color.array[i * 4 + 1] = rgb.g; color.array[i * 4 + 2] = rgb.b;
           }
-          color.needsUpdate = true;
+          color.array[i * 4 + 3] = 1 - alphaValues[i] / 255;
         }
-        // Spotanim height/offset placement is supplied by the actor update,
-        // not by the cache definition. Keep it in the actor's local frame so
-        // the effect follows the player's facing direction.
-        const offset = placement?.offset;
-        if (offset) {
-          // Convert world tile offset into the player's local frame because
-          // the effect remains a child of the rotated player root.
-          const yaw = this.root.rotation.y;
-          const cos = Math.cos(yaw), sin = Math.sin(yaw);
-          spot.mesh.position.set(cos * offset.x - sin * offset.y, placement?.height ?? spot.height, sin * offset.x + cos * offset.y);
-        } else spot.mesh.position.set(0, placement?.height ?? spot.height, 0);
-        // Actor spotanims are merged into the actor model by the client and
-        // inherit its yaw. Spotanim-only renderables use the same cache-space
-        // basis correction as every other world renderable.
-        spot.mesh.rotation.y = (placement?.rotation ?? spot.rotation) * Math.PI / 1024;
+        color.needsUpdate = true;
       }
-      // Do not mark the pose as handled until the replacement mesh exists.
-      // During an equipment swap ensureLoaded() is asynchronous; recording the
-      // pose while mesh is null would prevent it from being initialized once
-      // the new payload arrives.
-      if (this.mesh && this.meshGeneration === this.modelGeneration) this.lastPose = pose;
+      // Spotanim height/offset placement is supplied by the actor update,
+      // not by the cache definition. Keep it in the actor's local frame so
+      // the effect follows the player's facing direction.
+      const offset = placement?.offset;
+      if (offset) {
+        // Convert world tile offset into the player's local frame because
+        // the effect remains a child of the rotated player root.
+        const yaw = this.root.rotation.y;
+        const cos = Math.cos(yaw), sin = Math.sin(yaw);
+        spot.mesh.position.set(cos * offset.x - sin * offset.y, placement?.height ?? spot.height, sin * offset.x + cos * offset.y);
+      } else spot.mesh.position.set(0, placement?.height ?? spot.height, 0);
+      // Actor spotanims are merged into the actor model by the client and
+      // inherit its yaw. Spotanim-only renderables use the same cache-space
+      // basis correction as every other world renderable.
+      spot.mesh.rotation.y = (placement?.rotation ?? spot.rotation) * Math.PI / 1024;
+    }
+    // Do not mark the pose as handled until the replacement mesh exists.
+    // During an equipment swap ensureLoaded() is asynchronous; recording the
+    // pose while mesh is null would prevent it from being initialized once
+    // the new payload arrives.
+    if (this.mesh && this.meshGeneration === this.modelGeneration) this.lastPose = pose;
   }
   private updateLogicalHeight(position: THREE.BufferAttribute) {
     let maxY = -Infinity;
