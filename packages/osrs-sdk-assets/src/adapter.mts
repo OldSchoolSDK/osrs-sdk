@@ -1036,7 +1036,7 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
       const soundEffects = [];
       for (const id of [...soundEffectIds].sort((a, b) => a - b)) {
         const file = await cache.getFile(IndexType.SOUNDEFFECTS, id, 0, { cacheResults: false });
-        soundEffects.push({ id, bytes: Uint8Array.from(file.def.bytes) });
+        soundEffects.push({ id, bytes: Uint8Array.from(file.content) });
       }
       const rev = Number(revision || 0);
       return {

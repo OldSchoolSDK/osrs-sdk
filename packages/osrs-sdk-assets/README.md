@@ -177,6 +177,6 @@ npm run assets
 npm pack --workspace osrs-sdk-assets
 ```
 
-The reader checkout must provide `src/reader.js`. Reader edits are picked up on
+The reader checkout must provide `src/index.js`. Reader edits are picked up on
 the next extraction without rebuilding the asset tool. Download and serve
 commands, and the asset-tool build itself, do not require the reader.

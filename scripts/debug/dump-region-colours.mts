@@ -8,7 +8,7 @@
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { ConfigType, IndexType, RSCache } from "../../../osrscachereader/src/reader.js";
+import { ConfigType, IndexType, RSCache } from "../../../osrscachereader/src/index.js";
 
 const [cachePath, regionIdArgument, outputArgument] = process.argv.slice(2);
 if (!cachePath || !regionIdArgument) {

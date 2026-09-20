@@ -17,7 +17,7 @@ test("loads the selected reader checkout", async () => {
     await assert.rejects(loadReader(root), /Cannot load cache reader/);
     await mkdir(join(root, "src"));
     await writeFile(join(root, "package.json"), '{"type":"module"}');
-    await writeFile(join(root, "src/reader.js"), 'export class RSCache {} export const IndexType = { marker: "local" }; export const ConfigType = {}; export class ModelGroup {}');
+    await writeFile(join(root, "src/index.js"), 'export class RSCache {} export const IndexType = { marker: "local" }; export const ConfigType = {}; export class ModelGroup {}');
     assert.equal((await loadReader(root)).IndexType.marker, "local");
   } finally { await rm(root, { recursive: true, force: true }); }
 });
