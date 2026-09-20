@@ -1,6 +1,8 @@
 # React UI migration TODO
 
-Status: planning only. Do not begin the migration until this plan is approved.
+Status: approved for implementation in `osrs-sdk` and its sample. Migration of
+`ColosseumTrainer` is deliberately deferred until the SDK reference
+implementation is complete.
 
 ## Goal
 
@@ -21,6 +23,11 @@ recognition, positioning, and interaction affect play:
 - prayer book;
 - worn equipment;
 - spellbook.
+
+The SDK settings tab is also required for migration parity, but it should
+preserve the SDK's existing settings and custom-panel presentation rather than
+emulate the live client's display-settings panel. The Stats tab is explicitly
+out of scope for the initial migration.
 
 Other tabs, including SDK settings, do not need to reproduce the current OSRS
 client faithfully. They may use simpler SDK- or trainer-specific React content
@@ -53,15 +60,20 @@ inside the common panel shell.
 - Provides connected tab components for the five fidelity panels while
   allowing SDK and trainer clients to compose, replace, or add tabs explicitly
   in JSX.
+- Provides the shared permanent/collapsible trainer sidebar, loadout manager,
+  and advanced-settings UI because those are common to trainers rather than
+  encounter-specific application features.
 
 ### Trainer clients
 
 - Own encounter-specific settings, overlays, dialogs, branding, and links.
-- Select an interface mode and provide optional application-specific slots.
+- Compose the connected resizable-modern interface and permanent SDK sidebar
+  in their ordinary document layout.
 - Must not duplicate generic inventory, equipment, prayer, combat, or minimap
   adapters.
 - May register trainer-specific tab contents without changing the visual
   layout package or the SDK renderer.
+- Own encounter-specific surfaces such as the wave-start modal.
 
 ## Panel customization model
 
@@ -81,31 +93,52 @@ connected resource orbs, but the central map area remains intentionally blank.
 The SDK will not expose, render, or handle interaction with a minimap map image
 in this pass because it does not provide value in the current trainer context.
 
+The initial interface is resizable modern. Layout regions use compound child
+components instead of `world`, `minimap`, and `sidePanel` props. The layout
+does not search for or reorder arbitrary descendants: its region components
+render directly and CSS places them in the correct layer. This preserves an
+explicit low-level composition API without child-introspection machinery.
+
 ```tsx
-<TrainerRoot trainer={trainer}>
-  <ResizableClassicLayout
-    world={<TrainerViewport />}
-    minimap={<ConnectedClassicMinimap />}
-    sidePanel={
-      <ConnectedClassicSidePanel defaultTab="inventory">
-        <ConnectedCombatTab />
-        <ConnectedInventoryTab />
-        <ConnectedPrayerTab />
-        <ConnectedEquipmentTab />
-        <ConnectedSpellbookTab />
-        <InterfaceTab id="settings" icon={settingsIcon} label="Settings">
-          <SdkSettingsPanel />
-        </InterfaceTab>
-      </ConnectedClassicSidePanel>
-    }
-  />
-</TrainerRoot>
+<TrainerProvider trainer={trainer}>
+  <div className="sample-app">
+    <ResizableModernLayout>
+      <ResizableModernLayout.World>
+        <TrainerCanvas />
+      </ResizableModernLayout.World>
+      <ResizableModernLayout.Minimap>
+        <ConnectedMinimap />
+      </ResizableModernLayout.Minimap>
+      <ResizableModernLayout.SidePanel>
+        <ConnectedSidePanel defaultTab="inventory">
+          <ConnectedCombatTab slot={0} />
+          <ConnectedPrayerTab slot={2} />
+          <ConnectedEquipmentTab slot={3} />
+          <ConnectedInventoryTab slot={4} />
+          <ConnectedSpellbookTab slot={5} />
+          <ConnectedSettingsTab slot={12} />
+        </ConnectedSidePanel>
+      </ResizableModernLayout.SidePanel>
+      <ResizableModernLayout.Overlay>
+        <TrainerLoadingSplash />
+        <PauseOverlay />
+      </ResizableModernLayout.Overlay>
+    </ResizableModernLayout>
+    <CollapsibleTrainerSidebar>
+      <LoadoutManager />
+      <AdvancedSettings />
+    </CollapsibleTrainerSidebar>
+  </div>
+</TrainerProvider>
 ```
 
-- `TrainerRoot` owns trainer context and lifecycle but does not prescribe a
-  visual layout.
-- `TrainerViewport` owns and mounts the world canvas in the layout's `world`
-  slot.
+- `TrainerProvider` remains the trainer context boundary.
+- `TrainerCanvas` owns the renderer host: its sizing element, canvas, and
+  mount/load/start/dispose lifecycle. It can also be rendered without an
+  interface when a canvas-only host is useful.
+- The OSRS layout wraps `TrainerCanvas` and allocates its world rectangle. In
+  resizable modern this rectangle fills the layout beneath the chrome; a
+  future fixed layout may allocate a distinct non-overlapping world region.
 - The layout and visual side-panel components come from
   `@supalosa/osrs-react-ui`.
 - Connected tab components come from `osrs-sdk-react`; each supplies its tab
@@ -115,6 +148,8 @@ in this pass because it does not provide value in the current trainer context.
   `0`-`6` form the first row and slots `7`-`13` form the second row. Standard
   connected tabs supply canonical defaults; callers may override `slot` when
   deliberately defining another arrangement.
+- The visual tab model includes `slot: number` and `disabled?: boolean`; the UI
+  package divides those explicit positions into two rows of seven.
 - Missing slots remain empty rather than causing later icons to shift. Known
   but unsupported tabs may occupy their canonical slot in a disabled state.
 - `@supalosa/osrs-react-ui` accepts sparse slot data and performs no compaction
@@ -131,6 +166,37 @@ in this pass because it does not provide value in the current trainer context.
   hidden interactive DOM.
 - The visual package remains unaware of SDK tab semantics; it renders the
   normalized tab metadata and selected tab's content.
+- Layout and panel regions are composition boundaries. Trainer applications
+  may add presentation such as panel-wide or inventory-slot overlays without
+  replacing the connected SDK behavior. Extensions must not silently bypass
+  the shared action, timing, or drag systems.
+
+Most trainer applications should not have to restate the complete composition
+above. `osrs-sdk-react` provides this connected default composition as
+`TrainerUI`, supplying `TrainerCanvas`, the minimap, canonical tabs, and their
+adapters. Ordinary `TrainerUI` children render in its top overlay layer across
+the full interface area:
+
+```tsx
+<TrainerUI>
+  <TrainerLoadingSplash />
+  <PauseOverlay />
+</TrainerUI>
+```
+
+The overlay covers the complete layout, including interface chrome in a future
+fixed mode; it is not limited to the rendered canvas rectangle. Do not add a
+named `Overlay` compound child merely to restate this default. A narrower API
+such as `TrainerUI.CanvasOverlay` may be added later if a concrete use case
+needs content clipped to or positioned against the world/canvas region. The
+explicit low-level layout primitives remain available when a client genuinely
+needs to replace the canonical composition.
+
+`TrainerUI` is connected and derives interface scaling from the SDK settings
+snapshot. It must not accept a separate `stretchPercent` or UI-scale prop that
+could disagree with `Settings.controlPanelScale`. Adapt the stored scale to the
+visual layout's scale representation in the SDK adapter; callers using the
+low-level unconnected layout may still set its visual scaling directly.
 
 The SDK settings tab should remain intentionally compact and similar in
 structure to the current canvas panel. Its initial scope is:
@@ -141,8 +207,10 @@ structure to the current canvas panel. Its initial scope is:
 - key bindings and menu visibility only if still required by the selected
   client layout.
 
-It should be composed from reusable UI primitives, but it does not need to use
-or emulate the resource-pack-faithful `DisplaySettingsPanel`.
+Preserve the existing division and location of SDK settings, including the
+settings-tab button that expands or collapses the permanent trainer sidebar.
+Use the custom panel previously established for the trainer; the
+resource-pack-faithful `DisplaySettingsPanel` is not part of this migration.
 
 ## Interaction model: actions, hover text, and context menu
 
@@ -182,17 +250,17 @@ unit rather than as separate hover and context-menu features.
 
 ## Missing or incomplete UI components
 
-### Required before disabling legacy canvas UI
+### Required for the big-bang replacement
 
 - [ ] Add a React context menu driven by ordered SDK actions.
 - [ ] Add the hover-action label derived from the first ordered action.
 - [ ] Connect default left-click to the same ordered action list.
-- [ ] Add an SDK-connected game-client shell that composes the world canvas,
-      selected layout, blank minimap chrome/compass/orbs, tabs, active panel,
-      and overlays.
+- [ ] Add the connected default composition for `TrainerCanvas`, the
+      resizable-modern layout, blank minimap chrome/compass/orbs, tabs, active
+      panel, and overlays.
 - [ ] Add immutable, reactive SDK UI snapshots for gameplay state.
-- [ ] Add an explicit React UI mode that disables legacy canvas UI drawing and
-      UI-region hit testing while preserving world input.
+- [ ] Remove legacy canvas UI drawing and UI-region hit testing while
+      preserving world input. There is no legacy/React mode switch.
 
 ### Existing components requiring behavioral parity
 
@@ -201,7 +269,13 @@ unit rather than as separate hover and context-menu features.
 - [ ] Connect item left-click actions through SDK commands and input timing.
 - [ ] Connect the shared action/context-menu system.
 - [ ] Preserve item selection and selected-item highlighting.
-- [ ] Decide whether to preserve anti-drag timing exactly.
+- [ ] Mirror RuneLite Anti Drag rather than the current React or trainer drag
+      behavior: a drag starts only after both the configured client-tick delay
+      has elapsed and pointer movement leaves the drag dead-zone. Preserve the
+      client default of five 20 ms client ticks when anti-drag is inactive;
+      default the RuneLite-style override to one 600 ms game tick while Shift
+      is held; support the optional Control-key bypass; and reset held-key
+      state and the delay to the client default on focus loss.
 - [ ] Preserve optimistic drag reordering while the authoritative swap waits
       for its world tick.
 - [ ] Expose stack or quantity data where item models support it.
@@ -239,13 +313,11 @@ unit rather than as separate hover and context-menu features.
 
 #### Settings
 
-- [ ] Add a compact SDK settings panel connected to the SDK settings store.
-- [ ] Preserve the current panel's essential structure: sound/area sound,
-      simulated ping/input delay, and UI scale.
-- [ ] Decide whether metronome, hotkeys, and menu visibility remain in this
-      panel or move to advanced trainer settings.
-- [ ] Do not treat faithful OSRS display-settings emulation as a migration
-      requirement.
+- [ ] Add the SDK custom settings panel connected to the SDK settings store.
+- [ ] Preserve the current settings, their existing division between the tab
+      and advanced settings, and the control that expands/collapses the
+      permanent trainer sidebar.
+- [ ] Do not use the faithful OSRS `DisplaySettingsPanel` for the trainer.
 - [ ] Replace canvas key-binding capture with an accessible React flow.
 
 #### Tabs and layouts
@@ -254,23 +326,33 @@ unit rather than as separate hover and context-menu features.
 - [ ] Change `@supalosa/osrs-react-ui` side panels to accept sparse stable
       slots and remove compacting behavior.
 - [ ] Add hotkey-driven tab selection.
-- [ ] Define mobile behavior.
-- [ ] Implement `fixed-classic` or remove it from the advertised
-      `InterfaceMode` until it exists.
-- [ ] Decide which resizable layout becomes the initial migration target.
+- [ ] Treat mobile UI as a non-goal for the first pass. Avoid accidental
+      breakage where practical, but do not compromise the desktop interface or
+      add a separate mobile layout.
+- [ ] Remove `fixed-classic` from the advertised `InterfaceMode` until an
+      implementation exists.
+- [ ] Use resizable modern as the SDK and sample migration target.
 
-### Remaining canvas-rendered screen-space UI
+### Screen-space UI deliberately retained on the canvas
 
-- [ ] Boss health bar.
-- [ ] XP drops and XP toggle.
-- [ ] Boosted-stat panel.
-- [ ] `GET READY` countdown.
-- [ ] Any feedback or status overlays that are not world-anchored.
+- [ ] Retain the boss health bar.
+- [ ] Retain XP drops and the XP toggle.
+- [ ] Retain the boosted-stat panel.
+- [ ] Retain the `GET READY` countdown.
+- [ ] Inventory other feedback or status overlays individually rather than
+      assuming every screen-space drawing must move to React.
+
+These retained drawings do not constitute a parallel legacy UI mode. They are
+non-DOM renderer features that remain on the canvas while the interactive
+control panel, tabs, minimap chrome/orbs, hover actions, and context menu move
+to React.
 
 Chat, quests, friends, clan, account, emotes, and music are currently absent
 or placeholders in the SDK. They should remain disabled placeholders unless
 real behavior is deliberately added; they do not block migration of existing
 functionality.
+
+The Stats tab is also deliberately out of scope for initial parity.
 
 ## SDK UI state and command bridge
 
@@ -325,22 +407,26 @@ is delayed to a client or world tick.
 
 ## Canvas migration boundary
 
-- [ ] Add a mode such as `"legacy-canvas" | "react"` to the viewport or
-      trainer instance.
-- [ ] In React mode, stop drawing the control panel and tabs.
-- [ ] Stop drawing minimap chrome and resource orbs after the React minimap is
-      connected.
+- [ ] Remove canvas drawing of the control panel and tabs in the same migration
+      that connects their React replacements.
+- [ ] Remove canvas minimap chrome and resource-orb drawing when the connected
+      React minimap is added.
 - [ ] Do not migrate the canvas minimap map image or map interactions; leave
       the React minimap's central content area blank while retaining compass
       rotation and click-to-reset behavior.
-- [ ] Stop drawing context menus and hover labels after the shared React action
-      system is connected.
-- [ ] Stop drawing boss health, XP drops, boosts, and the ready countdown only
-      after their React replacements exist.
-- [ ] Stop canvas control-panel/minimap pointer interception in React mode.
+- [ ] Remove canvas context-menu and hover-label drawing when the shared React
+      action system is connected.
+- [ ] Retain canvas boss health, XP drops, boosts, and ready-countdown drawing
+      in this migration.
+- [ ] Remove canvas control-panel/minimap pointer interception.
 - [ ] Preserve world picking, camera controls, tile actions, click animations,
       and other world-space behavior.
-- [ ] Retain legacy mode until supported clients pass parity checks.
+
+This is a big-bang migration. Do not add or retain parallel legacy and React
+UI modes. Initial parity requires wired combat options, inventory, equipment,
+prayer, spellbook, and SDK settings tabs. The Stats tab is not a parity gate.
+Do not change the SDK major version for this UI work; the surrounding renderer
+rewrite already constitutes the project's broader breaking generation.
 
 ## `osrs-sdk-react` application shell
 
@@ -348,36 +434,52 @@ Refactor canvas lifecycle away from the current fixed `TrainerApp` document
 layout:
 
 - [ ] Keep `TrainerProvider` as the context boundary.
-- [ ] Extract `TrainerViewport`, owning the playable-area element, canvas,
+- [ ] Extract `TrainerCanvas`, owning the renderer sizing element, canvas,
       mount/load/start/dispose lifecycle, and resize target.
-- [ ] Keep `TrainerApp` as a backward-compatible wrapper for existing clients.
-- [ ] Add an optional convenience `OsrsGameClient` preset only if repeated
-      client composition proves valuable; it must be implemented using the
-      same public compositional components.
+- [ ] Remove the fixed `TrainerApp` composition rather than retain a legacy
+      compatibility wrapper.
+- [ ] Add `TrainerUI` as the connected default composition for the common
+      interface while keeping the same low-level compound components available
+      for explicit composition.
 - [ ] Add connected adapters for inventory, equipment, prayer, spellbook,
       combat options, settings, minimap compass/resource orbs, and overlays.
 - [ ] Add declarative connected tab components plus a generic `InterfaceTab`
       for custom tab contents.
-- [ ] Accept slots for trainer-specific overlays and auxiliary controls.
+- [ ] Render ordinary `TrainerUI` children as overlays across its complete
+      interface area. Defer narrower canvas- or panel-specific extension
+      regions until a concrete use case requires them.
 - [ ] Migrate duplicate visual primitives in `osrs-sdk-react` to
       `@supalosa/osrs-react-ui`, then deprecate or re-export the canonical
       implementations.
+- [ ] Remove `GameOverlay` and `GameOverlayProvider`; render game-scoped
+      transient UI in the layout's ordinary overlay region and use `Modal`
+      for application-wide modal stacking.
+- [ ] Do not add a named SDK outer-layout component. Each trainer's ordinary
+      application CSS composes the OSRS layout and permanent SDK sidebar.
 
 Proposed composition:
 
 ```text
-OsrsGameClient
-└── ResizableModernLayout / ResizableClassicLayout
-    ├── world: TrainerViewport
-    ├── minimap: ConnectedMinimap
-    ├── sidePanel: ConnectedSidePanel
-    │   └── Connected active-tab content
-    └── overlays
-        ├── ActionContextMenu
-        ├── HoverAction
-        ├── BossHealthBar
-        ├── XpDrops
-        └── ReadyCountdown
+TrainerProvider
+├── TrainerUI
+│   └── ResizableModernLayout
+│       ├── World
+│       │   └── TrainerCanvas
+│       │       ├── BossHealthBar
+│       │       ├── XpDrops
+│       │       ├── BoostedStats
+│       │       └── ReadyCountdown
+│       ├── Minimap
+│       │   └── ConnectedMinimap
+│       ├── SidePanel
+│       │   └── Connected active-tab content
+│       └── Overlay
+│           ├── ActionContextMenu
+│           ├── HoverAction
+│           └── TrainerUI children
+└── CollapsibleTrainerSidebar
+    ├── LoadoutManager
+    └── AdvancedSettings
 ```
 
 ## Inventory and equipment item icons
@@ -411,8 +513,8 @@ is supplied by the SDK.
 
 - [ ] Add an SDK-neutral item-icon descriptor containing `src`, width, and
       height.
-- [ ] Retain `inventorySprite` only for legacy canvas rendering during the
-      transition.
+- [ ] Remove `inventorySprite` once React item descriptors replace its remaining
+      UI uses; world rendering must not depend on this screen-space image.
 - [ ] Add optional quantity/stack information to the UI item descriptor.
 - [ ] Use an item's serial number as the inventory-instance identity.
 - [ ] Centralize the SDK-to-React equipment slot-name mapping.
@@ -421,9 +523,9 @@ is supplied by the SDK.
 
 ## Webpack and deployment
 
-Webpack does not need to be replaced. The trainer's existing configuration
-already handles TypeScript, JSX, ESM dependencies, and imported image assets.
-It does not currently process CSS imports.
+Webpack does not need to be replaced. The sample and eventual trainer client
+configurations already handle TypeScript, JSX, ESM dependencies, and imported
+image assets. They do not currently process CSS imports.
 
 Recommended initial deployment approach:
 
@@ -458,20 +560,22 @@ Development and beta workflows also need updates:
       sibling UI tarball.
 - [ ] Include the UI package version in build diagnostics.
 
-## Expected trainer-client changes
+## Deferred `ColosseumTrainer` changes
 
 `ColosseumTrainer` is already React-based, so it should not require a rewrite.
-Most migration work belongs in `osrs-sdk` and `osrs-sdk-react`.
+Most migration work belongs in `osrs-sdk`, `osrs-sdk-react`, and the SDK sample.
+Do not change `ColosseumTrainer` as part of the initial migration. Revisit these
+items after the SDK sample is the working reference implementation.
 
-- [ ] Replace the current `TrainerApp` plus `DefaultSidebar` composition with
-      `OsrsGameClient`.
+- [ ] Replace the current `TrainerApp` composition with the connected default
+      interface and permanent SDK sidebar composition.
 - [ ] Keep `WaveStartModal`, boss/wave-specific settings, loadout selection,
       credits, branding, and external links in the trainer.
 - [ ] Pass trainer-specific controls through an auxiliary-panel or overlay
       slot.
 - [ ] Replace calls to `ControlPanelController.setActiveControl()` with the new
       instance-shaped UI command.
-- [ ] Keep `LoadoutManager` initially and migrate its visuals separately.
+- [ ] Reuse the shared SDK `LoadoutManager` and `AdvancedSettings` components.
 - [ ] Scope or remove the global HTML button styles so they do not override the
       OSRS React UI.
 - [ ] Remove redundant remote font declarations after all consumers use the
@@ -482,8 +586,8 @@ Most migration work belongs in `osrs-sdk` and `osrs-sdk-react`.
 ### Phase 1: integration foundation
 
 - [ ] Add the UI snapshot/store and command facade.
-- [ ] Add `TrainerViewport` and `OsrsGameClient`.
-- [ ] Add React/legacy UI mode without removing legacy behavior.
+- [ ] Add `TrainerCanvas`, compound layout regions, and the connected default
+      interface composition.
 - [ ] Add package and webpack CSS integration.
 
 ### Phase 2: core side panel
@@ -500,21 +604,23 @@ Most migration work belongs in `osrs-sdk` and `osrs-sdk-react`.
 - [ ] Support world, inventory, equipment, prayer, and spell targets.
 - [ ] Connect the existing React minimap frame, functional compass, and
       resource orbs with a blank central map area.
-- [ ] Disable canvas panel/minimap drawing and interception in React mode.
+- [ ] Remove canvas panel/minimap drawing and interception.
 
 ### Phase 4: remaining overlays
 
-- [ ] Migrate boss health, XP drops, boosted stats, and ready countdown.
-- [ ] Remove their canvas drawing paths only after parity is demonstrated.
+- [ ] Verify that retained canvas boss health, XP drops, boosted stats, and
+      ready countdown remain correctly positioned beneath the React interface.
+- [ ] Verify their canvas rendering uses the world rectangle allocated by the
+      selected layout rather than the complete application width.
 
 ### Phase 5: client adoption and cleanup
 
 - [ ] Migrate the SDK sample first so it becomes the reference trainer
       template.
-- [ ] Migrate `ColosseumTrainer`.
-- [ ] Compare legacy and React modes in visual and interaction harnesses.
-- [ ] Make React mode the default after parity.
-- [ ] Remove legacy canvas UI after all supported clients have migrated.
+- [ ] Verify the six in-scope tabs and shared interactions in the SDK sample.
+- [ ] Remove the remaining legacy canvas UI code once the sample reaches
+      parity.
+- [ ] Plan `ColosseumTrainer` adoption as a separate follow-up.
 
 ## Acceptance criteria
 
@@ -534,14 +640,11 @@ Most migration work belongs in `osrs-sdk` and `osrs-sdk-react`.
       builds.
 - [ ] Production deployment remains a static `dist` deployment.
 
-## Open decisions
+## Settled disabled-tab treatment
 
-- [ ] Choose the first supported interface mode: resizable modern or
-      resizable classic.
-- [ ] Decide whether fixed classic is in the initial migration scope.
-- [ ] Decide whether legacy anti-drag timing is desirable in the DOM UI.
-- [ ] Decide whether trainer-specific auxiliary controls live beside the OSRS
-      layout, inside a modal, or in a dedicated settings surface.
-- [ ] Decide whether metronome, hotkeys, and menu visibility belong in the
-      compact SDK settings tab or the existing advanced-settings UI.
-- [ ] Define the legacy canvas UI removal/versioning policy.
+- [ ] Add `disabled?: boolean` to the `@supalosa/osrs-react-ui` tab model and
+      render disabled tabs as native disabled buttons.
+- [ ] Apply CSS `filter: grayscale(1)` to the complete disabled tab button so
+      both its background sprite and nested icon become grayscale together.
+- [ ] Retain canonical icons for known unsupported tabs, including Stats, but
+      prevent selection and expose the disabled state to assistive technology.
