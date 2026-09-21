@@ -8,6 +8,7 @@
     "target": "es5",
     "jsx": "react",
     "allowJs": true,
+    "strict": false,
     "baseUrl": ".",
     "moduleResolution": "node",
     "esModuleInterop": true,
