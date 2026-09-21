@@ -1,5 +1,10 @@
 export type ScreenPoint = { x: number; y: number };
 
+/** Perspective projection is undefined for points on or behind the near plane. */
+export function isInFrontOfNearPlane(cameraSpaceZ: number, near: number) {
+  return cameraSpaceZ <= -near;
+}
+
 const cross = (origin: ScreenPoint, a: ScreenPoint, b: ScreenPoint) =>
   (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x);
 

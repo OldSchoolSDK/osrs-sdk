@@ -96,6 +96,7 @@ export class Viewport2d implements ViewportDelegate {
       };
       return {
         logicalHeight: r.logicalHeight,
+        visible: true,
         atHeight: () => screenPosition,
       };
     };

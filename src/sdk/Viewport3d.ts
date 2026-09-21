@@ -16,7 +16,12 @@ import { Unit } from "./Unit";
 import { Trainer } from "./Trainer";
 import { Pathing } from "./Pathing";
 import { createTileIndicator, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./rendering/RenderUtils";
-import { convexHull, projectedHullContains, ScreenPoint } from "./rendering/ProjectedClickbox";
+import {
+  convexHull,
+  isInFrontOfNearPlane,
+  projectedHullContains,
+  ScreenPoint,
+} from "./rendering/ProjectedClickbox";
 import {
   ClientCameraRotation,
   MAX_CAMERA_PITCH,
@@ -505,6 +510,9 @@ export class Viewport3d implements ViewportDelegate {
       this.applyCameraFocalPosition(this.cameraFocalPoint.getPerceivedPosition(now));
     }
     this.updateCamera(delta);
+    // Projection helpers run before renderer.render(), so update the camera
+    // matrices here instead of relying on Three.js to do it during rendering.
+    this.camera.updateWorldMatrix(true, false);
 
     if (this.chunkDebugLines) this.chunkDebugLines.visible = Settings.chunkDebug;
     if (this.tileCollisionDebugMesh) {
@@ -545,6 +553,10 @@ export class Viewport3d implements ViewportDelegate {
     this.knownActors.forEach((actor, renderable) => {
       if (!(renderable instanceof Mob) || !renderable.selectable) return;
       const vertices = actor.getModel()?.getClickboxVertices?.() ?? [];
+      // A hull that crosses the near plane cannot be perspective-projected as
+      // one polygon; rejecting it also prevents camera-inside clickboxes from
+      // expanding across the viewport.
+      if (!vertices.length || !vertices.every((vertex) => this.isInFrontOfCameraNearPlane(vertex))) return;
       const hull = convexHull(vertices.map((vertex) => this.projectToScreen(vertex)));
       if (hull.length >= 3) clickboxes.set(renderable, { hull, tolerance: renderable.size === 1 ? 20 : 5 });
     });
@@ -581,8 +593,16 @@ export class Viewport3d implements ViewportDelegate {
         x: perceivedLocation.x + r.size / 2,
         y: perceivedLocation.y - r.size / 2,
       };
+      const modelVertices = this.knownActors.get(r)?.getModel()?.getClickboxVertices?.() ?? [];
+      const visibilityPoints = modelVertices.length > 0
+        ? modelVertices
+        : [
+          new THREE.Vector3(center.x, perceivedLocation.z, center.y),
+          new THREE.Vector3(center.x, perceivedLocation.z + logicalHeight, center.y),
+        ];
       return {
         logicalHeight,
+        visible: visibilityPoints.every((point) => this.isInFrontOfCameraNearPlane(point)),
         atHeight: (height) => translator(center, perceivedLocation.z + height),
       };
     };
@@ -617,6 +637,11 @@ export class Viewport3d implements ViewportDelegate {
   }
 
   // return canvas coordinates from world coordinates
+  private isInFrontOfCameraNearPlane(vector: THREE.Vector3) {
+    const cameraSpaceZ = vector.clone().applyMatrix4(this.camera.matrixWorldInverse).z;
+    return isInFrontOfNearPlane(cameraSpaceZ, this.camera.near);
+  }
+
   projectToScreen(vector: THREE.Vector3) {
     const newVector = vector.clone();
     newVector.project(this.camera);

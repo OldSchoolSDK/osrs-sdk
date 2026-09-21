@@ -978,7 +978,7 @@ export class Player extends Unit {
     context: OffscreenCanvasRenderingContext2D,
     scale: number,
   ) {
-    if (this.dying > -1) {
+    if (this.dying > -1 || !projector.visible) {
       return;
     }
     const overheadPosition = projector.atHeight(projector.logicalHeight);

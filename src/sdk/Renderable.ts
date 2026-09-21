@@ -20,6 +20,8 @@ export interface RenderableListener {
 /** Projects heights above a renderable's origin into UI-canvas coordinates. */
 export interface UILayerProjector {
   readonly logicalHeight: number;
+  /** False when the renderable intersects or sits behind the camera near plane. */
+  readonly visible: boolean;
   atHeight(height: number): Location;
 }
 

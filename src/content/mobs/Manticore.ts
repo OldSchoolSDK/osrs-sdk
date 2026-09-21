@@ -361,6 +361,7 @@ export class Manticore extends Mob {
     scale: number,
   ) {
     super.drawUILayer(tickPercent, projector, context, scale);
+    if (!projector.visible) return;
 
     // draw attack delay
     const hitsplatPosition = projector.atHeight(projector.logicalHeight * 0.5);

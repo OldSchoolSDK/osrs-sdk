@@ -583,7 +583,7 @@ export class Mob extends Unit {
     context: OffscreenCanvasRenderingContext2D,
     scale: number,
   ) {
-    if (!this.visible()) return;
+    if (!this.visible() || !projector.visible) return;
     if (Settings.chunkDebug) {
       const priority = this.region.getNpcChunkPriority(this);
       if (priority !== null) {
