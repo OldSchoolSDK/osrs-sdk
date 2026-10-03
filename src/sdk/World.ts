@@ -19,7 +19,7 @@ export class World {
   get clientTickCounter() { return this._clientTickCounter; }
   isPaused = true;
   tickPercent: number;
-  clientTickPercent: number;
+  clientTickPercent = 0;
   getReadyTimer = 0;
   deltaTimeSincePause = -1;
   deltaTimeSinceLastTick = -1;
@@ -41,14 +41,16 @@ export class World {
   startTicking() {
     this.isPaused = false;
     const now = window.performance.now();
-    // Always start client-tick accounting from the current frame. This also
-    // prevents the initial callback from treating epoch time as missed ticks.
+    // Anchor accounting to this frame, preserving fractional progress on
+    // resume so animation poses do not jump backwards after a pause.
     this.clientTickTimer = now;
-    this.clientTickAccumulator = 0;
     if (this.deltaTimeSincePause === -1) {
+      this.clientTickAccumulator = 0;
+      this.clientTickPercent = 0;
       this.tickTimer = now;
       this.then = now;
     } else {
+      this.clientTickAccumulator = this.clientTickPercent * CLIENT_CYCLE_MS;
       this.then = now - this.deltaTimeSincePause;
       this.tickTimer = now - this.deltaTimeSinceLastTick;
       this.deltaTimeSincePause = -1;
@@ -82,6 +84,7 @@ export class World {
       this.tickClient(tickPercent, tickTimestamp);
       this.clientTickAccumulator -= CLIENT_CYCLE_MS;
     }
+    this.clientTickPercent = this.clientTickAccumulator / CLIENT_CYCLE_MS;
   }
 
   browserLoop(now: number) {

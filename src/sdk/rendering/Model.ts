@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { Location3 } from "../Location";
 
 export interface Model {
+
   draw(
     scene: THREE.Scene,
     clockDelta: number,
@@ -12,7 +13,11 @@ export interface Model {
     pitchRadians: number,
     visible: boolean,
     modelOffsets: Location3[],
+    /** Fractional progress since the last client tick. Useful for mid-client-tick interpolation like animation smoothing. */
+    clientTickFraction?: number,
   );
+
+  clientTick?(): void;
 
   destroy(scene: THREE.Scene);
 

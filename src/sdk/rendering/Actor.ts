@@ -10,7 +10,7 @@ export class Actor {
     this.model = unit.get3dModel();
   }
 
-  draw(scene: THREE.Scene, clockDelta: number, tickPercent: number) {
+  draw(scene: THREE.Scene, clockDelta: number, tickPercent: number, clientTickFraction = 0) {
     if (!this.model) {
       return;
     }
@@ -27,7 +27,12 @@ export class Actor {
       pitchRadians,
       this.unit.visible(tickPercent),
       modelOffsets,
+      clientTickFraction,
     );
+  }
+
+  clientTick() {
+    this.model?.clientTick?.();
   }
 
   shouldRemove() {

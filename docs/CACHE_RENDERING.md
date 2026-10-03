@@ -44,6 +44,39 @@ preserve. It intentionally omits discarded implementation experiments.
 - CPU frame transforms are currently required for frame-map and Animaya data.
   Synchronized repeated actors/effects can share one transformed geometry and
   use per-instance matrices.
+- Cache actor and attached-effect clocks advance on fixed 20 ms client cycles
+  through `Model.clientTick`, forwarded by `Actor` and `Viewport3d`. Sound
+  triggers and completion use this clock, independently of drawing.
+- `World.clientTickPercent` supplies fractional progress through the client
+  cycle, separately from server-tick movement progress. Draws evaluate geometry
+  at the last animation time plus this fraction, with one deformation pass.
+  Repeated draws at the same fraction reuse geometry; pausing freezes the
+  clock and fraction. Catch-up ticks update state without deforming each
+  skipped pose.
+- Legacy smoothing interpolates floating-point transform parameters before
+  applying them once, matching the fractional-time path observed in the
+  supplied RuneLite 1.13.1 injected client. Rotations follow the shortest arc,
+  alpha transforms hold their current value, looping poses blend into their
+  first frame, and one-shots hold the final pose. The payload does not yet
+  expose RuneLite's per-sequence loop-back counts or exclusion list. Combined
+  action/pose sequences retain the native two-pass transform selection without
+  interpolation.
+- Animaya interpolates extracted bone-matrix samples before one skinning pass.
+  This approximates fractional animation; it does not reproduce RuneLite's
+  original curve evaluation. Exact curve parity requires additional extraction
+  data. Matrix interpolation can slightly shorten rotating limbs between
+  samples. Actor assets with baked-position fallback interpolate their vertices.
+- Coordinate scratch arrays, matrix buffers, and output buffers are reused.
+  Cache `MeshBasicMaterial` uses baked colours, so posed normals are unnecessary.
+  Disabling smoothing holds the pose between client ticks.
+- A newly loaded/replaced model starts at frame zero on its first client cycle.
+  Sequence completion and attached-effect delays do not depend on display FPS.
+- `node scripts/debug/benchmark-animations.cjs` compares working-tree actor
+  animation updates against the committed implementation on local idle NPC
+  payloads. Set `ANIMATION_BASELINE_REF` to compare against an older revision
+  after committing. Results report state cost per client cycle and animation
+  cost per draw at 120 FPS, including fractional presentation. Audio, attached
+  effects, scene placement, clickboxes, and GPU work are excluded.
 
 ## Spotanims
 

@@ -9,7 +9,7 @@ import { drawLineOnTop, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./Ren
 import { Settings } from "../Settings";
 import type { CacheRenderAnimation, CacheRenderPayload, CacheRenderRawFrame } from "../../cache-render-format";
 import { AnimationFrameSoundPlayer, preloadAnimationFrameSounds } from "./AnimationFrameSounds";
-import { applyBlendedRawFrames, applyMayaFrame, applyRawFrame, sampleAnimation } from "./utils/animations";
+import { applyBlendedRawFrames, applyMayaFrame, applyRawFrame, interpolateMayaFrames, interpolateRawFrames, RawFrameWorkspace, sampleAnimation } from "./utils/animations";
 import { cachedPayload, mergePayloads } from "./utils/payloadUtils";
 import { CLIENT_CYCLES_PER_SECOND } from "../utils/constants";
 import { cacheAlphaToOpacity, cacheColorsToRgb, cacheColorsToRgba, cacheColorToRgb, normalizeCacheAlpha, resolveCacheColor } from "./utils/colors";
@@ -20,7 +20,7 @@ const DRAW_CACHE_MODEL_WIREFRAME = false;
 type RawFrame = CacheRenderRawFrame;
 type AnimationPayload = CacheRenderAnimation;
 type Payload = CacheRenderPayload;
-type SpotAnimRuntime = { mesh: THREE.Mesh; basePositions: Float32Array; vertexGroups: number[][]; sourceVertices: number[]; baseAlphas: Float32Array; alphaGroups: number[][]; animationId?: number; animation?: AnimationPayload; scaleX: number; scaleY: number; rotation: number; height: number; delay: number };
+type SpotAnimRuntime = { interpolatedMayaFrame: number[][]; animayaGroups: number[][]; animayaScales: number[][]; posedPositions: Float32Array; posedAlphas: Float32Array; workspace: RawFrameWorkspace; interpolatedFrame: RawFrame; mesh: THREE.Mesh; basePositions: Float32Array; vertexGroups: number[][]; sourceVertices: number[]; baseAlphas: Float32Array; alphaGroups: number[][]; animationId?: number; animation?: AnimationPayload; scaleX: number; scaleY: number; rotation: number; height: number; delay: number };
 
 function spotAnimChannel(spotAnim: CacheRenderSpotAnim) {
   return spotAnim.channel ?? String(spotAnim.id);
@@ -78,7 +78,12 @@ export class CacheRenderModel implements Model, RenderableListener {
   private animations: Record<string, AnimationPayload> = {};
   private poseMap: Record<string, number> = {};
   private animationTime = 0;
-  private animationStartsOnNextDraw = false;
+  private animationRevision = 0;
+  private presentedAnimationRevision = -1;
+  private presentedAnimationFraction = -1;
+  private presentedSmoothAnimations: boolean | undefined;
+  private readonly interpolatedMayaFrame: number[][] = [];
+  private animationStartsOnNextCycle = false;
   private poseAnimationTime = 0;
   private animationPlaying = false;
   private animationCanBlendWithPose = false;
@@ -87,6 +92,10 @@ export class CacheRenderModel implements Model, RenderableListener {
   private spotFrameSoundPlayers = new Map<number, AnimationFrameSoundPlayer>();
   private frameSoundsReady: Promise<void> = Promise.resolve();
   private basePositions: Float32Array | null = null;
+  private posedPositions = new Float32Array(0);
+  private posedAlphas = new Float32Array(0);
+  private readonly rawFrameWorkspace = new RawFrameWorkspace();
+  private readonly interpolatedFrame: RawFrame = { types: [], maps: [], indexFrameIds: [], x: [], y: [], z: [] };
   private baseAlphas: Float32Array | null = null;
   private vertexGroups: number[][] = [];
   private alphaGroups: number[][] = [];
@@ -119,10 +128,10 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.frameSoundPlayer = new AnimationFrameSoundPlayer(options.frameSoundDelayMs);
     this.setActiveSpotAnims(this.currentSpotAnims(reference.kind === "model" || reference.kind === "asset" ? undefined : reference.spotAnims));
     // A spotanim-only renderable has no actor animation transition to start
-    // playback. Its own graphic timeline begins as soon as it is created.
+    // playback. Its own graphic timeline begins once geometry is ready.
     if (reference.kind === "spotAnim") {
       this.animationPlaying = true;
-      this.animationStartsOnNextDraw = true;
+      this.animationStartsOnNextCycle = true;
     }
     // Viewport3d filters scene roots before recursively raycasting children.
     // Mark this group as belonging to the renderable so its box hitbox is
@@ -154,23 +163,25 @@ export class CacheRenderModel implements Model, RenderableListener {
     spotAnims.forEach((spotAnim) => {
       const channel = spotAnimChannel(spotAnim);
       const previous = this.spotAnimPlacements.get(channel);
-      starts.set(channel, previous === spotAnim ? (this.spotAnimStarts.get(channel) ?? this.spotAnimClock) : this.spotAnimClock);
+      starts.set(channel, previous === spotAnim ? (this.spotAnimStarts.get(channel) ?? this.spotAnimClock) : this.spotAnimClock + 1 / CLIENT_CYCLES_PER_SECOND);
       placements.set(channel, spotAnim);
     });
     this.activeSpotAnims = spotAnims.slice();
     this.spotAnimStarts = starts;
     this.spotAnimPlacements = placements;
+    this.animationRevision++;
   }
   private currentSpotAnims(fallback?: CacheRenderSpotAnim[]) {
     const attached = this.renderable.spotAnims;
     return attached.length ? attached.slice() : (fallback ?? []).slice();
   }
   animationChanged(id: number, blend: boolean): Promise<void> {
+    this.animationRevision++;
     // SDK callers use semantic pose indices (e.g. FireBow = 6), while the
     // bundle is keyed by the actual cache sequence ID (e.g. 426).
     this.activeAnimation = this.poseMap[String(id)] ?? id;
     this.animationTime = 0;
-    this.animationStartsOnNextDraw = true;
+    this.animationStartsOnNextCycle = true;
     this.animationPlaying = true;
     this.animationCanBlendWithPose = blend;
     this.frameSoundPlayer.reset();
@@ -208,7 +219,7 @@ export class CacheRenderModel implements Model, RenderableListener {
     this.lastPose = -1;
     this.activeAnimation = -1;
     this.animationTime = 0;
-    this.animationStartsOnNextDraw = false;
+    this.animationStartsOnNextCycle = false;
     this.poseAnimationTime = 0;
     this.animationPlaying = false;
     this.animationCanBlendWithPose = false;
@@ -275,7 +286,6 @@ export class CacheRenderModel implements Model, RenderableListener {
       const alphaValues = rawAlphas.map(cacheAlphaToOpacity);
       geometry.setAttribute("cacheAlpha", new THREE.Float32BufferAttribute(alphaValues, 1));
       geometry.setIndex(payload.indices ?? []);
-      geometry.computeVertexNormals();
       geometry.computeBoundingSphere();
       // Cache payload colours already contain the game client's model lighting.
       const materials: THREE.Material[] = [new THREE.MeshBasicMaterial({ color: payload.color ?? 0xffffff, vertexColors: Boolean(payload.colors?.length), wireframe: DRAW_CACHE_MODEL_WIREFRAME })];
@@ -299,6 +309,8 @@ export class CacheRenderModel implements Model, RenderableListener {
       this.root.scale.set(modelScale, modelScale, modelScale);
       this.updateLogicalHeight(geometry.getAttribute("position") as THREE.BufferAttribute);
       this.basePositions = new Float32Array(payload.positions);
+      this.posedPositions = new Float32Array(payload.positions.length);
+      this.posedAlphas = new Float32Array(rawAlphas.length);
       this.baseAlphas = new Float32Array(rawAlphas);
       this.vertexGroups = payload.vertexGroups ?? [];
       this.alphaGroups = payload.alphaGroups ?? [];
@@ -371,7 +383,6 @@ export class CacheRenderModel implements Model, RenderableListener {
           geometry.setAttribute("color", new THREE.Float32BufferAttribute(cacheColorsToRgba(spotPayload.colors, spotAlphas), 4));
         }
         geometry.setIndex(spotPayload.indices ?? []);
-        geometry.computeVertexNormals();
         const effect = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: spotPayload.color ?? 0xffffff, vertexColors: Boolean(spotPayload.colors?.length), transparent: true, wireframe: DRAW_CACHE_MODEL_WIREFRAME }));
         const metadata = spotPayload.spotAnim ?? {};
         const placement = this.activeSpotAnims[0];
@@ -390,14 +401,14 @@ export class CacheRenderModel implements Model, RenderableListener {
         );
         effect.rotation.y = ((placement?.rotation ?? metadata.rotation) ?? 0) * Math.PI / 1024;
         this.root.add(effect);
-        this.spotAnims.push({ mesh: effect, basePositions: new Float32Array(spotPayload.positions), vertexGroups: spotPayload.vertexGroups ?? [], sourceVertices: spotPayload.sourceVertices ?? [], baseAlphas: new Float32Array(spotAlphas), alphaGroups: spotPayload.alphaGroups ?? [], animationId: metadata.animationId, animation: metadata.animationId >= 0 ? spotPayload.animations?.[String(metadata.animationId)] : undefined, scaleX: metadata.resizeX ?? 128, scaleY: metadata.resizeY ?? 128, rotation: metadata.rotation ?? 0, height: placement?.height ?? 0, delay: placement?.delay ?? 0 });
+        this.spotAnims.push({ interpolatedMayaFrame: [], animayaGroups: spotPayload.animayaGroups ?? [], animayaScales: spotPayload.animayaScales ?? [], posedPositions: new Float32Array(spotPayload.positions.length), posedAlphas: new Float32Array(spotAlphas.length), workspace: new RawFrameWorkspace(), interpolatedFrame: { types: [], maps: [], indexFrameIds: [], x: [], y: [], z: [] }, mesh: effect, basePositions: new Float32Array(spotPayload.positions), vertexGroups: spotPayload.vertexGroups ?? [], sourceVertices: spotPayload.sourceVertices ?? [], baseAlphas: new Float32Array(spotAlphas), alphaGroups: spotPayload.alphaGroups ?? [], animationId: metadata.animationId, animation: metadata.animationId >= 0 ? spotPayload.animations?.[String(metadata.animationId)] : undefined, scaleX: metadata.resizeX ?? 128, scaleY: metadata.resizeY ?? 128, rotation: metadata.rotation ?? 0, height: placement?.height ?? 0, delay: placement?.delay ?? 0 });
       });
       // A queued actor animation may have begun while its cache geometry was
       // loading. Start it once the mesh is ready so short spawn sequences are
       // not skipped.
       if (this.animationPlaying || this.reference.kind === "spotAnim") {
         this.animationTime = 0;
-        this.animationStartsOnNextDraw = true;
+        this.animationStartsOnNextCycle = true;
       }
       this.frameSoundPlayer.reset();
       this.spotFrameSoundPlayers.clear();
@@ -410,28 +421,41 @@ export class CacheRenderModel implements Model, RenderableListener {
     return this.ready;
   }
 
-  draw(scene: THREE.Scene, clockDelta: number, _tickPercent: number, location: Location3, rotation: number, pitch: number, visible: boolean, modelOffsets: Location3[]) {
+  draw(scene: THREE.Scene, _clockDelta: number, _tickPercent: number, location: Location3, rotation: number, pitch: number, visible: boolean, modelOffsets: Location3[], clientTickFraction = 0) {
     this.clickboxController.invalidate();
-    this.ensureLoaded().catch((error) => {
-      // Keep cache integration failures visible (bad URL, integrity failure, or
-      // an absent render reference).
-      console.error("[osrs-sdk] Cache render preload failed", error);
-    });
+    this.startLoading();
     this.updateSceneObjects(scene, location, rotation, pitch, visible, modelOffsets);
+    if (!this.mesh || this.meshGeneration !== this.modelGeneration || this.lastPose < 0) return;
+    const fraction = Settings.smoothCacheAnimations ? Math.max(0, Math.min(1, clientTickFraction)) : 0;
+    if (this.presentedAnimationRevision === this.animationRevision
+      && this.presentedAnimationFraction === fraction
+      && this.presentedSmoothAnimations === Settings.smoothCacheAnimations) return;
+    this.presentActorAnimation(this.lastPose, fraction / CLIENT_CYCLES_PER_SECOND);
+    this.updateSpotAnimations(0, null, fraction / CLIENT_CYCLES_PER_SECOND);
+    this.presentedAnimationRevision = this.animationRevision;
+    this.presentedAnimationFraction = fraction;
+    this.presentedSmoothAnimations = Settings.smoothCacheAnimations;
+  }
 
+  private startLoading() {
+    if (this.ready) return;
+    this.ensureLoaded().catch((error) => console.error("[osrs-sdk] Cache render preload failed", error));
+  }
+
+  clientTick() {
+    this.renderable.setAnimationListener(this);
+    this.startLoading();
+    // Loading and equipment swaps must not consume animation time on an old mesh.
+    if (!this.mesh || this.meshGeneration !== this.modelGeneration) return;
+    const location = this.renderable.getTrueLocation();
     const size = this.renderable.size;
     const soundLocation = { x: location.x + (size - 1) / 2, y: location.y - (size - 1) / 2 };
-
     const pose = this.renderable.animationIndex;
-    this.updateActorAnimation(clockDelta, soundLocation, pose);
-    this.updateSpotAnimations(clockDelta, soundLocation);
-    // Do not mark the pose as handled until the replacement mesh exists.
-    // During an equipment swap ensureLoaded() is asynchronous; recording the
-    // pose while mesh is null would prevent it from being initialized once
-    // the new payload arrives.
-    if (this.mesh && this.meshGeneration === this.modelGeneration) {
-      this.lastPose = pose;
-    }
+    this.updateActorAnimation(1 / CLIENT_CYCLES_PER_SECOND, soundLocation, pose);
+    this.updateSpotAnimations(1 / CLIENT_CYCLES_PER_SECOND, soundLocation);
+    this.lastPose = pose;
+    this.animationRevision++;
+    this.clickboxController.invalidate();
   }
 
   private updateSceneObjects(scene: THREE.Scene, location: Location3, rotation: number, pitch: number, visible: boolean, modelOffsets: Location3[]) {
@@ -497,22 +521,20 @@ export class CacheRenderModel implements Model, RenderableListener {
   }
   private updateActorAnimation(clockDelta: number, soundLocation: { x: number; y: number }, pose: number) {
     if (pose !== this.lastPose) this.poseAnimationTime = 0;
-    else this.poseAnimationTime += clockDelta;
+    else this.poseAnimationTime = Math.round((this.poseAnimationTime + clockDelta) * CLIENT_CYCLES_PER_SECOND) / CLIENT_CYCLES_PER_SECOND;
     if (!this.animationPlaying && pose !== this.lastPose) {
       this.activeAnimation = this.poseMap[String(pose)] ?? pose;
       this.animationTime = 0;
-      this.animationStartsOnNextDraw = true;
+      this.animationStartsOnNextCycle = true;
     }
-    // animationChanged can run between draws. The supplied delta includes
-    // time from before that transition, so render the newly-started animation
-    // at t=0 once instead of giving it a render-frame head start.
-    if (!this.animationStartsOnNextDraw) this.animationTime += clockDelta;
-    this.animationStartsOnNextDraw = false;
+    // A transition can happen between client cycles. Present its first frame
+    // at t=0 once before consuming a complete client cycle.
+    if (!this.animationStartsOnNextCycle) this.animationTime = Math.round((this.animationTime + clockDelta) * CLIENT_CYCLES_PER_SECOND) / CLIENT_CYCLES_PER_SECOND;
+    this.animationStartsOnNextCycle = false;
     const animationId = this.activeAnimation;
     const animation = this.animations[String(animationId)];
     if (animation && (animation.frames.length || animation.rawFrames?.length || animation.mayaFrames?.length) && this.root.children.length) {
-      let sample = sampleAnimation(animation, this.animationTime, !this.animationPlaying);
-      let animationEnded = false;
+      const sample = sampleAnimation(animation, this.animationTime, !this.animationPlaying);
       if (this.animationPlaying && this.animationTime >= sample.total) {
         this.frameSoundPlayer.advance(animationId, animation, sample.total, false, soundLocation);
         this.frameSoundPlayer.reset();
@@ -520,65 +542,65 @@ export class CacheRenderModel implements Model, RenderableListener {
         this.animationCanBlendWithPose = false;
         this.activeAnimation = this.poseMap[String(pose)] ?? pose;
         this.animationTime = 0;
-        this.animationStartsOnNextDraw = true;
+        this.animationStartsOnNextCycle = true;
         this.animationPromiseResolve?.();
         this.animationPromiseResolve = null;
-        sample = sampleAnimation(animation, 0, false);
-        animationEnded = true;
+        // Presentation reads the new pose directly; its sounds begin on the next tick.
+        return;
       }
-      if (!animationEnded) this.frameSoundPlayer.advance(animationId, animation, this.animationTime, !this.animationPlaying, soundLocation);
-      // Looping pose animations need to blend the final frame back to the
-      // first frame; holding the final frame creates a visible snap at the
-      // run-cycle boundary. One-shot attack animations still clamp normally.
+      this.frameSoundPlayer.advance(animationId, animation, this.animationTime, !this.animationPlaying, soundLocation);
+    }
+  }
+
+  /** Present a pose without advancing clocks, emitting sounds, or completing animations. */
+  private presentActorAnimation(pose: number, renderOffset: number) {
+    const animation = this.animations[String(this.activeAnimation)];
+    if (animation && (animation.frames.length || animation.rawFrames?.length || animation.mayaFrames?.length)) {
+      const sample = sampleAnimation(animation, this.animationTime + renderOffset, !this.animationPlaying);
       const frame = sample.frame;
-      const next = sample.nextFrame;
       const blend = sample.blend;
       const vertices = animation.frames[frame];
-      const nextVertices = animation.frames[next];
       const position = this.mesh?.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
       if (position && this.basePositions) {
-        const transformed = new Float32Array(this.basePositions);
-        const transformedAlphas = this.baseAlphas ? new Float32Array(this.baseAlphas) : undefined;
+        const transformed = this.posedPositions;
+        transformed.set(this.basePositions);
+        const transformedAlphas = this.baseAlphas ? this.posedAlphas : undefined;
+        if (transformedAlphas) transformedAlphas.set(this.baseAlphas!);
         if (animation.mayaFrames?.[frame]) {
-          applyMayaFrame(transformed, animation.mayaFrames[frame], this.animayaGroups, this.animayaScales);
-          if (Settings.smoothCacheAnimations && animation.mayaFrames[next] && next !== frame) {
-            const nextTransformed = new Float32Array(this.basePositions);
-            applyMayaFrame(nextTransformed, animation.mayaFrames[next], this.animayaGroups, this.animayaScales);
-            for (let i = 0; i < transformed.length; i++) transformed[i] += (nextTransformed[i] - transformed[i]) * blend;
-          }
-          position.array.set(transformed);
+          // Matrix interpolation is an approximation until extraction includes the original curves.
+          const matrices = Settings.smoothCacheAnimations
+            ? interpolateMayaFrames(animation.mayaFrames[frame], animation.mayaFrames[sample.nextFrame], blend, this.interpolatedMayaFrame)
+            : animation.mayaFrames[frame];
+          applyMayaFrame(transformed, matrices, this.animayaGroups, this.animayaScales);
         } else if (animation.rawFrames?.[frame]) {
           const poseSequence = this.poseMap[String(pose)] ?? pose;
           const poseAnimation = this.animations[String(poseSequence)];
-          const interleave = animation.interleaveLeave?.filter((index) => index !== 9999999) ?? [];
-          // Evaluate a frame in the same way as the game client, including
-          // animate2's interleaved pose/attack sequence composition. Keeping
-          // this in one function is important: smoothing must not discard the
-          // lower-body pose when interpolating an attack animation.
-          const applyAnimationFrame = (target: Float32Array, rawFrame: RawFrame, targetAlphas?: Float32Array) => {
-            if (
-              this.animationPlaying
-              && this.animationCanBlendWithPose
-              && this.renderable.shouldBlendAnimationWithPose
-              && interleave.length
-              && poseAnimation?.rawFrames?.length
-            ) {
-              const poseFrame = sampleAnimation(poseAnimation, this.poseAnimationTime, true).frame;
-              applyBlendedRawFrames(target, this.vertexGroups, this.sourceVertices, rawFrame, poseAnimation.rawFrames[poseFrame] ?? poseAnimation.rawFrames[0], interleave, targetAlphas, this.alphaGroups);
-            } else applyRawFrame(target, this.vertexGroups, this.sourceVertices, rawFrame, undefined, targetAlphas, this.alphaGroups);
-          };
-          applyAnimationFrame(transformed, animation.rawFrames[frame], transformedAlphas);
-          if (Settings.smoothCacheAnimations && animation.rawFrames[next] && next !== frame) {
-            const nextTransformed = new Float32Array(this.basePositions);
-            const nextAlphas = this.baseAlphas ? new Float32Array(this.baseAlphas) : undefined;
-            applyAnimationFrame(nextTransformed, animation.rawFrames[next], nextAlphas);
-            for (let i = 0; i < transformed.length; i++) transformed[i] += (nextTransformed[i] - transformed[i]) * blend;
-            if (transformedAlphas && nextAlphas) for (let i = 0; i < transformedAlphas.length; i++) transformedAlphas[i] += (nextAlphas[i] - transformedAlphas[i]) * blend;
+          const interleave = animation.interleaveLeave ?? [];
+          const composePose = this.animationPlaying && this.animationCanBlendWithPose
+            && this.renderable.shouldBlendAnimationWithPose && interleave.some((index) => index !== 9999999)
+            && poseAnimation?.rawFrames?.length;
+          if (composePose) {
+            // RuneLite deliberately retains the native two-pass attack/pose path.
+            const poseFrame = sampleAnimation(poseAnimation, this.poseAnimationTime, true).frame;
+            applyBlendedRawFrames(transformed, this.vertexGroups, this.sourceVertices,
+              animation.rawFrames[frame], poseAnimation.rawFrames[poseFrame] ?? poseAnimation.rawFrames[0],
+              interleave, transformedAlphas, this.alphaGroups, this.rawFrameWorkspace);
+          } else {
+            const current = animation.rawFrames[frame];
+            // Looping poses interpolate into their first frame; one-shots hold their last pose.
+            const following = animation.rawFrames[sample.nextFrame];
+            const rawFrame = Settings.smoothCacheAnimations && following
+              ? interpolateRawFrames(current, following, blend, this.interpolatedFrame, true) : current;
+            applyRawFrame(transformed, this.vertexGroups, this.sourceVertices, rawFrame,
+              undefined, transformedAlphas, this.alphaGroups, this.rawFrameWorkspace, Settings.smoothCacheAnimations);
           }
-          position.array.set(transformed);
-        } else if (position.count * 3 === vertices.length) {
-          for (let i = 0; i < vertices.length; i++) position.array[i] = vertices[i] + (nextVertices[i] - vertices[i]) * blend;
+        } else if (vertices && position.count * 3 === vertices.length) {
+          const following = animation.frames[sample.nextFrame];
+          if (Settings.smoothCacheAnimations && following?.length === vertices.length) {
+            for (let index = 0; index < transformed.length; index++) transformed[index] = vertices[index] + (following[index] - vertices[index]) * blend;
+          } else transformed.set(vertices);
         }
+        position.array.set(transformed);
         position.needsUpdate = true;
         this.updateLogicalHeight(position);
         const cacheAlpha = this.mesh?.geometry.getAttribute("cacheAlpha") as THREE.BufferAttribute | undefined;
@@ -586,57 +608,73 @@ export class CacheRenderModel implements Model, RenderableListener {
           for (let i = 0; i < transformedAlphas.length; i++) cacheAlpha.array[i] = cacheAlphaToOpacity(transformedAlphas[i]);
           cacheAlpha.needsUpdate = true;
         }
-        this.mesh?.geometry.computeVertexNormals();
+        // MeshBasicMaterial uses the cache's baked colours; posed normals are unused.
       }
     }
   }
-  private updateSpotAnimations(clockDelta: number, soundLocation: { x: number; y: number }) {
-    this.spotAnimClock += Math.max(0, clockDelta);
+  private updateSpotAnimations(clockDelta: number, soundLocation: { x: number; y: number } | null, renderOffset = 0) {
+    if (soundLocation) this.spotAnimClock = Math.round((this.spotAnimClock + Math.max(0, clockDelta)) * CLIENT_CYCLES_PER_SECOND) / CLIENT_CYCLES_PER_SECOND;
     for (const spot of this.spotAnims) {
       const animation = spot.animation;
       const placement = this.activeSpotAnims.filter((spotAnim) => spotAnim.id === spot.mesh.userData.spotAnimId)[0];
       const delay = placement?.delay ?? spot.delay;
       const placementStart = placement == null ? this.spotAnimClock : this.spotAnimStarts.get(spotAnimChannel(placement)) ?? this.spotAnimClock;
-      const effectTime = this.spotAnimClock - placementStart - delay / CLIENT_CYCLES_PER_SECOND;
+      const effectTime = (Math.round((this.spotAnimClock - placementStart) * CLIENT_CYCLES_PER_SECOND) - delay) / CLIENT_CYCLES_PER_SECOND;
       const activationAnimation = placement?.animation == null ? true : (this.poseMap[String(placement.animation)] ?? placement.animation) === this.activeAnimation;
       // Attached spotanims are normally one-shot graphics. Projectile
       // spotanims repeat until their owning ProjectileGraphic is destroyed.
       const looping = this.options.loopSpotAnims === true;
-      const sample = animation ? sampleAnimation(animation, effectTime, looping) : undefined;
+      const sample = animation ? sampleAnimation(animation, effectTime + (effectTime >= 0 ? renderOffset : 0), looping) : undefined;
       const total = sample?.total ?? 0;
       const hasFrames = Boolean(animation?.frames.length || animation?.rawFrames?.length || animation?.mayaFrames?.length);
       spot.mesh.visible = activationAnimation && Boolean(placement) && effectTime >= 0
         && (looping ? total > 0 : effectTime < total) && hasFrames;
-      const spotAnimationId = spot.animationId ?? -1;
-      let spotSoundPlayer = this.spotFrameSoundPlayers.get(spotAnimationId);
-      if (!spotSoundPlayer) {
-        spotSoundPlayer = new AnimationFrameSoundPlayer(this.options.frameSoundDelayMs);
-        this.spotFrameSoundPlayers.set(spotAnimationId, spotSoundPlayer);
+      if (soundLocation) {
+        const spotAnimationId = spot.animationId ?? -1;
+        let spotSoundPlayer = this.spotFrameSoundPlayers.get(spotAnimationId);
+        if (!spotSoundPlayer) {
+          spotSoundPlayer = new AnimationFrameSoundPlayer(this.options.frameSoundDelayMs);
+          this.spotFrameSoundPlayers.set(spotAnimationId, spotSoundPlayer);
+        }
+        if (
+          !looping &&
+          this.reference.kind === "spotAnim" &&
+          !this.spotAnimCompletionNotified &&
+          effectTime >= 0 &&
+          (!animation || !hasFrames || total <= 0 || effectTime >= total)
+        ) {
+          this.spotAnimCompletionNotified = true;
+          this.options.onSpotAnimComplete?.();
+        }
+        if (!spot.mesh.visible || !animation) {
+          spotSoundPlayer.reset();
+          continue;
+        }
+        spotSoundPlayer.advance(spotAnimationId, animation, effectTime, looping, soundLocation);
+        continue; // Geometry is evaluated once by the next draw, rather than also on this tick.
       }
-      if (
-        !looping &&
-        this.reference.kind === "spotAnim" &&
-        !this.spotAnimCompletionNotified &&
-        effectTime >= 0 &&
-        (!animation || !hasFrames || total <= 0 || effectTime >= total)
-      ) {
-        this.spotAnimCompletionNotified = true;
-        this.options.onSpotAnimComplete?.();
-      }
-      if (!spot.mesh.visible || !animation) {
-        spotSoundPlayer.reset();
-        continue;
-      }
-      spotSoundPlayer.advance(spotAnimationId, animation, effectTime, looping, soundLocation);
+      if (!spot.mesh.visible || !animation) continue;
       const frame = sample!.frame;
-      const next = sample!.nextFrame;
-      const blend = sample!.blend;
-      const transformed = new Float32Array(spot.basePositions);
-      const alphaValues = new Float32Array(spot.baseAlphas);
-      if (animation.rawFrames?.[frame]) applyRawFrame(transformed, spot.vertexGroups, spot.sourceVertices, animation.rawFrames[frame], undefined, alphaValues, spot.alphaGroups);
-      else if (animation.frames[frame] && transformed.length === animation.frames[frame].length) {
-        const nextFrame = animation.frames[next] ?? animation.frames[frame];
-        for (let i = 0; i < transformed.length; i++) transformed[i] = animation.frames[frame][i] + (nextFrame[i] - animation.frames[frame][i]) * blend;
+      const transformed = spot.posedPositions;
+      const alphaValues = spot.posedAlphas;
+      transformed.set(spot.basePositions);
+      alphaValues.set(spot.baseAlphas);
+      if (animation.mayaFrames?.[frame]) {
+        const matrices = Settings.smoothCacheAnimations
+          ? interpolateMayaFrames(animation.mayaFrames[frame], animation.mayaFrames[sample!.nextFrame], sample!.blend, spot.interpolatedMayaFrame)
+          : animation.mayaFrames[frame];
+        applyMayaFrame(transformed, matrices, spot.animayaGroups, spot.animayaScales);
+      } else if (animation.rawFrames?.[frame]) {
+        const current = animation.rawFrames[frame], following = animation.rawFrames[sample!.nextFrame];
+        const rawFrame = Settings.smoothCacheAnimations && following
+          ? interpolateRawFrames(current, following, sample!.blend, spot.interpolatedFrame, true) : current;
+        applyRawFrame(transformed, spot.vertexGroups, spot.sourceVertices, rawFrame,
+          undefined, alphaValues, spot.alphaGroups, spot.workspace, Settings.smoothCacheAnimations);
+      } else if (animation.frames[frame] && transformed.length === animation.frames[frame].length) {
+        const current = animation.frames[frame], following = animation.frames[sample!.nextFrame];
+        if (Settings.smoothCacheAnimations && following?.length === current.length) {
+          for (let index = 0; index < transformed.length; index++) transformed[index] = current[index] + (following[index] - current[index]) * sample!.blend;
+        } else transformed.set(current);
       }
       (spot.mesh.geometry.getAttribute("position") as THREE.BufferAttribute).array.set(transformed);
       (spot.mesh.geometry.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;

@@ -498,7 +498,9 @@ export class Viewport3d implements ViewportDelegate {
     );
   }
 
-  clientTick(timestamp = window.performance.now()) {
+  clientTick(region: Region, timestamp = window.performance.now()) {
+    this.reconcileActors(region);
+    this.knownActors.forEach((actor) => actor.clientTick());
     this.clientCameraRotation.clientTick();
     if (Trainer.player) {
       this.cameraFocalPoint.follow(Trainer.player.perceivedLocation, timestamp);
@@ -546,7 +548,7 @@ export class Viewport3d implements ViewportDelegate {
       }
     }
 
-    this.knownActors.forEach((actor) => actor.draw(this.scene, delta, world.tickPercent));
+    this.knownActors.forEach((actor) => actor.draw(this.scene, delta, world.tickPercent, world.clientTickPercent ?? 0));
     this.refreshProjectedClickboxes();
 
     // highlight selected tile
