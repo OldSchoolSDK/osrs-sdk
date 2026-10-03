@@ -21,8 +21,17 @@ export interface Model {
   /** Current posed height above the model origin, when available. */
   getLogicalHeight?(): number | null;
 
-  /** Current animated model vertices in world space, for projected clickboxes. */
+  /** Current animated model vertices in world space. */
   getClickboxVertices?(): THREE.Vector3[];
+
+  /**
+   * Conservative world bounds of those vertices. Used for early filtering to avoid computing expensive clickbox bounds unless
+   * the mouse is near the model.
+  */
+  getClickboxBounds?(): THREE.Box3 | null;
+
+  /** Triangle indices into getClickboxVertices(), excluding client-hidden faces. */
+  getClickboxTriangles?(): ArrayLike<number>;
 
   preload(): Promise<void>;
 }

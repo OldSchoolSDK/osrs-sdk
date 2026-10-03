@@ -18,10 +18,16 @@ import { Pathing } from "./Pathing";
 import { createTileIndicator, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./rendering/RenderUtils";
 import {
   convexHull,
+  boundsDepthRange,
   isInFrontOfNearPlane,
   projectedHullContains,
+  projectedTriangleBounds,
+  projectedTrianglesContain,
+  screenBoundsContain,
+  ScreenBounds,
   ScreenPoint,
-} from "./rendering/ProjectedClickbox";
+} from "./rendering/utils/projectedClickbox";
+import { Model } from "./rendering/Model";
 import {
   ClientCameraRotation,
   MAX_CAMERA_PITCH,
@@ -72,8 +78,17 @@ export class Viewport3d implements ViewportDelegate {
   private stats = new Stats();
 
   private knownActors: Map<Renderable, Actor> = new Map();
-  private projectedClickboxes = new Map<Mob, { hull: ScreenPoint[]; tolerance: number }>();
-  private projectedClickboxClientTick = -1;
+  private projectedClickboxes = new Map<Mob, {
+    model: Model;
+    worldBounds?: THREE.Box3;
+    bounds?: ScreenBounds;
+    hull?: ScreenPoint[];
+    vertices?: (ScreenPoint | null)[];
+    triangles?: ArrayLike<number>;
+    refined?: boolean;
+    tolerance: number;
+  }>();
+  private pickingPointer: ScreenPoint | null = null;
 
   private selectedTile: Location | null = null;
   private selectedTileMesh: THREE.Mesh;
@@ -309,6 +324,7 @@ export class Viewport3d implements ViewportDelegate {
 
   initCameraEvents(canvas) {
     canvas.addEventListener("mousemove", this.onDocumentMouseMove.bind(this), false);
+    canvas.addEventListener("mouseleave", () => { this.pickingPointer = null; }, false);
     canvas.addEventListener("mousedown", this.onDocumentMouseDown.bind(this), false);
     window.addEventListener("mouseup", this.onDocumentMouseUp.bind(this), false);
     window.addEventListener("blur", this.onWindowBlur.bind(this), false);
@@ -446,6 +462,8 @@ export class Viewport3d implements ViewportDelegate {
   reset() {
     this.knownActors.forEach((actor) => actor.destroy(this.scene));
     this.knownActors = new Map();
+    this.projectedClickboxes.clear();
+    this.pickingPointer = null;
     this.cameraFocalPoint.reset();
   }
 
@@ -529,7 +547,7 @@ export class Viewport3d implements ViewportDelegate {
     }
 
     this.knownActors.forEach((actor) => actor.draw(this.scene, delta, world.tickPercent));
-    this.refreshProjectedClickboxes(world);
+    this.refreshProjectedClickboxes();
 
     // highlight selected tile
     if (this.selectedTile) {
@@ -542,25 +560,101 @@ export class Viewport3d implements ViewportDelegate {
     }
   }
 
-  private refreshProjectedClickboxes(world: World) {
-    // invalidate clickboxes only after a client tick
-    if (this.projectedClickboxClientTick === world.clientTickCounter) {
-      return;
-    }
-    this.projectedClickboxClientTick = world.clientTickCounter;
-    
-    const clickboxes = new Map<Mob, { hull: ScreenPoint[]; tolerance: number }>();
+  private refreshProjectedClickboxes() {
+    // Bounds follow the rendered pose/camera. Only pointer candidates need
+    // projected triangle vertices; debugging must not force that work.
+    this.projectedClickboxes.clear();
     this.knownActors.forEach((actor, renderable) => {
       if (!(renderable instanceof Mob) || !renderable.selectable) return;
-      const vertices = actor.getModel()?.getClickboxVertices?.() ?? [];
-      // A hull that crosses the near plane cannot be perspective-projected as
-      // one polygon; rejecting it also prevents camera-inside clickboxes from
-      // expanding across the viewport.
-      if (!vertices.length || !vertices.every((vertex) => this.isInFrontOfCameraNearPlane(vertex))) return;
-      const hull = convexHull(vertices.map((vertex) => this.projectToScreen(vertex)));
-      if (hull.length >= 3) clickboxes.set(renderable, { hull, tolerance: renderable.size === 1 ? 20 : 5 });
+      const model = actor.getModel();
+      if (!model?.getClickboxVertices) return;
+      const bounds = model.getClickboxBounds?.();
+      const depth = bounds ? boundsDepthRange(bounds, this.camera.matrixWorldInverse) : null;
+      if (depth && !isInFrontOfNearPlane(depth.min, this.camera.near)) return;
+      // Project a broad rectangle only when all box corners are in front.
+      // Fine triangle picking individually rejects near-clipped triangles.
+      let screenBounds: ScreenBounds | undefined;
+      if (bounds && depth && isInFrontOfNearPlane(depth.max, this.camera.near)) {
+        screenBounds = this.projectBoundsToScreen(bounds);
+      } else if (!model.getClickboxTriangles) {
+        const vertices = model.getClickboxVertices();
+        if (!vertices.length || !vertices.every((vertex) => this.isInFrontOfCameraNearPlane(vertex))) return;
+      }
+      this.projectedClickboxes.set(renderable, {
+        model, worldBounds: bounds ?? undefined, bounds: screenBounds,
+        tolerance: renderable.size === 1 && model.getClickboxTriangles ? 0 : renderable.size === 1 ? 20 : 5,
+      });
     });
-    this.projectedClickboxes = clickboxes;
+    // A mouse event's projections were invalidated above. Refine candidates at
+    // the current pointer so picking/debugging use this draw's animated pose,
+    // including when the pointer stays still and an actor moves underneath it.
+    if (this.pickingPointer) this.getProjectedMobsAt(this.pickingPointer);
+  }
+
+  private getProjectedMobsAt(point: ScreenPoint): Mob[] {
+    const mobs: Mob[] = [];
+    const { width, height } = this.canvasDimensions;
+    this.raycaster.setFromCamera(new THREE.Vector2(point.x / width * 2 - 1, 1 - point.y / height * 2), this.camera);
+    this.projectedClickboxes.forEach((clickbox, mob) => {
+      const { bounds, tolerance, worldBounds, model } = clickbox;
+      if (bounds && !screenBoundsContain(bounds, point, tolerance + 1)) return;
+      if (model.getClickboxTriangles && worldBounds) {
+        const boxHit = this.raycaster.ray.intersectsBox(worldBounds);
+        if (mob.size === 1) {
+          clickbox.refined = true;
+          if (!clickbox.hull && bounds) clickbox.hull = convexHull(this.projectBoxCorners(worldBounds));
+          if (boxHit) mobs.push(mob);
+          return;
+        }
+        if (!boxHit) return;
+      }
+      if (model.getClickboxTriangles) {
+        if (!clickbox.vertices) {
+          clickbox.vertices = (model.getClickboxVertices?.() ?? []).map(vertex =>
+            this.isInFrontOfCameraNearPlane(vertex) ? this.projectToClientScreen(vertex) : null);
+          clickbox.triangles = model.getClickboxTriangles();
+        }
+        clickbox.refined = true;
+        if (projectedTrianglesContain(clickbox.vertices, clickbox.triangles!, point, 5)) mobs.push(mob);
+      } else {
+        // Custom renderers without triangle data retain their previous hull path.
+        const hull = this.getProjectedClickboxHull(mob);
+        clickbox.refined = true;
+        if (hull.length >= 3 && projectedHullContains(hull, point, tolerance)) mobs.push(mob);
+      }
+    });
+    return mobs;
+  }
+
+  private getProjectedClickboxHull(mob: Mob) {
+    const clickbox = this.projectedClickboxes.get(mob);
+    if (!clickbox) return [];
+    if (!clickbox.hull) {
+      clickbox.hull = convexHull((clickbox.model.getClickboxVertices?.() ?? [])
+        .map((vertex) => this.projectToScreen(vertex)));
+      if (clickbox.hull.length < 3) this.projectedClickboxes.delete(mob);
+    }
+    return clickbox.hull;
+  }
+
+  private projectBoundsToScreen(bounds: THREE.Box3): ScreenBounds {
+    const result = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+    for (const point of this.projectBoxCorners(bounds)) {
+      result.minX = Math.min(result.minX, point.x); result.maxX = Math.max(result.maxX, point.x);
+      result.minY = Math.min(result.minY, point.y); result.maxY = Math.max(result.maxY, point.y);
+    }
+    return result;
+  }
+
+  private projectBoxCorners(bounds: THREE.Box3): ScreenPoint[] {
+    const points: ScreenPoint[] = [];
+    const corner = new THREE.Vector3();
+    for (let i = 0; i < 8; i++) {
+      corner.set(i & 1 ? bounds.max.x : bounds.min.x,
+        i & 2 ? bounds.max.y : bounds.min.y, i & 4 ? bounds.max.z : bounds.min.z);
+      points.push(this.projectToScreen(corner));
+    }
+    return points;
   }
 
   private reconcileActors(region: Region) {
@@ -587,13 +681,20 @@ export class Viewport3d implements ViewportDelegate {
 
     const getUILayerProjector = (r: Renderable): UILayerProjector => {
       const perceivedLocation = r.getPerceivedLocation(world.tickPercent);
-      const modelLogicalHeight = this.knownActors.get(r)?.getModel()?.getLogicalHeight?.();
+      const model = this.knownActors.get(r)?.getModel();
+      const modelLogicalHeight = model?.getLogicalHeight?.();
       const logicalHeight = modelLogicalHeight ?? r.logicalHeight;
       const center = {
         x: perceivedLocation.x + r.size / 2,
         y: perceivedLocation.y - r.size / 2,
       };
-      const modelVertices = this.knownActors.get(r)?.getModel()?.getClickboxVertices?.() ?? [];
+      const bounds = model?.getClickboxBounds?.();
+      const depth = bounds ? boundsDepthRange(bounds, this.camera.matrixWorldInverse) : null;
+      // Most actors are wholly in front of the near plane. Use their cached
+      // bounds instead of transforming every model vertex again for UI.
+      const boundsVisible = depth && isInFrontOfNearPlane(depth.max, this.camera.near);
+      const boundsHidden = depth && !isInFrontOfNearPlane(depth.min, this.camera.near);
+      const modelVertices = boundsVisible || boundsHidden ? [] : model?.getClickboxVertices?.() ?? [];
       const visibilityPoints = modelVertices.length > 0
         ? modelVertices
         : [
@@ -602,7 +703,8 @@ export class Viewport3d implements ViewportDelegate {
         ];
       return {
         logicalHeight,
-        visible: visibilityPoints.every((point) => this.isInFrontOfCameraNearPlane(point)),
+        visible: boundsVisible ? true : boundsHidden ? false
+          : visibilityPoints.every((point) => this.isInFrontOfCameraNearPlane(point)),
         atHeight: (height) => translator(center, perceivedLocation.z + height),
       };
     };
@@ -615,21 +717,39 @@ export class Viewport3d implements ViewportDelegate {
     });
 
     if (Settings.displayClickboxes) {
-      this.projectedClickboxes.forEach(({ hull, tolerance }) => {
+      this.projectedClickboxes.forEach(({ hull, bounds, tolerance, refined, vertices, triangles }) => {
+        if (!refined && !bounds) return;
+        if (refined && !vertices && !hull && !bounds) return;
         this.uiCanvasContext.save();
         this.uiCanvasContext.beginPath();
-        this.uiCanvasContext.moveTo(hull[0].x, hull[0].y);
-        hull.slice(1).forEach((point) => this.uiCanvasContext.lineTo(point.x, point.y));
+        if (refined && vertices && triangles) {
+          // Display the union of the actual padded face rectangles. These
+          // projections already exist from picking; never project for debug.
+          for (let i = 0; i < triangles.length; i += 3) {
+            const a = vertices[triangles[i]], b = vertices[triangles[i + 1]], c = vertices[triangles[i + 2]];
+            if (!a || !b || !c) continue;
+            const face = projectedTriangleBounds(a, b, c);
+            this.uiCanvasContext.rect(face.minX - 5, face.minY - 5,
+              face.maxX - face.minX + 10, face.maxY - face.minY + 10);
+          }
+        } else if (refined && hull && hull.length >= 3) {
+          this.uiCanvasContext.moveTo(hull[0].x, hull[0].y);
+          hull.slice(1).forEach((point) => this.uiCanvasContext.lineTo(point.x, point.y));
+        } else {
+          // Amber is the conservative pointer-rejection rectangle.
+          this.uiCanvasContext.rect(bounds.minX, bounds.minY,
+            bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+        }
         this.uiCanvasContext.closePath();
-        this.uiCanvasContext.fillStyle = "rgba(0, 255, 255, 0.12)";
+        this.uiCanvasContext.fillStyle = refined ? "rgba(0, 255, 255, 0.12)" : "rgba(255, 180, 0, 0.08)";
         this.uiCanvasContext.fill();
-        // A thick stroke visualises the same edge tolerance used by picking.
+        // Triangle padding is already included in each rectangle above.
         this.uiCanvasContext.lineJoin = "round";
-        this.uiCanvasContext.lineWidth = tolerance * 2;
-        this.uiCanvasContext.strokeStyle = "rgba(0, 255, 255, 0.25)";
+        this.uiCanvasContext.lineWidth = Math.max(1, vertices ? 1 : tolerance * 2);
+        this.uiCanvasContext.strokeStyle = refined ? "rgba(0, 255, 255, 0.25)" : "rgba(255, 180, 0, 0.20)";
         this.uiCanvasContext.stroke();
         this.uiCanvasContext.lineWidth = 1;
-        this.uiCanvasContext.strokeStyle = "#00ffff";
+        this.uiCanvasContext.strokeStyle = refined ? "#00ffff" : "#ffb400";
         this.uiCanvasContext.stroke();
         this.uiCanvasContext.restore();
       });
@@ -652,6 +772,15 @@ export class Viewport3d implements ViewportDelegate {
     };
   }
 
+  private projectToClientScreen(vector: THREE.Vector3): ScreenPoint {
+    const projected = vector.clone().project(this.camera);
+    const { width, height } = this.canvasDimensions;
+    // The client adds an integer viewport centre to an integer-divided offset.
+    // Truncate the offset toward zero, rather than rounding the final pixel.
+    return { x: Math.floor(width / 2) + Math.trunc(projected.x * width / 2),
+      y: Math.floor(height / 2) + Math.trunc(-projected.y * height / 2) };
+  }
+
   // return intersection with world object or world coordinates from canvas coordinates
   translateClick(offsetX, offsetY, world, viewport) {
     const { width, height } = this.canvasDimensions;
@@ -668,17 +797,16 @@ export class Viewport3d implements ViewportDelegate {
       x: Math.floor(floor.x) + 0.5,
       y: Math.floor(floor.z) + 1.5,
     };
+    const point = { x: offsetX, y: offsetY };
+    this.pickingPointer = point;
+    const projectedMobs = this.getProjectedMobsAt(point);
+
     const intersections = this.raycaster.intersectObjects(
       this.scene.children.filter((child) =>
         child.userData.clickable === true && !this.projectedClickboxes.has(child.userData.unit),
       ),
       true,
     );
-
-    const projectedMobs: Mob[] = [];
-    this.projectedClickboxes.forEach(({ hull, tolerance }, mob) => {
-      if (projectedHullContains(hull, { x: offsetX, y: offsetY }, tolerance)) projectedMobs.push(mob);
-    });
 
     // Non-cache models retain the existing Three.js raycast fallback.
     const raycastMobs = intersections

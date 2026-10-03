@@ -4,6 +4,7 @@ import { AnimationMetadata, Renderable, RenderableListener } from "../Renderable
 import { CacheRender } from "./CacheRenderBundle";
 import { CacheRenderReference, CacheRenderSpotAnim } from "./CacheRenderReference";
 import { Model } from "./Model";
+import { ClickboxController } from "./utils/clickbox";
 import { drawLineOnTop, GROUND_OVERLAY_Y, GroundOverlayRenderOrder } from "./RenderUtils";
 import { Settings } from "../Settings";
 import type { CacheRenderAnimation, CacheRenderPayload, CacheRenderRawFrame } from "../../cache-render-format";
@@ -107,12 +108,14 @@ export class CacheRenderModel implements Model, RenderableListener {
   private clickbox: THREE.Mesh | null = null;
   private modelGeneration = 0;
   private meshGeneration = -1;
+  private readonly clickboxController: ClickboxController;
 
   constructor(
     private renderable: Renderable,
     private reference: CacheRenderReference,
     private options: CacheRenderModelOptions = {},
   ) {
+    this.clickboxController = new ClickboxController(() => this.renderable.size);
     this.frameSoundPlayer = new AnimationFrameSoundPlayer(options.frameSoundDelayMs);
     this.setActiveSpotAnims(this.currentSpotAnims(reference.kind === "model" || reference.kind === "asset" ? undefined : reference.spotAnims));
     // A spotanim-only renderable has no actor animation transition to start
@@ -141,22 +144,9 @@ export class CacheRenderModel implements Model, RenderableListener {
   static forRenderable(renderable: Renderable, reference: CacheRenderReference, options?: CacheRenderModelOptions) {
     return new CacheRenderModel(renderable, reference, options);
   }
-  getClickboxVertices() {
-    if (!this.mesh || !this.mesh.visible) return [];
-    this.root.updateWorldMatrix(true, true);
-    const position = this.mesh.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
-    if (!position) return [];
-    const vertices: THREE.Vector3[] = [];
-    const seen = new Set<number>();
-    for (let index = 0; index < position.count; index++) {
-      const source = this.sourceVertices[index] ?? index;
-      if (seen.has(source)) continue;
-      seen.add(source);
-      vertices.push(new THREE.Vector3(position.getX(index), position.getY(index), position.getZ(index))
-        .applyMatrix4(this.mesh.matrixWorld));
-    }
-    return vertices;
-  }
+  getClickboxVertices() { return this.clickboxController.getVertices(); }
+  getClickboxBounds() { return this.clickboxController.getBounds(); }
+  getClickboxTriangles() { return this.clickboxController.getTriangles(); }
   spotAnimChanged(spotAnims: CacheRenderSpotAnim[]) { this.setActiveSpotAnims(spotAnims); }
   private setActiveSpotAnims(spotAnims: CacheRenderSpotAnim[]) {
     const starts = new Map<string, number>();
@@ -330,6 +320,7 @@ export class CacheRenderModel implements Model, RenderableListener {
         clickGeometryDebug.raycast = () => { };
         this.root.add(clickGeometryDebug);
       }
+      this.clickbox = null;
       const clickboxRadius = this.renderable.clickboxRadius;
       if (payload.geometryClickbox) {
         const clickGeometry = new THREE.BufferGeometry();
@@ -368,6 +359,8 @@ export class CacheRenderModel implements Model, RenderableListener {
         this.outline = outline;
       }
       this.mesh = mesh;
+      this.clickboxController.configure(mesh, this.sourceVertices,
+        this.clickbox?.userData.cacheGeometryClickbox ? this.clickbox : null);
       this.meshGeneration = generation;
       spotPayloads.forEach((spotPayload) => {
         const geometry = new THREE.BufferGeometry();
@@ -418,6 +411,7 @@ export class CacheRenderModel implements Model, RenderableListener {
   }
 
   draw(scene: THREE.Scene, clockDelta: number, _tickPercent: number, location: Location3, rotation: number, pitch: number, visible: boolean, modelOffsets: Location3[]) {
+    this.clickboxController.invalidate();
     this.ensureLoaded().catch((error) => {
       // Keep cache integration failures visible (bad URL, integrity failure, or
       // an absent render reference).

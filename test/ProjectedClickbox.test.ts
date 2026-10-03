@@ -2,7 +2,7 @@ import {
   convexHull,
   isInFrontOfNearPlane,
   projectedHullContains,
-} from "../src/sdk/rendering/ProjectedClickbox";
+} from "../src/sdk/rendering/utils/projectedClickbox";
 
 test("builds a projected hull and applies pointer tolerance", () => {
   const hull = convexHull([

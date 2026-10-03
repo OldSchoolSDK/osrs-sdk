@@ -72,6 +72,49 @@ preserve. It intentionally omits discarded implementation experiments.
   negated into renderer vertical coordinates and cache Z is negated into the
   renderer's north/south axis.
 
+## Picking
+
+- Cache NPC picking follows the deob's two branches. One-tile NPCs accept a
+  mouse-ray hit on their model box. Larger NPCs first require a box hit, then
+  scan the rectangles of their projected faces with inclusive 5px padding,
+  stopping on the first match. The face interior is not tested, and a convex
+  hull is not built. Custom renderers without triangle data retain hull picking.
+- Bounds are taken after rotating the actual posed vertices, include the model
+  origin, and have minimum horizontal half-extents of 32 client units, with
+  another 8 units for one-tile NPCs. This avoids inflating slender models by
+  rotating a previously computed local box. Bounds are shared with UI checks.
+- Picking truncates projected pixel offsets toward zero before adding the
+  integer viewport centre. The browser's camera projection and smooth animated
+  positions remain SDK values; this is the client's picking algorithm, not a
+  bit-exact reproduction of its fixed-point software renderer.
+- Only boxes under the current pointer need finer processing. The debug overlay
+  shows cheap screen bounds in amber, and tested one-tile boxes or already-
+  projected padded face rectangles in cyan. Enabling it never projects the full
+  geometry. Each draw invalidates stale projections and refines only pointer
+  candidates, so stationary-pointer picking uses the current pose.
+- Cache models deduplicate source-vertex indices when loading the payload and
+  reuse world-space vertex objects. Visible triangle indices are mapped to those
+  deduplicated vertices once at load time. Client-hidden type-2 degenerate faces
+  are skipped; extracted authored clickbox geometry remains part of picking.
+- A box wholly in front of or behind the near plane also resolves UI visibility
+  without transforming every vertex. When the box crosses that plane, check the
+  actual vertices; a conservative box alone must not hide a valid model.
+- Fine picking skips individual triangles with near-clipped vertices rather
+  than rejecting all other faces of a partially clipped large model.
+- The local deob client (`Model.draw`, `calculateBoundingBox`, and `draw0`) uses
+  mouse/bounds rejection before finer picking and reuses vertex projections from
+  software rendering. It does not sort every actor's vertices into a hull.
+- `CacheRenderModel` owns a `ClickboxController` in
+  `src/sdk/rendering/utils/clickbox.ts`. The controller builds the picking
+  topology when geometry loads and owns the reusable world vertices, bounds,
+  and dirty flags. The model delegates its clickbox accessors and invalidates
+  the controller each draw for pose/transform updates. Viewport projection and
+  debug drawing remain in `Viewport3d`.
+- `node scripts/debug/benchmark-clickboxes.cjs` compares the previous eager hull
+  path, bounds-first hull picking, and bounds-first rectangle scans using local
+  NPC geometry in the larger-model branch. It measures CPU picking/UI cost,
+  including a posed-bounds refresh, rather than total renderer FPS.
+
 ## Terrain colour
 
 - A map tile references an underlay and, optionally, an overlay. Cache map
