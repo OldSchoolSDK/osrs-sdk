@@ -151,7 +151,15 @@ export class Mob extends Unit {
   }
 
   override timerStep() {
-    // override me
+    if (this.dying === 0) return;
+    this.age--;
+    if (this.age > 0) {
+      // Spawn-delayed NPCs advance their attack clock, but do not yet consume
+      // their initial freeze/stun. Their queue still receives incoming hits.
+      this.attackDelay--;
+      return;
+    }
+    super.timerStep();
   }
 
   private isRedXStalled() {
@@ -168,12 +176,9 @@ export class Mob extends Unit {
   }
 
   override movementStep() {
-    if (this.dying === 0) {
+    if (this.dying === 0 || this.currentStats.hitpoint <= 0) {
       return;
     }
-    this.processIncomingAttacks();
-
-    this.age--;
     if (this.age > 0) {
       return;
     }
@@ -336,9 +341,6 @@ export class Mob extends Unit {
 
     this.attackIfPossible();
     this.detectDeath();
-
-    this.frozen--;
-    this.stunned--;
   }
 
   attackStyleForNewAttack() {

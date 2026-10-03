@@ -312,7 +312,15 @@ export abstract class Unit extends Renderable {
   }
 
   timerStep() {
-    // Override me, called before movement
+    this.attackDelay--;
+    this.frozen--;
+    this.stunned--;
+  }
+
+  /** Resolve damage due on this turn. */
+  queueStep() {
+    if (this.dying === 0) return;
+    this.processIncomingAttacks();
   }
 
   movementStep() {
@@ -362,7 +370,6 @@ export abstract class Unit extends Renderable {
   attackStep() {
     // Override me, called after all movement has been resolved
     this.nulledTicks--;
-    this.attackDelay--;
     this.lastRotation = this.getPerceivedRotation(0);
 
     if (this.overheadTextTimer <= 0) {
@@ -548,11 +555,11 @@ export abstract class Unit extends Renderable {
 
   // Returns true if the NPC can move towards the unit it is aggro'd against.
   canMove() {
-    return !this.hasLOS && !this.isFrozen() && !this.isStunned() && !this.isDying();
+    return this.currentStats.hitpoint > 0 && !this.hasLOS && !this.isFrozen() && !this.isStunned() && !this.isDying();
   }
 
   canAttack() {
-    return !this.isDying() && !this.isStunned();
+    return this.currentStats.hitpoint > 0 && !this.isDying() && !this.isStunned();
   }
 
   freeze(ticks: number) {
@@ -848,9 +855,9 @@ export abstract class Unit extends Renderable {
         if (this.shouldChangeAggro(projectile)) {
           this.setAggro(projectile.from);
 
-          if (this.attackDelay < this.flinchDelay + 1) {
-            this.attackDelay = this.flinchDelay + 1;
-          }
+          // Preserve the effective retaliation delay for player flinches.
+          const delay = this.flinchDelay + (this.type === UnitTypes.PLAYER ? 1 : 0);
+          this.attackDelay = Math.max(this.attackDelay, delay);
         }
       }
     });

@@ -149,6 +149,7 @@ export class World {
         mob.timerStep();
       });
       region.mobs.forEach((mob) => {
+        mob.queueStep();
         mob.movementStep();
         region.refreshUnitChunk(mob);
       });
@@ -158,6 +159,7 @@ export class World {
         mob.timerStep();
       });
       region.newMobs.forEach((mob) => {
+        mob.queueStep();
         mob.movementStep();
         region.refreshUnitChunk(mob);
       });
@@ -179,6 +181,7 @@ export class World {
     });
 
     region.players.forEach((player: Player) => {
+      if (this.getReadyTimer <= 0) player.queueStep();
       player.timerStep();
       player.movementStep();
       region.refreshUnitChunk(player);

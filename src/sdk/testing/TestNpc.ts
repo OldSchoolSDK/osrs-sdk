@@ -9,7 +9,8 @@ export class TestNpc extends Mob {
     }
   
     override setStats() {
-      this.stunned = 1;
+      // One-turn startup stun.
+      this.stunned = 2;
       this.weapons = {
         crush: new MeleeWeapon(),
         range: new RangedWeapon(),

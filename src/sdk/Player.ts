@@ -777,7 +777,7 @@ export class Player extends Unit {
   }
 
   movementStep() {
-    if (this.dying > -1) {
+    if (this.dying > -1 || this.currentStats.hitpoint <= 0) {
       return;
     }
 
@@ -791,7 +791,6 @@ export class Player extends Unit {
     }
 
     this.updatePathMarker();
-    this.frozen--;
   }
 
   removeClickMarker() {
@@ -842,11 +841,18 @@ export class Player extends Unit {
     this.prayerController.tick(this);
   }
 
+  override timerStep() {
+    if (this.region.world?.getReadyTimer > 0) {
+      // GET READY consumes the movement lock without advancing combat clocks.
+      this.frozen--;
+      return;
+    }
+    super.timerStep();
+  }
+
   override attackStep() {
     super.attackStep();
     this.detectDeath();
-
-    this.processIncomingAttacks();
 
     if (this.dying > -1) {
       return;

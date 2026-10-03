@@ -64,7 +64,6 @@ export class Manticore extends Mob {
   private preselectedAttackStyles: Orbs[] | null = null;
 
   private hasAttacked = false;
-  private lastAttackStepTick = -1;
 
   override mobName() {
     return "Manticore";
@@ -158,18 +157,7 @@ export class Manticore extends Mob {
     this.region.mobs.forEach((mob) => {
       if (!(mob instanceof Manticore) || mob === this || mob.attackStyles === null) return;
 
-      // NPCs decrement their cooldown inside their own sequential attackStep.
-      // An unprocessed peer at 1 or below is ready on this tick. Set it to 6
-      // so its imminent decrement leaves the intended five-tick gap. A peer
-      // which has already stepped receives 5 because it will not decrement
-      // again until the next tick.
-      // This is a serious hack and implies we need to decrement timers separately from the step.
-      const hasStepped = mob.lastAttackStepTick === this.region.world.globalTickCounter;
-      if (!hasStepped && mob.attackDelay <= 1) {
-        mob.attackDelay = 6;
-      } else if (hasStepped && mob.attackDelay <= 0) {
-        mob.attackDelay = 5;
-      }
+      if (mob.attackDelay <= 0) mob.attackDelay = 5;
     });
     this.playAnimation(ManticoreAnimations.TripleThrow);
     // The first projectile is launched on the attack tick.
@@ -228,7 +216,6 @@ export class Manticore extends Mob {
   }
 
   override attackStep() {
-    this.lastAttackStepTick = this.region.world.globalTickCounter;
     super.attackStep();
     if (this.aggro && this.hasLOS && !this.attackStyles) {
       this.selectAttackStyle();
