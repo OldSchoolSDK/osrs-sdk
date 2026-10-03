@@ -19,8 +19,15 @@ class OneTileNpc extends TestNpc {
 }
 
 describe("Venator bow", () => {
+  let originalRandom = Random.randomFn;
+
   beforeEach(() => {
+    originalRandom = Random.randomFn;
     AttackStylesController.controller = new AttackStylesController();
+  });
+
+  afterEach(() => {
+    Random.setRandom(originalRandom);
   });
 
   test("uses the north-east inner tile as the centre of a 4x4 NPC", () => {
@@ -71,7 +78,6 @@ describe("Venator bow", () => {
 
     const bow = new VenatorBow();
     player.equipment.weapon = bow;
-    const originalRandom = Random.randomFn;
     let randomCall = 0;
     Random.setRandom(() => randomCall++ % 2 === 0 ? 0 : 0.999999);
 
@@ -87,7 +93,7 @@ describe("Venator bow", () => {
     expect(thirdHit.damage).toBe(Math.floor(primaryHit.damage * 0.66));
     expect(secondHit.options.visuals.hidden).toBe(true);
     expect(thirdHit.options.visuals.hidden).toBe(true);
-    expect(primaryHit.options.visuals.endCycleOffset).toBe(10);
+    expect(primaryHit.options.visuals.endCycleOffset).toBe(15);
     expect(primaryHit.options.sound.src).toBe(cacheSound(CACHE_ASSETS.sounds.venatorBowAttack.id));
     expect(secondHit.options.sound.src).toBe(cacheSound(CACHE_ASSETS.sounds.venatorBowRicochetFirst.id));
     expect(thirdHit.options.sound.src).toBe(cacheSound(CACHE_ASSETS.sounds.venatorBowRicochetSecond.id));
@@ -102,13 +108,11 @@ describe("Venator bow", () => {
     expect(visibleProjectiles[1].projectile.from).toBe(primary);
     expect(visibleProjectiles[1].projectile.to).toBe(second);
     expect(visibleProjectiles[1].projectile.options.visuals.startCycleOffset).toBe(15);
-    expect(visibleProjectiles[1].projectile.options.visuals.endCycleOffset).toBe(20);
+    expect(visibleProjectiles[1].projectile.options.visuals.endCycleOffset).toBe(30);
     expect(visibleProjectiles[2].projectile.from).toBe(second);
     expect(visibleProjectiles[2].projectile.to).toBe(third);
-    expect(visibleProjectiles[2].projectile.options.visuals.startCycleOffset).toBe(20);
-    expect(visibleProjectiles[2].projectile.options.visuals.endCycleOffset).toBe(30);
+    expect(visibleProjectiles[2].projectile.options.visuals.startCycleOffset).toBe(30);
+    expect(visibleProjectiles[2].projectile.options.visuals.endCycleOffset).toBe(45);
     expect(player.spotAnims).toHaveLength(1);
-
-    Random.setRandom(originalRandom);
   });
 });
