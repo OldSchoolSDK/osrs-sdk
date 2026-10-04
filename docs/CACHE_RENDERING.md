@@ -174,6 +174,19 @@ preserve. It intentionally omits discarded implementation experiments.
 
 ## Terrain colour
 
+- Terrain extraction includes authored tiles on planes 0 and 1 in the same
+  compiled terrain mesh. Both planes use the plane-0 region origin, so upper
+  floors align with objects sampled from the same heightmap. Tiles without
+  either an underlay or overlay remain void; implicit plane heights do not
+  create floors.
+- Tile corner heights are sampled at `(x, y)`, `(x + 1, y)`,
+  `(x + 1, y + 1)`, and `(x, y + 1)` before the north/south coordinate
+  reflection. Shape 0 is underlay-only; overlay paths select shapes 1–12.
+  Apply cache rotation before reflecting the completed vertices. Reversing
+  the rotation as well would reflect it twice.
+- `packages/osrs-sdk-assets/test/terrain-planes.test.mjs` exercises extraction
+  and scene compilation together, using independent `rs-map-viewer`
+  expectations for sloped upper floors, shape rotations, and cutouts.
 - A map tile references an underlay and, optionally, an overlay. Cache map
   references are one-based; the corresponding floor-definition IDs are
   zero-based. An underlay definition originates as an unsigned RGB medium and

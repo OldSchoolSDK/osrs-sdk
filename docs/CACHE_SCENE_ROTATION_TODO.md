@@ -82,9 +82,3 @@ do not depend on those local images, a full cache, or the reference checkout.
 7. Prove the change with a fixed-camera before/after capture and independent
    geometry expectations. Do not add rotation overrides to compensate for an
    untraced discrepancy, or stop at a plausible explanation.
-
-## Separate remaining issue
-
-The SDK terrain extractor only renders plane 0, so the floors between the
-grandstand tiers are missing. That explains exposed structures beneath the
-seating and is separate from this corrected contour deformation.

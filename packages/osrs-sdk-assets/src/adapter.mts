@@ -24,7 +24,7 @@ export async function decodeAllAssets(options) {
   return createDecoder(reader)(options);
 }
 
-function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
+export function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
   const itemKey = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
   // The game client's default brightness is applied when its HSL palette is built.
@@ -214,17 +214,21 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
   ];
 
   async function terrainAsset(cache, regionId) {
-    const regionX = regionId >> 8;
-    const regionY = regionId & 255;
-    const map = await cache.getMap(regionX, regionY);
-    const tiles = map?.tiles?.[0] ?? [];
-    const tileHeights = map?.getHeights?.()?.[0] ?? [];
-    const baseHeight = tileHeights[0]?.[0] ?? 0;
-    const positions = [],
-      indices = [],
-      colors = [],
-      faceColors = [],
-      alphas = [];
+    const map = await cache.getMap(regionId >> 8, regionId & 255);
+    // Both planes share the scene origin and the objects' height reference.
+    const baseHeight = map?.getHeights?.()?.[0]?.[0]?.[0] ?? 0;
+    const geometry = { positions: [], indices: [], colors: [], faceColors: [], alphas: [] };
+    for (const plane of [0, 1]) await appendTerrainPlane(cache, map, plane, baseHeight, geometry);
+    return {
+      id: `scene-${regionId}-terrain`,
+      payload: { ...geometry, color: 0xffffff, animations: {} },
+    };
+  }
+
+  async function appendTerrainPlane(cache, map, plane, baseHeight, geometry) {
+    const { positions, indices, colors, faceColors, alphas } = geometry;
+    const tiles = map?.tiles?.[plane] ?? [];
+    const tileHeights = map?.getHeights?.()?.[plane] ?? [];
     const underlays = new Map();
     const overlays = new Map();
     // Port of SceneRegionBuilder.calcTileBrightness. The cache format supplies
@@ -349,24 +353,22 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
           tileColors.overlay == null
             ? null
             : cornerBrightness.map((brightness) => adjustOverlayBrightness(tileColors.overlay, brightness));
-        // Map heights are absolute cache elevations, but individual scene objects
-        // are currently positioned in region-local space. Normalize against the
-        // region base until object terrain-height placement is compiled too.
-        // CacheRenderInstancedModel already supplies the scene's floor origin;
-        // retain only the terrain height relative to this region's base elevation.
+        // Use the same region origin and tile corners as object placement.
+        // Only the coordinate conversion reflects north/south, not height lookup.
         const heightAt = (cornerX, cornerY) => ((tileHeights[cornerX]?.[cornerY] ?? baseHeight) - baseHeight) / 128;
         const fullOverlay = tile?.overlayId > 0 && Math.floor(tile.overlayPath ?? 0) === 0;
         // Kotlin's overlayPath==1 TilePaint branch is overlay-only. A transparent
         // 0xFF00FF overlay therefore leaves no terrain face at all, even if the
         // cache tile also carries an underlay ID.
         if (fullOverlay && tileColors.transparentOverlay) continue;
-        const shape = fullOverlay ? 1 : Math.max(1, Math.min(13, Math.floor(tile.overlayPath ?? 0) + 1));
-        // Object locations are mirrored onto trainer Y. Mirror the tile geometry
-        // too; reflection reverses overlay-path rotation.
-        const rotation = -(tile.overlayRotation ?? 0) & 3;
-        const rotationShape = TILE_ROTATION_SHAPES[shape - 1];
-        const pathShape = TILE_PATH_SHAPES[shape - 1];
-        const cornerHeight = [heightAt(x, y - 1), heightAt(x + 1, y - 1), heightAt(x + 1, y), heightAt(x, y)];
+        // Shape 0 is an underlay-only tile; overlay paths select shapes 1..12.
+        const shape = tile?.overlayId > 0 ? Math.max(1, Math.min(12, Math.floor(tile.overlayPath ?? 0) + 1)) : 0;
+        // Apply the cache rotation in cache space. vertexForShape reflects the
+        // finished geometry onto trainer Y, so do not reverse rotation twice.
+        const rotation = (tile.overlayRotation ?? 0) & 3;
+        const rotationShape = TILE_ROTATION_SHAPES[shape];
+        const pathShape = TILE_PATH_SHAPES[shape];
+        const cornerHeight = [heightAt(x, y), heightAt(x + 1, y), heightAt(x + 1, y + 1), heightAt(x, y + 1)];
         const vertexForShape = (value) => {
           let v = value;
           if ((v & 1) === 0 && v <= 8) v = ((v - rotation * 2 - 1) & 7) + 1;
@@ -421,6 +423,8 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
           const rotateIndex = (index) => (index < 4 ? (index - rotation) & 3 : index);
           const useOverlay = fullOverlay || pathShape[i] === 1;
           const layerHsl = useOverlay ? overlayHsl : underlayHsl;
+          // Partial overlays must not fill an absent underlay with white faces.
+          if (layerHsl == null) continue;
           const a = vertices[rotateIndex(pathShape[i + 1])],
             b = vertices[rotateIndex(pathShape[i + 2])],
             c = vertices[rotateIndex(pathShape[i + 3])];
@@ -445,10 +449,6 @@ function createDecoder({ RSCache, IndexType, ConfigType, ModelGroup }) {
           }
         }
       }
-    return {
-      id: `scene-${regionId}-terrain`,
-      payload: { positions, indices, colors, faceColors, alphas, color: 0xffffff, animations: {} },
-    };
   }
 
   async function sceneAssets(cache, regionId, assets, scenes, hooks) {
