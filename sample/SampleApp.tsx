@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ControlPanelController,
   CACHE_ASSETS,
@@ -140,6 +140,37 @@ function SampleSidebarContents({ onLoadoutToggle }: { onLoadoutToggle: () => voi
   );
 }
 
+function PlayerPositionDebug() {
+  const trainer = useTrainerContext();
+  const coordinates = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let frame: number;
+    const updateCoordinates = () => {
+      const player = trainer.getSnapshot().player;
+      if (coordinates.current) {
+        coordinates.current.textContent = player
+          ? `Player position: ${player.location.x}, ${player.location.y}`
+          : "Player position: loading";
+      }
+      frame = requestAnimationFrame(updateCoordinates);
+    };
+    updateCoordinates();
+    return () => cancelAnimationFrame(frame);
+  }, [trainer]);
+
+  return (
+    <div
+      ref={coordinates}
+      style={{
+        position: "absolute", top: 8, left: 8, zIndex: 10000,
+        padding: "6px 8px", background: "#000c", color: "#0f0",
+        font: "14px monospace", pointerEvents: "none",
+      }}
+    />
+  );
+}
+
 export function SampleApp() {
   const [trainer] = useState(createTrainer);
   const [loading, setLoading] = useState<TrainerLoadingState>();
@@ -151,6 +182,7 @@ export function SampleApp() {
       onLoadingStateChange={setLoading}
     >
       <GameOverlay>
+        {new URLSearchParams(window.location.search).get("scene-debug") === "1" && <PlayerPositionDebug />}
         <TrainerLoadingSplash state={loading} />
         <LoadoutManager
           loadouts={loadoutTemplates}

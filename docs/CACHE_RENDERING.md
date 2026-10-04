@@ -96,7 +96,7 @@ preserve. It intentionally omits discarded implementation experiments.
 
 ## Coordinate conventions
 
-- SDK world coordinates use X east and Y north. Three.js uses X east and Z
+- SDK world coordinates use X east and Y south. Three.js uses X east and Z
   south, with Y vertical.
 - Render roots are positioned at `(location.x + size / 2, -0.49,
   location.y - size / 2)` and use the actor yaw convention established by
@@ -104,6 +104,30 @@ preserve. It intentionally omits discarded implementation experiments.
 - Cache model vertices are converted from cache units by `/ 128`; cache Y is
   negated into renderer vertical coordinates and cache Z is negated into the
   renderer's north/south axis.
+
+## Scene contours and apparent rotation errors
+
+- `osrscachereader`'s `MapDefinition.getHeights()` returns positive upward
+  elevations. Its raw model vertices still use Y downward. `rs-map-viewer`
+  uses negative terrain heights, consistent with raw model Y. These two
+  readers' heightmaps cannot be substituted in a contour formula unchanged.
+- `scene-contour.mts` negates reader elevations **before** integer bilinear
+  interpolation, then applies `originalY + sampledNegativeHeight +
+  positivePlacementHeight`. Negating after interpolation can change rounding.
+- Colosseum grandstand models `51308`, `51304`, and `51309` appeared to face
+  backwards because the old formula bent them against the terrain slope.
+  Their horizontal rotations were correct. Compare all XYZ coordinates after
+  contouring, not just raw model vertices, quarter-turn formulas, or X/Z.
+- Six actual placements, including all four orientations of object `52521`,
+  are covered by independently generated `rs-map-viewer` expectations in
+  `packages/osrs-sdk-assets/test/fixtures/grandstand-contours.json`.
+  See [the investigation record](CACHE_SCENE_ROTATION_TODO.md) for evidence,
+  coordinates, and debugging pitfalls.
+- When changing extractor source, run `npm run build:assets-tool` **before**
+  `npm run assets -- 2437`: the latter executes the built `dist/cli.js`.
+  Verify the browser's manifest version against the generated bundle before
+  judging a screenshot. Reader checkout edits, unlike extractor edits, are
+  loaded directly on the next extraction.
 
 ## Picking
 
