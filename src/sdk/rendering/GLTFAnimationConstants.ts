@@ -24,4 +24,6 @@ export enum PlayerAnimationIndices {
   VenatorBowWalk = 21,
   VenatorBowRun = 22,
   VenatorBowAttack = 23,
+  ZombieAxeSlash = 24,
+  ZombieAxeCrush = 25,
 }

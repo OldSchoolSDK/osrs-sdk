@@ -41,6 +41,8 @@ export const CACHE_ASSETS = {
     venatorBowWalk: { id: 9859 },
     venatorBowRun: { id: 9860 },
     venatorBowAttack: { id: 9858 },
+    zombieAxeSlash: { id: 7004 },
+    zombieAxeCrush: { id: 3852 },
   },
   items: {
     ahrimsRobeTop: { id: 4712 },
@@ -116,6 +118,7 @@ export const CACHE_ASSETS = {
     blackChinchompa: { id: 11959 },
     bowOfFaerdhinen: { id: 25865 },
     noxiousHalberd: { id: 29796 },
+    zombieAxe: { id: 28810 },
     bladeOfSaeldor: { id: 23995 },
     dragonClaws: { id: 13652 },
     avernicDefender: { id: 22322 },
@@ -165,6 +168,7 @@ export const CACHE_ASSETS = {
     blowpipeSpecial: { id: 800 },
     bowOfFaerdhinenAttack: { id: 1352 },
     meleeAttack: { id: 2524 },
+    baxeCrush: { id: 2497 },
     blowpipeAttack: { id: 2696 },
     twistedBowAttack: { id: 2702 },
     chinchompaAttack: { id: 2706 },
@@ -212,4 +216,6 @@ export const SEMANTIC_POSE_MAP = {
   21: CACHE_ASSETS.playerAnimations.venatorBowWalk,
   22: CACHE_ASSETS.playerAnimations.venatorBowRun,
   23: CACHE_ASSETS.playerAnimations.venatorBowAttack,
+  24: CACHE_ASSETS.playerAnimations.zombieAxeSlash,
+  25: CACHE_ASSETS.playerAnimations.zombieAxeCrush,
 };

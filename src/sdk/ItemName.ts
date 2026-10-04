@@ -75,6 +75,7 @@ export enum ItemName {
   FEROCIOUS_GLOVES = "Ferocious gloves",
   INFERNAL_CAPE = "Infernal cape",
   SUPER_COMBAT_POTION = "Super combat potion",
+  ZOMBIE_AXE = "Zombie axe",
   BLADE_OF_SAELDOR = "Blade of saeldor",
   NOXIOUS_HALBERD = "Noxious halberd",
   AVERNIC_DEFENDER = "Avernic defender",

@@ -32,6 +32,10 @@ import SwordChopImage from "../assets/images/attackstyles/swords/chop.png";
 import SwordSlashImage from "../assets/images/attackstyles/swords/slash.png";
 import SwordLungeImage from "../assets/images/attackstyles/swords/lunge.png";
 import SwordBlockImage from "../assets/images/attackstyles/swords/block.png";
+import AxeChopImage from "../assets/images/interface/attackstyles/axe/style_axe_chop.png";
+import AxeHackImage from "../assets/images/interface/attackstyles/axe/style_axe_hack.png";
+import AxeSmashImage from "../assets/images/interface/attackstyles/axe/style_axe_smash.png";
+import AxeBlockImage from "../assets/images/interface/attackstyles/axe/style_axe_block.png";
 import { XpDrop } from "./XpDrop";
 
 //https://oldschool.runescape.wiki/w/Weapons/Types
@@ -140,6 +144,12 @@ export class AttackStylesController {
       [AttackStyle.AGGRESSIVECRUSH]: ImageLoader.createImage(ScytheAggressiveCrushImage),
       [AttackStyle.DEFENSIVE]: ImageLoader.createImage(ScytheDefensiveImage),
     },
+    [AttackStyleTypes.AXE]: {
+      [AttackStyle.ACCURATE]: ImageLoader.createImage(AxeChopImage),
+      [AttackStyle.AGGRESSIVESLASH]: ImageLoader.createImage(AxeHackImage),
+      [AttackStyle.AGGRESSIVECRUSH]: ImageLoader.createImage(AxeSmashImage),
+      [AttackStyle.DEFENSIVE]: ImageLoader.createImage(AxeBlockImage),
+    },
     [AttackStyleTypes.SLASHSWORD]: {
       [AttackStyle.ACCURATE]: ImageLoader.createImage(SwordChopImage),
       [AttackStyle.AGGRESSIVESLASH]: ImageLoader.createImage(SwordSlashImage),
@@ -202,8 +212,11 @@ export class AttackStylesController {
     return this.stylesMap[weapon.attackStyleCategory()];
   }
 
-  getWeaponXpDrops(style: AttackStyle, damage: number, npcMultiplier: number): XpDrop[] {
-    return AttackStylesController.attackStyleXpType[style].map(({ skill, multiplier: skillMultiplier }) => {
+  getWeaponXpDrops(style: AttackStyle, damage: number, npcMultiplier: number, category?: AttackStyleTypes): XpDrop[] {
+    const xpTypes = category === AttackStyleTypes.AXE && style === AttackStyle.ACCURATE
+      ? MELEE_ACCURATE
+      : AttackStylesController.attackStyleXpType[style];
+    return xpTypes.map(({ skill, multiplier: skillMultiplier }) => {
       return new XpDrop(skill, damage * skillMultiplier * npcMultiplier, damage);
     });
   }
