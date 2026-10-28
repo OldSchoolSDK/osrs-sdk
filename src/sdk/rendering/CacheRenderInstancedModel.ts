@@ -9,7 +9,8 @@ import { Model } from "./Model";
 import { applyMayaFrame, applyRawFrame, sampleAnimation } from "./utils/animations";
 import { cachedPayload, mergePayloads } from "./utils/payloadUtils";
 import { CLIENT_CYCLES_PER_SECOND } from "../utils/constants";
-import { cacheColorsToRgba, normalizeCacheAlpha } from "./utils/colors";
+import { cacheAlphaToOpacity, cacheColorsToRgba, normalizeCacheAlpha } from "./utils/colors";
+import { enableVertexAlpha, needsVertexAlpha } from "./utils/vertexAlpha";
 
 // Animated instances cannot all mutate one shared geometry when their start
 // delays differ. A pool therefore owns one pre-posed geometry per cache frame;
@@ -176,6 +177,12 @@ export class CacheRenderInstancedModel implements Model {
         };
         // Cache payload colours already contain the game client's model lighting.
         const material = new THREE.MeshBasicMaterial(materialOptions);
+        const fades = needsVertexAlpha(payload);
+        if (fades) {
+          enableVertexAlpha(material);
+          // A depth write from one faded fragment hides the smoke behind it.
+          if (this.reference.kind === "spotAnim") material.depthWrite = false;
+        }
         const recolor = placement?.recolor ?? {};
         const frameData = posedFrames(
           payload.positions,
@@ -193,6 +200,12 @@ export class CacheRenderInstancedModel implements Model {
           if (payload.colors && payload.colors.length * 3 === payload.positions.length) {
             const colors = cacheColorsToRgba(payload.colors, frame.alphas, spotPayload?.faceColors, recolor);
             geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 4));
+          }
+          if (fades) {
+            geometry.setAttribute(
+              "cacheAlpha",
+              new THREE.Float32BufferAttribute(Array.from(frame.alphas, cacheAlphaToOpacity), 1),
+            );
           }
           geometry.setIndex(payload.indices ?? []);
           geometry.computeVertexNormals();
